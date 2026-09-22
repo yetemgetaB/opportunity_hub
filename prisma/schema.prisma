@@ -1,0 +1,550 @@
+// ============================================================================
+// CAMPUS OPPORTUNITY HUB — PRISMA ORM SCHEMA SPECIFICATION
+// Author: APEX Hackathon Backend 2 (Database Architecture & Foundation)
+// Authoritative Migration: supabase/migrations/20260919000001_initial_schema_v2_1.sql
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// 1. ENUMERATED TYPES (12 Core PostgreSQL ENUMs)
+// ============================================================================
+
+enum UserRole {
+  STUDENT
+  ORGANIZATION
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum OrgVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+
+  @@map("org_verification_status")
+}
+
+enum OpportunityType {
+  INTERNSHIP
+  JOB
+  SCHOLARSHIP
+  HACKATHON
+  COMPETITION
+  TRAINING
+  VOLUNTEER
+  FELLOWSHIP
+  OTHER
+
+  @@map("opportunity_type")
+}
+
+enum OpportunityStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PUBLISHED
+  CLOSED
+  REJECTED
+
+  @@map("opportunity_status")
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  SHORTLISTED
+  REJECTED
+  ACCEPTED
+  WITHDRAWN
+
+  @@map("application_status")
+}
+
+enum SkillRequirementLevel {
+  REQUIRED
+  PREFERRED
+
+  @@map("skill_requirement_level")
+}
+
+enum ExperienceType {
+  INTERNSHIP
+  JOB
+  VOLUNTEER
+  PROJECT
+  RESEARCH
+  OTHER
+
+  @@map("experience_type")
+}
+
+enum AssessmentStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+
+  @@map("assessment_status")
+}
+
+enum AssessmentQuestionType {
+  TEXT
+  MULTIPLE_CHOICE
+
+  @@map("assessment_question_type")
+}
+
+enum AssessmentAttemptStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+
+  @@map("assessment_attempt_status")
+}
+
+enum ReportReason {
+  SPAM
+  SCAM_OR_FRAUD
+  INAPPROPRIATE_CONTENT
+  HARASSMENT
+  MISLEADING
+  OTHER
+
+  @@map("report_reason")
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+
+  @@map("report_status")
+}
+
+// ============================================================================
+// 2. CORE IDENTITY & ACCESS MODELS
+// ============================================================================
+
+/// Application-level user profile & role representation (1:1 with auth.users)
+model User {
+  id         String    @id @db.Uuid
+  firstName  String    @map("first_name")
+  middleName String?   @map("middle_name")
+  lastName   String    @map("last_name")
+  role       UserRole  @map("role")
+  avatarUrl  String?   @map("avatar_url")
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  // Relations
+  studentProfile          StudentProfile?
+  organizationMemberships OrganizationMember[]
+  evaluatedResults        AssessmentResult[]   @relation("HumanEvaluator")
+  notifications           Notification[]
+  filedReports            Report[]             @relation("Reporter")
+  resolvedReports         Report[]             @relation("ReportResolver")
+  targetedReports         Report[]             @relation("ReportedUser")
+
+  @@index([role], map: "idx_users_role")
+  @@map("users")
+}
+
+/// Academic profile, discovery preferences, and career goals for students
+model StudentProfile {
+  userId         String   @id @map("user_id") @db.Uuid
+  academicYear   Int      @map("academic_year")
+  university     String   @map("university")
+  fieldOfStudy   String   @map("field_of_study")
+  location       String?  @map("location")
+  careerGoals    String?  @map("career_goals")
+  careerGoalTags String[] @default([]) @map("career_goal_tags")
+  interests      String[] @default([]) @map("interests")
+  isDiscoverable Boolean  @default(true) @map("is_discoverable")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills             StudentSkill[]
+  experiences        Experience[]
+  cvs                CV[]
+  savedOpportunities SavedOpportunity[]
+  applications       Application[]
+
+  @@map("student_profiles")
+}
+
+/// Standardized master skills catalog
+model Skill {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique(map: "uq_skills_name")
+  category    String   @map("category")
+  description String?  @map("description")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  studentSkills     StudentSkill[]
+  opportunitySkills OpportunitySkill[]
+
+  @@index([category], map: "idx_skills_category")
+  @@map("skills")
+}
+
+/// Student proficiency and experience mappings for standardized skills
+model StudentSkill {
+  studentProfileId  String   @map("student_profile_id") @db.Uuid
+  skillId           String   @map("skill_id") @db.Uuid
+  proficiency       Int      @map("proficiency")
+  yearsOfExperience Decimal? @map("years_of_experience") @db.Decimal(3, 1)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [userId], onDelete: Cascade)
+  skill          Skill          @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@id([studentProfileId, skillId])
+  @@index([skillId], map: "idx_student_skills_skill_id")
+  @@map("student_skills")
+}
+
+/// Chronological student work, project, research, and volunteer history
+model Experience {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentProfileId String         @map("student_profile_id") @db.Uuid
+  title            String         @map("title")
+  organizationName String         @map("organization_name")
+  experienceType   ExperienceType @map("experience_type")
+  startDate        DateTime       @map("start_date") @db.Date
+  endDate          DateTime?      @map("end_date") @db.Date
+  location         String?        @map("location")
+  description      String?        @map("description")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [userId], onDelete: Cascade)
+
+  @@index([studentProfileId, startDate(sort: Desc)], map: "idx_experiences_student")
+  @@map("experiences")
+}
+
+/// Student uploaded CV / Resume files in Supabase Storage
+model CV {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentProfileId String   @map("student_profile_id") @db.Uuid
+  fileName         String   @map("file_name")
+  filePath         String   @map("file_path")
+  fileType         String   @map("file_type")
+  fileSize         Int      @map("file_size")
+  isDefault        Boolean  @default(false) @map("is_default")
+  uploadedAt       DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+
+  // Relations
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [userId], onDelete: Cascade)
+
+  @@index([studentProfileId], map: "idx_cvs_student")
+  @@map("cvs")
+}
+
+/// Institutional entity profile and verification status
+model Organization {
+  id                 String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String                @unique(map: "uq_organizations_name")
+  description        String?               @map("description")
+  websiteUrl         String?               @map("website_url")
+  contactEmail       String?               @map("contact_email")
+  contactPhone       String?               @map("contact_phone")
+  verificationStatus OrgVerificationStatus @default(PENDING) @map("verification_status")
+  createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?             @map("deleted_at") @db.Timestamptz(6)
+
+  // Relations
+  members         OrganizationMember[]
+  opportunities   Opportunity[]
+  targetedReports Report[]             @relation("ReportedOrganization")
+
+  @@map("organizations")
+}
+
+/// Organization representative membership association (strictly 1 member in MVP)
+model OrganizationMember {
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, userId])
+  @@unique([organizationId], map: "uq_org_members_single_member_mvp")
+  @@index([userId], map: "idx_org_members_user_id")
+  @@map("organization_members")
+}
+
+// ============================================================================
+// 3. OPPORTUNITY & APPLICATION ENGINE
+// ============================================================================
+
+/// Campus opportunities (jobs, internships, scholarships, hackathons, etc.)
+model Opportunity {
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String            @map("organization_id") @db.Uuid
+  title               String            @map("title")
+  description         String            @map("description")
+  opportunityType     OpportunityType   @map("opportunity_type")
+  status              OpportunityStatus @default(DRAFT) @map("status")
+  location            String?           @map("location")
+  isRemote            Boolean           @default(false) @map("is_remote")
+  applicationDeadline DateTime?         @map("application_deadline") @db.Timestamptz(6)
+  minimumAcademicYear Int?              @map("minimum_academic_year")
+  maximumAcademicYear Int?              @map("maximum_academic_year")
+  minimumGpa          Decimal?          @map("minimum_gpa") @db.Decimal(3, 2)
+  eligibleFields      String[]          @default([]) @map("eligible_fields")
+  compensation        String?           @map("compensation")
+  applicationUrl      String?           @map("application_url")
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  publishedAt         DateTime?         @map("published_at") @db.Timestamptz(6)
+  deletedAt           DateTime?         @map("deleted_at") @db.Timestamptz(6)
+
+  // Relations
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  skills          OpportunitySkill[]
+  savedByStudents SavedOpportunity[]
+  applications    Application[]
+  assessment      Assessment?
+  targetedReports Report[]           @relation("ReportedOpportunity")
+
+  @@map("opportunities")
+}
+
+/// Junction mapping required and preferred skills to opportunities
+model OpportunitySkill {
+  opportunityId    String                @map("opportunity_id") @db.Uuid
+  skillId          String                @map("skill_id") @db.Uuid
+  requirementLevel SkillRequirementLevel @default(REQUIRED) @map("requirement_level")
+
+  // Relations
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  skill       Skill       @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@id([opportunityId, skillId])
+  @@index([skillId], map: "idx_opp_skills_skill_id")
+  @@map("opportunity_skills")
+}
+
+/// Student bookmarks for saving interesting opportunities
+model SavedOpportunity {
+  studentProfileId String   @map("student_profile_id") @db.Uuid
+  opportunityId    String   @map("opportunity_id") @db.Uuid
+  savedAt          DateTime @default(now()) @map("saved_at") @db.Timestamptz(6)
+
+  // Relations
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [userId], onDelete: Cascade)
+  opportunity    Opportunity    @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@id([studentProfileId, opportunityId])
+  @@index([studentProfileId, savedAt(sort: Desc)], map: "idx_saved_opps_student")
+  @@map("saved_opportunities")
+}
+
+/// Formal student application submissions
+model Application {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentProfileId String            @map("student_profile_id") @db.Uuid
+  opportunityId    String            @map("opportunity_id") @db.Uuid
+  status           ApplicationStatus @default(SUBMITTED) @map("status")
+  appliedAt        DateTime          @default(now()) @map("applied_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  studentProfile    StudentProfile     @relation(fields: [studentProfileId], references: [userId], onDelete: Restrict)
+  opportunity       Opportunity        @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  assessmentAttempt AssessmentAttempt?
+
+  @@unique([studentProfileId, opportunityId], map: "uq_applications_student_opportunity")
+  @@index([studentProfileId, status], map: "idx_applications_student_status")
+  @@index([opportunityId, status], map: "idx_applications_opp_status")
+  @@map("applications")
+}
+
+// ============================================================================
+// 4. ASSESSMENT PIPELINE (Screening & Scoring)
+// ============================================================================
+
+/// Opportunity screening assessment instrument
+model Assessment {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  opportunityId    String           @unique(map: "uq_assessments_opportunity_id") @map("opportunity_id") @db.Uuid
+  title            String           @map("title")
+  instructions     String?          @map("instructions")
+  timeLimitMinutes Int?             @map("time_limit_minutes")
+  status           AssessmentStatus @default(DRAFT) @map("status")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  opportunity Opportunity          @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  questions   AssessmentQuestion[]
+  attempts    AssessmentAttempt[]
+
+  @@map("assessments")
+}
+
+/// Assessment questions (Multiple Choice or Text)
+model AssessmentQuestion {
+  id                 String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assessmentId       String                 @map("assessment_id") @db.Uuid
+  questionText       String                 @map("question_text")
+  questionType       AssessmentQuestionType @map("question_type")
+  questionOrder      Int                    @map("question_order")
+  isAiGenerated      Boolean                @default(false) @map("is_ai_generated")
+  options            Json?                  @map("options")
+  referenceAnswer    String?                @map("reference_answer")
+  evaluationGuidance String?                @map("evaluation_guidance")
+  requirementLevel   SkillRequirementLevel  @default(REQUIRED) @map("requirement_level")
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  assessment Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  answers    AssessmentAnswer[]
+
+  @@unique([assessmentId, questionOrder], map: "uq_assessment_questions_order")
+  @@unique([id, assessmentId], map: "uq_assessment_questions_id_assessment")
+  @@map("assessment_questions")
+}
+
+/// Candidate single test execution instance per application
+model AssessmentAttempt {
+  id            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId String                  @unique(map: "uq_assessment_attempts_app") @map("application_id") @db.Uuid
+  assessmentId  String                  @map("assessment_id") @db.Uuid
+  status        AssessmentAttemptStatus @default(NOT_STARTED) @map("status")
+  startedAt     DateTime?               @map("started_at") @db.Timestamptz(6)
+  submittedAt   DateTime?               @map("submitted_at") @db.Timestamptz(6)
+  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  application Application        @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  assessment  Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  answers     AssessmentAnswer[]
+  result      AssessmentResult?
+
+  @@unique([id, assessmentId], map: "uq_assessment_attempts_id_assessment")
+  @@index([assessmentId, status], map: "idx_attempts_assessment")
+  @@map("assessment_attempts")
+}
+
+/// Candidate answer responses (enforces diamond integrity)
+model AssessmentAnswer {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assessmentAttemptId  String   @map("assessment_attempt_id") @db.Uuid
+  assessmentQuestionId String   @map("assessment_question_id") @db.Uuid
+  assessmentId         String   @map("assessment_id") @db.Uuid
+  answerText           String   @map("answer_text")
+  answeredAt           DateTime @default(now()) @map("answered_at") @db.Timestamptz(6)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations (Diamond composite foreign keys)
+  attempt  AssessmentAttempt  @relation(fields: [assessmentAttemptId, assessmentId], references: [id, assessmentId], onDelete: Cascade, map: "fk_answers_attempt_assessment")
+  question AssessmentQuestion @relation(fields: [assessmentQuestionId, assessmentId], references: [id, assessmentId], onDelete: Restrict, map: "fk_answers_question_assessment")
+
+  @@unique([assessmentAttemptId, assessmentQuestionId], map: "uq_answers_attempt_question")
+  @@index([assessmentAttemptId], map: "idx_answers_attempt")
+  @@index([assessmentQuestionId], map: "idx_answers_question")
+  @@map("assessment_answers")
+}
+
+/// Assessment evaluation outcome (AI evaluation + human recruiter review + authoritative score)
+model AssessmentResult {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assessmentAttemptId String    @unique(map: "uq_assessment_results_attempt") @map("assessment_attempt_id") @db.Uuid
+  aiScore             Int?      @map("ai_score")
+  aiRequirementMatch  String?   @map("ai_requirement_match")
+  aiSkillAnalysis     Json?     @map("ai_skill_analysis")
+  aiStrengths         String[]  @default([]) @map("ai_strengths")
+  aiGaps              String[]  @default([]) @map("ai_gaps")
+  aiSummary           String?   @map("ai_summary")
+  aiEvaluatedAt       DateTime? @map("ai_evaluated_at") @db.Timestamptz(6)
+  humanScore          Int?      @map("human_score")
+  humanFeedback       String?   @map("human_feedback")
+  humanEvaluatorId    String?   @map("human_evaluator_id") @db.Uuid
+  humanEvaluatedAt    DateTime? @map("human_evaluated_at") @db.Timestamptz(6)
+  finalScore          Int       @map("final_score")
+  finalSummary        String    @map("final_summary")
+  finalStrengths      String[]  @default([]) @map("final_strengths")
+  finalGaps           String[]  @default([]) @map("final_gaps")
+  isFinalApproved     Boolean   @default(false) @map("is_final_approved")
+  approvedAt          DateTime? @map("approved_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  attempt        AssessmentAttempt @relation(fields: [assessmentAttemptId], references: [id], onDelete: Cascade)
+  humanEvaluator User?             @relation("HumanEvaluator", fields: [humanEvaluatorId], references: [id], onDelete: SetNull)
+
+  @@map("assessment_results")
+}
+
+// ============================================================================
+// 5. NOTIFICATIONS & PLATFORM MODERATION
+// ============================================================================
+
+/// In-app user notifications
+model Notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String   @map("title")
+  content   String   @map("content")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+/// Content moderation & platform abuse reports (Exclusive ARC)
+model Report {
+  id                     String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId             String       @map("reporter_id") @db.Uuid
+  reportedOpportunityId  String?      @map("reported_opportunity_id") @db.Uuid
+  reportedOrganizationId String?      @map("reported_organization_id") @db.Uuid
+  reportedUserId         String?      @map("reported_user_id") @db.Uuid
+  reason                 ReportReason @map("reason")
+  description            String       @map("description")
+  status                 ReportStatus @default(PENDING) @map("status")
+  adminNotes             String?      @map("admin_notes")
+  resolvedBy             String?      @map("resolved_by") @db.Uuid
+  resolvedAt             DateTime?    @map("resolved_at") @db.Timestamptz(6)
+  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  reporter             User          @relation("Reporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  reportedOpportunity  Opportunity?  @relation("ReportedOpportunity", fields: [reportedOpportunityId], references: [id], onDelete: Cascade)
+  reportedOrganization Organization? @relation("ReportedOrganization", fields: [reportedOrganizationId], references: [id], onDelete: Cascade)
+  reportedUser         User?         @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  resolver             User?         @relation("ReportResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([reporterId], map: "idx_reports_reporter_id")
+  @@map("reports")
+}

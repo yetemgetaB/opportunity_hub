@@ -104,6 +104,21 @@ AssessmentResult (Backend 2 Schema / Backend 3 AI Scoring)
 - **Question Options Format:** Multiple-choice options are stored within `assessment_questions.options JSONB` validated by `chk_questions_mcq_options`.
 - **Candidate Privacy View:** The security-definer view `candidate_assessment_questions` projects safe question attributes to applicants while concealing `reference_answer` and `evaluation_guidance`.
 
+### 3.5 Day 3 & Day 4 Database & Identity Persistence Integration (Completed)
+- **Database Engine & ORM:** Supabase PostgreSQL 15+ mapped via Prisma ORM (`prisma/schema.prisma`).
+- **Authoritative DDL Source:** `supabase/migrations/20260919000001_initial_schema_v2_1.sql` remains the single source of truth for all tables, constraints, indexes, triggers, and 47 RLS policies. `prisma db push` must NOT be run against production/staging databases to avoid dropping DB-level security triggers or views.
+- **Connection Configuration:**
+  - `DATABASE_URL`: Connection pooler endpoint (Supavisor/PgBouncer on port 6543) used by NestJS Prisma Client.
+  - `DIRECT_URL`: Direct PostgreSQL connection (port 5432) used for administrative migrations and schema inspection.
+  - Environment variables documented safely in [`.env.example`](../../.env.example).
+- **Identity & Role Architecture (Backend 1 Integration):**
+  - Supabase Auth (`auth.users`) owns authentication, passwords, tokens, and credentials.
+  - `public.users` stores application-level profile and authoritative platform role (`STUDENT`, `ORGANIZATION`, `ADMIN`).
+  - Mapping: `public.users.id` strictly matches `auth.users.id` (1:1 UUID).
+  - Data-access foundation for Backend 1: `UsersService.getRoleByAuthId(authUserId)` and `UsersRepository.findRoleByAuthId(authUserId)` allow instant lookup of application identity, status, and role for any authenticated Supabase JWT.
+  - Registration hook/creation: `UsersService.createApplicationUser(data)` securely persists the initial application user record without duplicating credentials or storing passwords.
+  - Privilege escalation guard: `trg_users_protect_role` DB trigger and NestJS service validation enforce that only platform administrators can alter user roles.
+
 ---
 
 ## 4. Backend 3 — AI, Scoring, Voice, & Admin
@@ -116,3 +131,4 @@ AssessmentResult (Backend 2 Schema / Backend 3 AI Scoring)
 - **Platform Administration:** Administrative moderation workflows (`reports` review and resolution), verification of new organizations, and platform governance.
 
 *Detailed implementation documentation will be added when Backend 3 integrates their work into the shared repository.*
+
