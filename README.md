@@ -1,4 +1,4 @@
-# Campus Opportunity Hub
+# Campus Opportunity HUB
 
 Campus Opportunity Hub is an APEX hackathon platform connecting university students with verified opportunities including internships, jobs, scholarships, hackathons, competitions, training programs, volunteer roles, and fellowships.
 
