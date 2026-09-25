@@ -5,6 +5,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { DatabaseModule } from './database/database.module';
 import { UsersModule } from './users/users.module';
 
+import { RecommendationsModule } from './recommendations/recommendations.module';
+import { AssessmentsModule } from './assessments/assessments.module';
+import { VoiceModule } from './voice/voice.module';
+import { AdminModule } from './admin/admin.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -15,6 +20,10 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     DatabaseModule,
     UsersModule,
+    RecommendationsModule,
+    AssessmentsModule,
+    VoiceModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
