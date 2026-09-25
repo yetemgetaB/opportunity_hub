@@ -11,13 +11,25 @@ Security in the **Campus Opportunity Hub** is a shared system concern across the
 
 | Security Domain | Scope & Responsibility | Primary Role | Status |
 | :--- | :--- | :--- | :--- |
-| **Authentication & Sessions** | Supabase Auth, JWT validation, token refresh, account lockout, session revocation. | Backend 1 | *To be documented when Backend 1 integrates their work.* |
+| **Authentication & Sessions** | Supabase Auth, JWT validation, token refresh, account lockout, session revocation. | Backend 1 | **Implemented in NestJS Auth Foundation** |
 | **Database Row-Level Security** | PostgreSQL RLS policies across all 19 tables, database constraints, helper functions, candidate privacy views. | Backend 2 | **Implemented in shared schema v2.1** |
 | **Platform Moderation & AI Auth** | Admin privileges, AI execution credentials, voice API tokens, report resolution workflows. | Backend 3 | *To be documented when Backend 3 integrates their work.* |
 
 ---
 
-## 2. Database Security Functions (Shared Schema v2.1)
+## 2. API Authorization & Database Security Boundary (Model A Architecture)
+
+1. **Public Registration Role Scope:** Public registration accepts only `STUDENT` and `ORGANIZATION`.
+2. **ADMIN Self-Registration Prevention:** `ADMIN` cannot be self-registered through the NestJS public registration endpoint (`POST /api/v1/auth/register`).
+3. **Primary Authorization Boundary:** NestJS guards, DTOs, and controller checks serve as the primary authorization boundary for all Prisma-backed API requests.
+4. **Prisma Privileged Connection:** Prisma connects to PostgreSQL using the privileged `postgres` superuser/owner role (`rolbypassrls = true`), which bypasses PostgreSQL Row-Level Security (RLS).
+5. **Database Trigger Scope:** Database trigger `trg_users_protect_role` enforces role protection for direct PostgREST sessions, but because `auth.uid()` is `NULL` during Prisma queries, it does not independently distinguish privileged Prisma `INSERT` operations.
+6. **ADMIN Account Provisioning:** `ADMIN` accounts must currently be provisioned through a trusted administrative or database seed process.
+7. **Future Scope:** Caller-aware database authorization (propagating JWT claims into PostgreSQL sessions) may be evaluated in future iterations but is out of scope for the current architecture.
+
+---
+
+## 3. Database Security Functions (Shared Schema v2.1)
 
 The shared schema implements security-definer helper functions to execute permission checks cleanly without recursive RLS lookups:
 
@@ -37,7 +49,7 @@ The shared schema implements security-definer helper functions to execute permis
 
 ---
 
-## 3. Row-Level Security Matrix (Shared Database v2.1)
+## 4. Row-Level Security Matrix (Shared Database v2.1)
 
 Row-Level Security is enabled on all 19 database tables (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY;`).
 
