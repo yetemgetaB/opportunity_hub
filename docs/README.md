@@ -48,3 +48,7 @@ Documentation is organized by architectural concern rather than personal ownersh
 ### 6. Formal Milestone Deliverables
 - [Campus-Opportunity-Hub-Database-Design-Final.docx](deliverables/Campus-Opportunity-Hub-Database-Design-Final.docx) — Audited Release v2.1 formal database design deliverable prepared for the hackathon milestone.
 - [Campus-Opportunity-Hub-Database-Design-Day1-v1.1.docx](deliverables/Campus-Opportunity-Hub-Database-Design-Day1-v1.1.docx) — Day 1 Architecture Milestone submission deliverable.
+
+### 7. Engineering Reports & Logs
+- [Day 3 & 4 Backend Foundation Report](reports/day-3-4-backend-foundation.md) — Comprehensive technical report covering NestJS setup, Supabase PostgreSQL deployment, Prisma integration, user persistence, and v2.2 security hardening.
+
