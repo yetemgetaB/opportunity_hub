@@ -1,4 +1,8 @@
-import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
 
@@ -55,7 +59,7 @@ describe('RolesGuard', () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  it('should allow a user with the required role', async () => {
+  it('should allow ADMIN access to an ADMIN-protected route', async () => {
     mockReflector.getAllAndOverride.mockReturnValue([
       UserRole.ADMIN,
     ]);
@@ -76,7 +80,28 @@ describe('RolesGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('should allow a STUDENT when STUDENT is required', async () => {
+  it('should reject STUDENT access to an ADMIN-protected route', async () => {
+    mockReflector.getAllAndOverride.mockReturnValue([
+      UserRole.ADMIN,
+    ]);
+
+    mockUsersService.getRoleByAuthId.mockResolvedValue({
+      id: 'student-123',
+      role: UserRole.STUDENT,
+      isActive: true,
+      isDeleted: false,
+    });
+
+    await expect(
+      guard.canActivate(
+        createContext({
+          id: 'student-123',
+        }),
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('should allow STUDENT access to a STUDENT-protected route', async () => {
     mockReflector.getAllAndOverride.mockReturnValue([
       UserRole.STUDENT,
     ]);
@@ -97,7 +122,7 @@ describe('RolesGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('should allow an ORGANIZATION when ORGANIZATION is required', async () => {
+  it('should allow ORGANIZATION access to an ORGANIZATION-protected route', async () => {
     mockReflector.getAllAndOverride.mockReturnValue([
       UserRole.ORGANIZATION,
     ]);
@@ -116,27 +141,6 @@ describe('RolesGuard', () => {
     );
 
     expect(result).toBe(true);
-  });
-
-  it('should reject a user with the wrong role', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue([
-      UserRole.ADMIN,
-    ]);
-
-    mockUsersService.getRoleByAuthId.mockResolvedValue({
-      id: 'student-123',
-      role: UserRole.STUDENT,
-      isActive: true,
-      isDeleted: false,
-    });
-
-    await expect(
-      guard.canActivate(
-        createContext({
-          id: 'student-123',
-        }),
-      ),
-    ).rejects.toThrow(ForbiddenException);
   });
 
   it('should reject an inactive user', async () => {

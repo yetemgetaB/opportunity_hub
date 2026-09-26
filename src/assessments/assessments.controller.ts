@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Param,
   UseGuards,
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
@@ -10,7 +11,7 @@ import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 
-@Controller('assessments')
+@Controller('organizations/applicants')
 export class AssessmentsController {
   constructor(
     private readonly assessmentsService: AssessmentsService,
@@ -18,10 +19,11 @@ export class AssessmentsController {
 
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZATION)
-  @Get()
-  getAssessments() {
+  @Get(':id/assessment')
+  getApplicantAssessment(@Param('id') id: string) {
     return {
-      message: 'Organization assessment endpoint is protected.',
+      message: 'Organization applicant assessment endpoint is protected.',
+      applicantId: id,
       role: UserRole.ORGANIZATION,
     };
   }

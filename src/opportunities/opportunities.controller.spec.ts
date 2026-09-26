@@ -1,19 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { VoiceController } from './voice.controller';
-import { VoiceService } from './voice.service';
+import { OpportunitiesController } from './opportunities.controller';
+import { OpportunitiesService } from './opportunities.service';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 
-describe('VoiceController', () => {
-  let controller: VoiceController;
+describe('OpportunitiesController', () => {
+  let controller: OpportunitiesController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [VoiceController],
+      controllers: [OpportunitiesController],
       providers: [
         {
-          provide: VoiceService,
+          provide: OpportunitiesService,
           useValue: {},
         },
       ],
@@ -28,7 +28,9 @@ describe('VoiceController', () => {
       })
       .compile();
 
-    controller = module.get<VoiceController>(VoiceController);
+    controller = module.get<OpportunitiesController>(
+      OpportunitiesController,
+    );
   });
 
   it('should be defined', () => {

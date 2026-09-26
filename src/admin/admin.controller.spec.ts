@@ -1,11 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
 
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
-import { UsersService } from '@/users/users.service';
 
 describe('AdminController', () => {
   let controller: AdminController;
@@ -14,29 +12,21 @@ describe('AdminController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminController],
       providers: [
-        AdminService,
         {
-          provide: SupabaseAuthGuard,
-          useValue: {
-            canActivate: jest.fn().mockReturnValue(true),
-          },
-        },
-        {
-          provide: RolesGuard,
-          useValue: {
-            canActivate: jest.fn().mockReturnValue(true),
-          },
-        },
-        {
-          provide: UsersService,
-          useValue: {},
-        },
-        {
-          provide: ConfigService,
+          provide: AdminService,
           useValue: {},
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(SupabaseAuthGuard)
+      .useValue({
+        canActivate: jest.fn(() => true),
+      })
+      .overrideGuard(RolesGuard)
+      .useValue({
+        canActivate: jest.fn(() => true),
+      })
+      .compile();
 
     controller = module.get<AdminController>(AdminController);
   });
