@@ -12,4 +12,4 @@ import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
   providers: [UsersRepository, UsersService, SupabaseAuthGuard],
   exports: [UsersRepository, UsersService, SupabaseAuthGuard],
 })
-export class UsersModule {}
+export class UsersModule {}

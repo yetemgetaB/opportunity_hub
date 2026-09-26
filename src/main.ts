@@ -12,7 +12,6 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 3000;
 
-  // Global prefix for API consistency per docs/api/api-conventions.md
   app.setGlobalPrefix('api/v1');
 
   // Single global validation pipe enforcing clean payloads and domain constraints

@@ -51,3 +51,4 @@ export class RegisterDto {
   })
   role: PublicRegisterRole;
 }
+
