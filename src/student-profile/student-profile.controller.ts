@@ -4,48 +4,49 @@ import {
   Get,
   Patch,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
-import { AuthenticatedRequest } from '../auth/guards/supabase-auth.guard';
+import { UserRole } from '@prisma/client';
 import { StudentProfileService } from './student-profile.service';
 import { CreateStudentProfileDto } from './dto/create-student-profile.dto';
 import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
-import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
+import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 @Controller('students/profile')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(SupabaseAuthGuard, RolesGuard)
+@Roles(UserRole.STUDENT)
 export class StudentProfileController {
   constructor(
     private readonly studentProfileService: StudentProfileService,
   ) {}
 
   @Get()
-  async getMyProfile(@Req() request: AuthenticatedRequest) {
-    return this.studentProfileService.getMyProfile(
-      request.user.id,
-    );
+  async getMyProfile(@CurrentUser('id') userId: string) {
+    return this.studentProfileService.getMyProfile(userId);
   }
 
   @Post()
   async createMyProfile(
-    @Req() request: AuthenticatedRequest,
+    @CurrentUser('id') userId: string,
     @Body() data: CreateStudentProfileDto,
   ) {
     return this.studentProfileService.createMyProfile(
-      request.user.id,
+      userId,
       data,
     );
   }
 
   @Patch()
   async updateMyProfile(
-  @Req() request: AuthenticatedRequest,
-  @Body() data: UpdateStudentProfileDto,
-) {
-  return this.studentProfileService.updateMyProfile(
-    request.user.id,
-    data,
-  );
-}
+    @CurrentUser('id') userId: string,
+    @Body() data: UpdateStudentProfileDto,
+  ) {
+    return this.studentProfileService.updateMyProfile(
+      userId,
+      data,
+    );
+  }
 }
