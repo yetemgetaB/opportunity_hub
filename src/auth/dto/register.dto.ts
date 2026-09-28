@@ -6,7 +6,10 @@ import {
   Matches,
   MinLength,
 } from 'class-validator';
-import { UserRole } from '@prisma/client';
+export enum PublicRegisterRole {
+  STUDENT = 'STUDENT',
+  ORGANIZATION = 'ORGANIZATION',
+}
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Please provide a valid email address.' })
@@ -31,7 +34,7 @@ export class RegisterDto {
   password: string;
 
   @IsString()
-  @MinLength(1)
+  @MinLength(1, { message: 'First name is required.' })
   firstName: string;
 
   @IsOptional()
@@ -39,11 +42,11 @@ export class RegisterDto {
   middleName?: string;
 
   @IsString()
-  @MinLength(1)
+  @MinLength(1, { message: 'Last name is required.' })
   lastName: string;
 
-  @IsEnum(UserRole, {
-    message: 'Role must be STUDENT, ORGANIZATION, or ADMIN.',
+  @IsEnum(PublicRegisterRole, {
+    message: 'Role must be either STUDENT or ORGANIZATION.',
   })
-  role: UserRole;
+  role: PublicRegisterRole;
 }
