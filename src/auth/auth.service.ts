@@ -20,10 +20,10 @@ export class AuthService {
 
   private getSupabaseClient(): SupabaseClient {
     const supabaseUrl =
-      this.configService.get<string>('supabaseUrl');
+      this.configService.get<string>('database.supabaseUrl');
 
     const supabaseAnonKey =
-      this.configService.get<string>('supabaseAnonKey');
+      this.configService.get<string>('database.supabaseAnonKey');
 
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new BadRequestException(
@@ -31,7 +31,10 @@ export class AuthService {
       );
     }
 
-    return createClient(supabaseUrl, supabaseAnonKey);
+    return createClient(
+      supabaseUrl,
+      supabaseAnonKey,
+    );
   }
 
   async register(data: RegisterDto) {

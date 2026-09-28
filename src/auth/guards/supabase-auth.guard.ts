@@ -9,12 +9,18 @@ import { createClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+  ) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+  async canActivate(
+    context: ExecutionContext,
+  ): Promise<boolean> {
+    const request =
+      context.switchToHttp().getRequest();
 
-    const authorization = request.headers.authorization;
+    const authorization =
+      request.headers.authorization;
 
     if (!authorization) {
       throw new UnauthorizedException(
@@ -22,7 +28,8 @@ export class SupabaseAuthGuard implements CanActivate {
       );
     }
 
-    const [type, token] = authorization.split(' ');
+    const [type, token] =
+      authorization.split(' ');
 
     if (type !== 'Bearer' || !token) {
       throw new UnauthorizedException(
@@ -31,10 +38,14 @@ export class SupabaseAuthGuard implements CanActivate {
     }
 
     const supabaseUrl =
-      this.configService.get<string>('supabaseUrl');
+      this.configService.get<string>(
+        'database.supabaseUrl',
+      );
 
     const supabaseAnonKey =
-      this.configService.get<string>('supabaseAnonKey');
+      this.configService.get<string>(
+        'database.supabaseAnonKey',
+      );
 
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new UnauthorizedException(
