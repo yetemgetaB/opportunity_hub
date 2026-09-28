@@ -23,6 +23,8 @@ import { AdminModule } from './admin/admin.module';
 
 import { OpportunitiesModule } from './opportunities/opportunities.module';
 
+import { OrganizationProfileModule } from './organization-profile/organization-profile.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -50,6 +52,7 @@ import { OpportunitiesModule } from './opportunities/opportunities.module';
     OpportunitiesModule,
 
     StudentProfileModule,
+    OrganizationProfileModule,
   ],
 })
 export class AppModule {}
