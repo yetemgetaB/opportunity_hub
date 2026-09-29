@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext, ForbiddenException, ValidationPipe } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
@@ -12,6 +16,7 @@ import { OrganizationProfileController } from '../../src/organization-profile/or
 import { CreateStudentProfileDto } from '../../src/student-profile/dto/create-student-profile.dto';
 import { UpdateStudentProfileDto } from '../../src/student-profile/dto/update-student-profile.dto';
 import { UpdateOrganizationProfileDto } from '../../src/organization-profile/dto/update-organization-profile.dto';
+import { PrismaService } from '../../src/prisma/prisma.service';
 
 describe('Profile Role Authorization & Validation Security Suite', () => {
   let rolesGuard: RolesGuard;
@@ -26,6 +31,7 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
       providers: [
         RolesGuard,
         Reflector,
+        PrismaService,
         {
           provide: UsersService,
           useValue: mockUsersService,
@@ -57,6 +63,7 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
   describe('StudentProfileController Role Matrix', () => {
     it('STUDENT role is allowed access to student profile', async () => {
       const authId = 'student-auth-id';
+
       mockUsersService.getRoleByAuthId.mockResolvedValue({
         id: authId,
         role: UserRole.STUDENT,
@@ -71,11 +78,13 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
       );
 
       const result = await rolesGuard.canActivate(context);
+
       expect(result).toBe(true);
     });
 
     it('ORGANIZATION role is rejected with 403 Forbidden for student profile', async () => {
       const authId = 'org-auth-id';
+
       mockUsersService.getRoleByAuthId.mockResolvedValue({
         id: authId,
         role: UserRole.ORGANIZATION,
@@ -89,11 +98,14 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
         StudentProfileController.prototype.getMyProfile,
       );
 
-      await expect(rolesGuard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(
+        rolesGuard.canActivate(context),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('ADMIN role is rejected with 403 Forbidden for student profile', async () => {
       const authId = 'admin-auth-id';
+
       mockUsersService.getRoleByAuthId.mockResolvedValue({
         id: authId,
         role: UserRole.ADMIN,
@@ -107,13 +119,16 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
         StudentProfileController.prototype.getMyProfile,
       );
 
-      await expect(rolesGuard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(
+        rolesGuard.canActivate(context),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
   describe('OrganizationProfileController Role Matrix', () => {
     it('ORGANIZATION role is allowed access to organization profile', async () => {
       const authId = 'org-auth-id';
+
       mockUsersService.getRoleByAuthId.mockResolvedValue({
         id: authId,
         role: UserRole.ORGANIZATION,
@@ -128,11 +143,13 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
       );
 
       const result = await rolesGuard.canActivate(context);
+
       expect(result).toBe(true);
     });
 
     it('STUDENT role is rejected with 403 Forbidden for organization profile', async () => {
       const authId = 'student-auth-id';
+
       mockUsersService.getRoleByAuthId.mockResolvedValue({
         id: authId,
         role: UserRole.STUDENT,
@@ -146,11 +163,14 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
         OrganizationProfileController.prototype.getMyProfile,
       );
 
-      await expect(rolesGuard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(
+        rolesGuard.canActivate(context),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('ADMIN role is rejected with 403 Forbidden for organization profile', async () => {
       const authId = 'admin-auth-id';
+
       mockUsersService.getRoleByAuthId.mockResolvedValue({
         id: authId,
         role: UserRole.ADMIN,
@@ -164,13 +184,16 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
         OrganizationProfileController.prototype.getMyProfile,
       );
 
-      await expect(rolesGuard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(
+        rolesGuard.canActivate(context),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
   describe('Inactive / Deleted User Handling', () => {
     it('Inactive STUDENT is rejected with 403 Forbidden', async () => {
       const authId = 'inactive-student-id';
+
       mockUsersService.getRoleByAuthId.mockResolvedValue({
         id: authId,
         role: UserRole.STUDENT,
@@ -184,11 +207,14 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
         StudentProfileController.prototype.getMyProfile,
       );
 
-      await expect(rolesGuard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(
+        rolesGuard.canActivate(context),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('Deleted ORGANIZATION user is rejected with 403 Forbidden', async () => {
       const authId = 'deleted-org-id';
+
       mockUsersService.getRoleByAuthId.mockResolvedValue({
         id: authId,
         role: UserRole.ORGANIZATION,
@@ -202,7 +228,9 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
         OrganizationProfileController.prototype.getMyProfile,
       );
 
-      await expect(rolesGuard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(
+        rolesGuard.canActivate(context),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -220,6 +248,7 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
       });
 
       const errors = await validate(dto);
+
       expect(errors.length).toBe(0);
     });
 
@@ -229,8 +258,11 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
       });
 
       const errors = await validate(dto);
+
       expect(errors.length).toBeGreaterThanOrEqual(3);
+
       const errorProps = errors.map((e) => e.property);
+
       expect(errorProps).toContain('academicYear');
       expect(errorProps).toContain('university');
       expect(errorProps).toContain('fieldOfStudy');
@@ -244,6 +276,7 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
       });
 
       const errors = await validate(dto);
+
       expect(errors.length).toBe(1);
       expect(errors[0].property).toBe('academicYear');
     });
@@ -255,6 +288,7 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
       });
 
       const errors = await validate(dto);
+
       expect(errors.length).toBe(0);
     });
 
@@ -268,6 +302,7 @@ describe('Profile Role Authorization & Validation Security Suite', () => {
       });
 
       const errors = await validate(dto);
+
       expect(errors.length).toBe(0);
     });
 
