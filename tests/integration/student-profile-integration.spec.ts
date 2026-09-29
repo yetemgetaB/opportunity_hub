@@ -1,6 +1,5 @@
 import {
   CanActivate,
-  ExecutionContext,
   NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -17,11 +16,11 @@ describe('Student Profile Integration (Controller -> Service -> Repository)', ()
   let controller: StudentProfileController;
 
   const mockSupabaseAuthGuard: CanActivate = {
-    canActivate: (_context: ExecutionContext) => true,
+    canActivate: () => true,
   };
 
   const mockRolesGuard: CanActivate = {
-    canActivate: (_context: ExecutionContext) => true,
+    canActivate: () => true,
   };
 
   const profiles = new Map<string, any>();
