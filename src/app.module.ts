@@ -11,6 +11,7 @@ import { DatabaseModule } from './database/database.module';
 import { UsersModule } from './users/users.module';
 
 import { AuthModule } from './auth/auth.module';
+import { StudentProfileModule } from './student-profile/student-profile.module';
 
 import { RecommendationsModule } from './recommendations/recommendations.module';
 
@@ -21,6 +22,8 @@ import { VoiceModule } from './voice/voice.module';
 import { AdminModule } from './admin/admin.module';
 
 import { OpportunitiesModule } from './opportunities/opportunities.module';
+
+import { OrganizationProfileModule } from './organization-profile/organization-profile.module';
 
 @Module({
   imports: [
@@ -47,6 +50,9 @@ import { OpportunitiesModule } from './opportunities/opportunities.module';
     AdminModule,
 
     OpportunitiesModule,
+
+    StudentProfileModule,
+    OrganizationProfileModule,
   ],
 })
 export class AppModule {}
