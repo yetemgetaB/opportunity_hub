@@ -2,6 +2,8 @@ import {
   Controller,
   Param,
   Post,
+  Get,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
@@ -11,6 +13,7 @@ import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 
+import { SearchOpportunityDto } from './dto/search-opportunity.dto';
 @Controller('opportunities')
 export class OpportunitiesController {
   constructor(
@@ -42,8 +45,7 @@ export class OpportunitiesController {
     };
   }
 
-  // ORGANIZATION
-  // POST /opportunities/:id/assessment
+ 
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZATION)
   @Post(':id/assessment')
@@ -54,4 +56,14 @@ export class OpportunitiesController {
       role: UserRole.ORGANIZATION,
     };
   }
+
+  @Get()
+    searchOpportunities(@Query() query: SearchOpportunityDto) {
+    return this.opportunitiesService.searchOpportunities(query);
+  }
+
+  @Get(':id')
+  getOpportunity(@Param('id') id: string) {
+  return this.opportunitiesService.getPublishedOpportunity(id);
+}
 }
