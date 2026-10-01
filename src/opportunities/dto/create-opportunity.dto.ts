@@ -3,30 +3,38 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsInt,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUrl,
+  Max,
+  MaxLength,
   Min,
-  MinLength,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-
-import { OpportunityType } from '@prisma/client';
+import { OpportunityStatus, OpportunityType } from '@prisma/client';
 import { OpportunitySkillDto } from './opportunity-skill.dto';
 
 export class CreateOpportunityDto {
   @IsString()
-  @MinLength(1)
+  @IsNotEmpty()
+  @MaxLength(200)
   title: string;
 
   @IsString()
-  @MinLength(1)
+  @IsNotEmpty()
+  @MaxLength(10000)
   description: string;
 
   @IsEnum(OpportunityType)
   opportunityType: OpportunityType;
+
+  @IsOptional()
+  @IsEnum(OpportunityStatus)
+  status?: OpportunityStatus;
 
   @IsOptional()
   @IsArray()
@@ -36,6 +44,7 @@ export class CreateOpportunityDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   location?: string;
 
   @IsOptional()
@@ -47,18 +56,21 @@ export class CreateOpportunityDto {
   applicationDeadline?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1)
+  @Max(6)
   minimumAcademicYear?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1)
+  @Max(6)
   maximumAcademicYear?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(4)
   minimumGpa?: number;
 
   @IsOptional()
@@ -68,6 +80,7 @@ export class CreateOpportunityDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   compensation?: string;
 
   @IsOptional()
