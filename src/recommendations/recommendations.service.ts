@@ -14,6 +14,7 @@ export interface RecommendationResult {
   opportunity: OpportunityWithRelations;
   score: number;
   matchedSkills: string[];
+  matchedInterests: string[];
 }
 
 @Injectable()
@@ -47,9 +48,16 @@ export class RecommendationsService {
   ): RecommendationResult {
     const skillResult = this.calculateSkillMatch(student, opportunity);
     const fieldScore = this.calculateFieldMatch(student, opportunity);
+    const interestResult = this.calculateInterestMatch(
+      student,
+      opportunity,
+    );
     const academicYearScore =
       this.calculateAcademicYearMatch(student, opportunity);
-    const locationScore = this.calculateLocationMatch(student, opportunity);
+    const locationScore = this.calculateLocationMatch(
+      student,
+      opportunity,
+    );
 
     /*
      * Initial matching weights.
@@ -58,15 +66,17 @@ export class RecommendationsService {
      * not official product requirements.
      */
     const score =
-      skillResult.score * 0.4 +
+      skillResult.score * 0.35 +
       fieldScore * 0.2 +
-      academicYearScore * 0.2 +
-      locationScore * 0.2;
+      interestResult.score * 0.15 +
+      academicYearScore * 0.15 +
+      locationScore * 0.15;
 
     return {
       opportunity,
       score: Math.round(score * 100) / 100,
       matchedSkills: skillResult.matchedSkills,
+      matchedInterests: interestResult.matchedInterests,
     };
   }
 
@@ -125,6 +135,43 @@ export class RecommendationsService {
     )
       ? 1
       : 0;
+  }
+
+  private calculateInterestMatch(
+    student: any,
+    opportunity: OpportunityWithRelations,
+  ): {
+    score: number;
+    matchedInterests: string[];
+  } {
+    const studentInterests: string[] = student.interests ?? [];
+
+    if (studentInterests.length === 0) {
+      return {
+        score: 0,
+        matchedInterests: [],
+      };
+    }
+
+    /*
+     * Opportunities do not currently have a dedicated interests
+     * field in the schema.
+     *
+     * We therefore use the opportunity title and description as
+     * the first-version text signal for the student's interests.
+     */
+    const opportunityText =
+      `${opportunity.title} ${opportunity.description}`.toLowerCase();
+
+    const matchedInterests = studentInterests.filter((interest) =>
+      opportunityText.includes(interest.trim().toLowerCase()),
+    );
+
+    return {
+      score:
+        matchedInterests.length / studentInterests.length,
+      matchedInterests,
+    };
   }
 
   private calculateAcademicYearMatch(

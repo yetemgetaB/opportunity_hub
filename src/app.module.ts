@@ -24,6 +24,7 @@ import { AdminModule } from './admin/admin.module';
 import { OpportunitiesModule } from './opportunities/opportunities.module';
 
 import { OrganizationProfileModule } from './organization-profile/organization-profile.module';
+import { ApplicationsModule } from './applications/applications.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { OrganizationProfileModule } from './organization-profile/organization-p
 
     StudentProfileModule,
     OrganizationProfileModule,
+    ApplicationsModule,
   ],
 })
 export class AppModule {}

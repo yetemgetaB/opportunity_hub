@@ -291,10 +291,11 @@ describe('OpportunitiesRepository', () => {
   });
 
   describe('findMany', () => {
-    it('should construct filters for discovery, matching, and search', async () => {
+    it('should construct filters for discovery, matching, and search with compound AND conditions', async () => {
       mockPrisma.opportunity.findMany.mockResolvedValue([baseOpportunity]);
 
       const filters = {
+        keyword: 'software',
         opportunityType: OpportunityType.INTERNSHIP,
         status: OpportunityStatus.PUBLISHED,
         isRemote: true,
@@ -329,9 +330,31 @@ describe('OpportunitiesRepository', () => {
               },
             },
           },
-          OR: [
-            { applicationDeadline: null },
-            { applicationDeadline: { gte: expect.any(Date) } },
+          AND: [
+            {
+              OR: [
+                { title: { contains: 'software', mode: 'insensitive' } },
+                { description: { contains: 'software', mode: 'insensitive' } },
+              ],
+            },
+            {
+              OR: [
+                { minimumAcademicYear: null },
+                { minimumAcademicYear: { lte: 3 } },
+              ],
+            },
+            {
+              OR: [
+                { maximumAcademicYear: null },
+                { maximumAcademicYear: { gte: 4 } },
+              ],
+            },
+            {
+              OR: [
+                { applicationDeadline: null },
+                { applicationDeadline: { gte: expect.any(Date) } },
+              ],
+            },
           ],
         },
         include: {
@@ -346,6 +369,145 @@ describe('OpportunitiesRepository', () => {
         skip: undefined,
         take: undefined,
       });
+    });
+
+    it('should support keyword search against title and description', async () => {
+      mockPrisma.opportunity.findMany.mockResolvedValue([baseOpportunity]);
+
+      await repository.findMany({ keyword: 'engineer' });
+
+      expect(mockPrisma.opportunity.findMany).toHaveBeenCalledWith({
+        where: {
+          deletedAt: null,
+          AND: [
+            {
+              OR: [
+                { title: { contains: 'engineer', mode: 'insensitive' } },
+                { description: { contains: 'engineer', mode: 'insensitive' } },
+              ],
+            },
+          ],
+        },
+        include: {
+          organization: true,
+          skills: {
+            include: {
+              skill: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: undefined,
+        take: undefined,
+      });
+    });
+
+    it('should combine keyword search with location and opportunity type', async () => {
+      mockPrisma.opportunity.findMany.mockResolvedValue([baseOpportunity]);
+
+      await repository.findMany({
+        keyword: 'NestJS',
+        location: 'Bole',
+        opportunityType: OpportunityType.JOB,
+      });
+
+      expect(mockPrisma.opportunity.findMany).toHaveBeenCalledWith({
+        where: {
+          deletedAt: null,
+          opportunityType: OpportunityType.JOB,
+          location: {
+            contains: 'Bole',
+            mode: 'insensitive',
+          },
+          AND: [
+            {
+              OR: [
+                { title: { contains: 'NestJS', mode: 'insensitive' } },
+                { description: { contains: 'NestJS', mode: 'insensitive' } },
+              ],
+            },
+          ],
+        },
+        include: {
+          organization: true,
+          skills: {
+            include: {
+              skill: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: undefined,
+        take: undefined,
+      });
+    });
+
+    it('regression: should not overwrite academic year filters when hasActiveDeadline is true', async () => {
+      mockPrisma.opportunity.findMany.mockResolvedValue([baseOpportunity]);
+
+      await repository.findMany({
+        minimumAcademicYear: 2,
+        maximumAcademicYear: 5,
+        hasActiveDeadline: true,
+      });
+
+      expect(mockPrisma.opportunity.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: [
+              {
+                OR: [
+                  { minimumAcademicYear: null },
+                  { minimumAcademicYear: { lte: 2 } },
+                ],
+              },
+              {
+                OR: [
+                  { maximumAcademicYear: null },
+                  { maximumAcademicYear: { gte: 5 } },
+                ],
+              },
+              {
+                OR: [
+                  { applicationDeadline: null },
+                  { applicationDeadline: { gte: expect.any(Date) } },
+                ],
+              },
+            ],
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('findPublishedForMatching', () => {
+    it('should enforce PUBLISHED status, active deadline, and non-deleted records', async () => {
+      mockPrisma.opportunity.findMany.mockResolvedValue([baseOpportunity]);
+
+      const result = await repository.findPublishedForMatching({
+        eligibleFields: ['Computer Science'],
+      });
+
+      expect(result).toEqual([baseOpportunity]);
+      expect(mockPrisma.opportunity.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: OpportunityStatus.PUBLISHED,
+            deletedAt: null,
+            eligibleFields: {
+              hasSome: ['Computer Science'],
+            },
+            AND: [
+              {
+                OR: [
+                  { applicationDeadline: null },
+                  { applicationDeadline: { gte: expect.any(Date) } },
+                ],
+              },
+            ],
+          }),
+        }),
+      );
     });
   });
 
