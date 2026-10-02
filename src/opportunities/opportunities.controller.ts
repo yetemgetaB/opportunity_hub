@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Param,
   Post,
@@ -7,9 +8,11 @@ import {
 import { UserRole } from '@prisma/client';
 
 import { OpportunitiesService } from './opportunities.service';
+import { CreateOpportunityDto } from './create-opportunity.dto';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 @Controller('opportunities')
 export class OpportunitiesController {
@@ -35,11 +38,14 @@ export class OpportunitiesController {
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZATION)
   @Post()
-  createOpportunity() {
-    return {
-      message: 'Organization opportunity creation endpoint is protected.',
-      role: UserRole.ORGANIZATION,
-    };
+  createOpportunity(
+    @CurrentUser('id') userId: string,
+    @Body() data: CreateOpportunityDto,
+  ) {
+    return this.opportunitiesService.createOpportunity(
+      userId,
+      data,
+    );
   }
 
   // ORGANIZATION
