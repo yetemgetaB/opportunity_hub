@@ -1,5 +1,9 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { OpportunityStatus, Prisma, SkillRequirementLevel } from '@prisma/client';
+import {
+  ApplicationStatus,
+  OpportunityStatus,
+  Prisma,
+  SkillRequirementLevel } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateOpportunityData,
@@ -107,6 +111,64 @@ export class OpportunitiesRepository {
       },
     });
   }
+
+  async saveOpportunity(
+  studentProfileId: string,
+  opportunityId: string,
+) {
+  return this.prisma.savedOpportunity.create({
+    data: {
+      studentProfileId,
+      opportunityId,
+    },
+  });
+}
+
+async removeSavedOpportunity(
+    studentProfileId: string,
+    opportunityId: string,
+  ) {
+    return this.prisma.savedOpportunity.delete({
+      where: {
+        studentProfileId_opportunityId: {
+          studentProfileId,
+          opportunityId,
+        },
+      },
+    });
+  }
+
+  async findApplicationsByStudentProfileId(
+  studentProfileId: string,
+) {
+  return this.prisma.application.findMany({
+    where: {
+      studentProfileId,
+    },
+    include: {
+      opportunity: true,
+    },
+    orderBy: {
+      appliedAt: 'desc',
+    },
+  });
+}
+
+async updateApplicationStatus(
+  applicationId: string,
+  opportunityId: string,
+  status: ApplicationStatus,
+) {
+  return this.prisma.application.updateMany({
+    where: {
+      id: applicationId,
+      opportunityId,
+    },
+    data: {
+      status,
+    },
+  });
+}
 
   /**
    * Look up an opportunity specifically scoped by organization ownership.

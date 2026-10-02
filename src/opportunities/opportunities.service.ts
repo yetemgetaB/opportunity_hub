@@ -2,13 +2,18 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  ConflictException,
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ApplicationStatus,
+  UserRole,
   OpportunityStatus,
   OrgVerificationStatus,
   SkillRequirementLevel,
 } from '@prisma/client';
+
+
 import { OpportunitiesRepository } from './opportunities.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOpportunityDto } from './dto/create-opportunity.dto';
@@ -24,6 +29,7 @@ import {
   mapOpportunityForDetails,
   mapOpportunityForSearch,
 } from './opportunity-response.mapper';
+
 
 @Injectable()
 export class OpportunitiesService {
@@ -335,4 +341,235 @@ export class OpportunitiesService {
 
     return mapOpportunityForDetails(opportunity);
   }
+
+  async saveOpportunity(
+  userId: string,
+  opportunityId: string,
+) {
+  const studentProfile =
+    await this.prisma.studentProfile.findUnique({
+      where: {
+        userId,
+      },
+    });
+
+  if (!studentProfile) {
+    throw new NotFoundException(
+      'Student profile not found.',
+    );
+  }
+
+  const opportunity =
+    await this.opportunitiesRepository.findById(
+      opportunityId,
+    );
+
+  if (
+    !opportunity ||
+    opportunity.status !== OpportunityStatus.PUBLISHED ||
+    opportunity.deletedAt !== null
+  ) {
+    throw new NotFoundException(
+      'Opportunity not found.',
+    );
+  }
+
+  try {
+    return await this.opportunitiesRepository.saveOpportunity(
+      studentProfile.userId,
+      opportunityId,
+    );
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      throw new ConflictException(
+        'You have already saved this opportunity.',
+      );
+    }
+
+    throw error;
+  }
+}
+
+async removeSavedOpportunity(
+  userId: string,
+  opportunityId: string,
+) {
+  const studentProfile =
+    await this.prisma.studentProfile.findUnique({
+      where: {
+        userId,
+      },
+    });
+
+  if (!studentProfile) {
+    throw new NotFoundException(
+      'Student profile not found.',
+    );
+  }
+
+  try {
+     await this.opportunitiesRepository.removeSavedOpportunity(
+      studentProfile.userId,
+      opportunityId,
+    );
+    return {
+      message: 'Opportunity removed from saved opportunities.',
+      studentProfileId: studentProfile.userId,
+      opportunityId,
+      deleted: true,
+    };
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      throw new NotFoundException(
+        'Saved opportunity not found.',
+      );
+    }
+
+    throw error;
+  }
+}
+
+  async applyToOpportunity(
+  userId: string,
+  opportunityId: string,
+) {
+  const studentProfile =
+    await this.prisma.studentProfile.findUnique({
+      where: {
+        userId,
+      },
+    });
+
+  if (!studentProfile) {
+    throw new NotFoundException(
+      'Student profile not found.',
+    );
+  }
+
+  const opportunity =
+    await this.opportunitiesRepository.findById(
+      opportunityId,
+    );
+
+  if (
+    !opportunity ||
+    opportunity.status !== OpportunityStatus.PUBLISHED ||
+    opportunity.deletedAt !== null
+  ) {
+    throw new NotFoundException(
+      'Opportunity not found.',
+    );
+  }
+
+  try {
+    return await this.prisma.application.create({
+      data: {
+        studentProfileId: studentProfile.userId,
+        opportunityId,
+      },
+    });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      throw new ConflictException(
+        'You have already applied to this opportunity.',
+      );
+    }
+
+    throw error;
+  }
+}
+
+async getMyApplications(userId: string) {
+  const studentProfile =
+    await this.prisma.studentProfile.findUnique({
+      where: {
+        userId,
+      },
+    });
+
+  if (!studentProfile) {
+    throw new NotFoundException(
+      'Student profile not found.',
+    );
+  }
+
+  return this.opportunitiesRepository.findApplicationsByStudentProfileId(
+    studentProfile.userId,
+  );
+}
+
+async updateApplicationStatus(
+  userId: string,
+  opportunityId: string,
+  applicationId: string,
+  status: ApplicationStatus,
+) {
+  const organizationMember =
+    await this.prisma.organizationMember.findFirst({
+      where: {
+        userId,
+      },
+      include: {
+        organization: true,
+      },
+    });
+
+  if (
+    !organizationMember ||
+    organizationMember.organization.deletedAt !== null
+  ) {
+    throw new NotFoundException(
+      'Organization not found.',
+    );
+  }
+
+  const opportunity =
+    await this.opportunitiesRepository.findById(
+      opportunityId,
+    );
+
+  if (
+    !opportunity ||
+    opportunity.organizationId !==
+      organizationMember.organizationId ||
+    opportunity.deletedAt !== null
+  ) {
+    throw new NotFoundException(
+      'Opportunity not found.',
+    );
+  }
+
+  const application =
+    await this.prisma.application.findFirst({
+      where: {
+        id: applicationId,
+        opportunityId,
+      },
+    });
+
+  if (!application) {
+    throw new NotFoundException(
+      'Application not found.',
+    );
+  }
+
+  const result =
+    await this.opportunitiesRepository.updateApplicationStatus(
+      applicationId,
+      opportunityId,
+      status,
+    );
+
+  if (result.count === 0) {
+    throw new NotFoundException(
+      'Application not found.',
+    );
+  }
+
+  return this.prisma.application.findUnique({
+    where: {
+      id: applicationId,
+    },
+  });
+}
 }
