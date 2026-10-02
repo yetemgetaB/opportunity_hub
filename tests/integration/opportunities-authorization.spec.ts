@@ -193,18 +193,19 @@ describe('Opportunity Authorization E2E', () => {
 
     expect(response.status).toBe(200);
 
-    expect(response.body.message).toBe(
-      'Opportunity updated successfully.',
+    expect(response.body.title).toBe(
+      'Updated Backend Developer Internship',
     );
   });
 
-  it('should allow retrieving an existing opportunity', async () => {
+  it('should allow the owning organization to retrieve its opportunity', async () => {
     const response = await request(
       app.getHttpServer(),
     )
       .get(
-        `/api/v1/opportunities/${organizationAOpportunityId}`,
-      );
+        `/api/v1/opportunities/my/${organizationAOpportunityId}`,
+      )
+      .set('x-test-user', 'organization');
 
     expect(response.status).toBe(200);
 
@@ -233,6 +234,7 @@ describe('Opportunity Authorization E2E', () => {
         title: 'Unauthorized Update Attempt',
       });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
   });
 });
+

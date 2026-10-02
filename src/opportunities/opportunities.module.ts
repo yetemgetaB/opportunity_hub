@@ -1,20 +1,15 @@
 import { Module } from '@nestjs/common';
 
 import { OpportunitiesController } from './opportunities.controller';
-import { OpportunitiesService } from './opportunities.service';
 import { OpportunitiesRepository } from './opportunities.repository';
+import { OpportunitiesService } from './opportunities.service';
 import { UsersModule } from '@/users/users.module';
 import { RolesGuard } from '@/common/guards/roles.guard';
-import { PrismaModule } from '@/prisma/prisma.module';
 
 @Module({
-  imports: [UsersModule, PrismaModule],
+  imports: [UsersModule],
   controllers: [OpportunitiesController],
-  providers: [
-    OpportunitiesService,
-    OpportunitiesRepository,
-    RolesGuard,
-  ],
-  exports: [OpportunitiesService],
+  providers: [OpportunitiesService, OpportunitiesRepository, RolesGuard],
+  exports: [OpportunitiesService, OpportunitiesRepository],
 })
 export class OpportunitiesModule {}
