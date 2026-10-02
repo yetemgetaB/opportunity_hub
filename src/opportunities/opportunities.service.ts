@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 
 import { CreateOpportunityDto } from './create-opportunity.dto';
+import { UpdateOpportunityDto } from './update-opportunity.dto';
 import { OpportunitiesRepository } from './opportunities.repository';
 
 @Injectable()
@@ -31,5 +32,39 @@ export class OpportunitiesService {
       organizationId,
       data,
     );
+  }
+
+  async updateOpportunity(
+    userId: string,
+    opportunityId: string,
+    data: UpdateOpportunityDto,
+  ) {
+    const organizationId =
+      await this.opportunitiesRepository.findOrganizationIdByUserId(
+        userId,
+      );
+
+    if (!organizationId) {
+      throw new ForbiddenException(
+        'You are not associated with an organization.',
+      );
+    }
+
+    const result =
+      await this.opportunitiesRepository.update(
+        opportunityId,
+        organizationId,
+        data,
+      );
+
+    if (result.count === 0) {
+      throw new ForbiddenException(
+        'You do not have permission to update this opportunity.',
+      );
+    }
+
+    return {
+      message: 'Opportunity updated successfully.',
+    };
   }
 }

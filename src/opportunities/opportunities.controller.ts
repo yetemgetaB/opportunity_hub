@@ -2,13 +2,17 @@ import {
   Body,
   Controller,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
+
 import { UserRole } from '@prisma/client';
 
 import { OpportunitiesService } from './opportunities.service';
 import { CreateOpportunityDto } from './create-opportunity.dto';
+import { UpdateOpportunityDto } from './update-opportunity.dto';
+
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
@@ -44,6 +48,23 @@ export class OpportunitiesController {
   ) {
     return this.opportunitiesService.createOpportunity(
       userId,
+      data,
+    );
+  }
+
+  // ORGANIZATION
+  // PATCH /opportunities/:id
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Patch(':id')
+  updateOpportunity(
+    @Param('id') opportunityId: string,
+    @CurrentUser('id') userId: string,
+    @Body() data: UpdateOpportunityDto,
+  ) {
+    return this.opportunitiesService.updateOpportunity(
+      userId,
+      opportunityId,
       data,
     );
   }

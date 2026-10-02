@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CreateOpportunityDto } from './create-opportunity.dto';
+import { UpdateOpportunityDto } from './update-opportunity.dto';
 
 @Injectable()
 export class OpportunitiesRepository {
@@ -44,6 +45,39 @@ export class OpportunitiesRepository {
         minimumGpa: data.minimumGpa,
         eligibleFields:
           data.eligibleFields ?? [],
+        compensation: data.compensation,
+        applicationUrl: data.applicationUrl,
+      },
+    });
+  }
+
+  async update(
+    opportunityId: string,
+    organizationId: string,
+    data: UpdateOpportunityDto,
+  ) {
+    return this.prisma.opportunity.updateMany({
+      where: {
+        id: opportunityId,
+        organizationId,
+        deletedAt: null,
+      },
+      data: {
+        title: data.title,
+        description: data.description,
+        opportunityType: data.opportunityType,
+        location: data.location,
+        isRemote: data.isRemote,
+        applicationDeadline: data.applicationDeadline
+          ? new Date(data.applicationDeadline)
+          : undefined,
+        minimumAcademicYear:
+          data.minimumAcademicYear,
+        maximumAcademicYear:
+          data.maximumAcademicYear,
+        minimumGpa: data.minimumGpa,
+        eligibleFields:
+          data.eligibleFields,
         compensation: data.compensation,
         applicationUrl: data.applicationUrl,
       },

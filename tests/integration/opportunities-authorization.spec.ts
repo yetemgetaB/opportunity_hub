@@ -7,15 +7,24 @@ import request = require('supertest');
 
 import { AppModule } from '@/app.module';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
+import { PrismaService } from '@/prisma/prisma.service';
+
+jest.setTimeout(30000);
 
 describe('Opportunity Authorization E2E', () => {
   let app: INestApplication;
+  let prisma: PrismaService;
 
   const organizationUserId =
     '2fc5e97d-e397-4a34-be5c-2f579062116d';
 
+  const secondOrganizationUserId =
+    '3c4aa7e5-8579-4358-ac38-f16e7ad3a65f';
+
   const studentUserId =
     'c2149a0c-e23d-42cd-8a5d-ad2893754d26';
+
+  let organizationAOpportunityId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule =
@@ -35,6 +44,15 @@ describe('Opportunity Authorization E2E', () => {
               request.user = {
                 id: organizationUserId,
               };
+
+              return true;
+            }
+
+            if (testUser === 'organization-b') {
+              request.user = {
+                id: secondOrganizationUserId,
+              };
+
               return true;
             }
 
@@ -42,6 +60,7 @@ describe('Opportunity Authorization E2E', () => {
               request.user = {
                 id: studentUserId,
               };
+
               return true;
             }
 
@@ -51,6 +70,10 @@ describe('Opportunity Authorization E2E', () => {
         .compile();
 
     app = moduleFixture.createNestApplication();
+
+    prisma = moduleFixture.get<PrismaService>(
+      PrismaService,
+    );
 
     app.setGlobalPrefix('api/v1');
 
@@ -63,6 +86,32 @@ describe('Opportunity Authorization E2E', () => {
     );
 
     await app.init();
+
+    // Create a second organization for ownership testing.
+    const organizationB =
+      await prisma.organization.upsert({
+        where: {
+          name: 'Authorization Test Organization B',
+        },
+        update: {},
+        create: {
+          name: 'Authorization Test Organization B',
+        },
+      });
+
+    await prisma.organizationMember.upsert({
+      where: {
+        organizationId_userId: {
+          organizationId: organizationB.id,
+          userId: secondOrganizationUserId,
+        },
+      },
+      update: {},
+      create: {
+        organizationId: organizationB.id,
+        userId: secondOrganizationUserId,
+      },
+    });
   });
 
   afterAll(async () => {
@@ -114,14 +163,54 @@ describe('Opportunity Authorization E2E', () => {
       });
 
     expect(response.status).toBe(201);
+
     expect(response.body.organizationId).toBe(
       '537d2b61-ae27-4ed1-a956-71a7ed241859',
     );
+
     expect(response.body.title).toBe(
       'Backend Developer Internship',
     );
+
     expect(response.body.opportunityType).toBe(
       'INTERNSHIP',
     );
+
+    organizationAOpportunityId =
+      response.body.id;
+  });
+
+  it('should allow the owning organization to update its opportunity', async () => {
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .patch(
+        `/api/v1/opportunities/${organizationAOpportunityId}`,
+      )
+      .set('x-test-user', 'organization')
+      .send({
+        title: 'Updated Backend Developer Internship',
+      });
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.message).toBe(
+      'Opportunity updated successfully.',
+    );
+  });
+
+  it('should reject another organization from updating the opportunity', async () => {
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .patch(
+        `/api/v1/opportunities/${organizationAOpportunityId}`,
+      )
+      .set('x-test-user', 'organization-b')
+      .send({
+        title: 'Unauthorized Update Attempt',
+      });
+
+    expect(response.status).toBe(403);
   });
 });
