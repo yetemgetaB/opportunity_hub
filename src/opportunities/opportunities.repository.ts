@@ -436,12 +436,31 @@ export class OpportunitiesRepository {
   }
 
   /**
+   * Retrieve published, active opportunities for matching and AI recommendations.
+   * Enforces status = PUBLISHED, active application deadline, and non-deleted records.
+   */
+  async findPublishedForMatching(
+    filters: Omit<
+      OpportunityFilterOptions,
+      'status' | 'includeDeleted' | 'hasActiveDeadline'
+    > = {},
+  ): Promise<OpportunityWithRelations[]> {
+    return this.findMany({
+      ...filters,
+      status: OpportunityStatus.PUBLISHED,
+      hasActiveDeadline: true,
+      includeDeleted: false,
+    });
+  }
+
+  /**
    * Helper to construct type-safe Prisma where clause based on filter options.
    */
   private buildWhereClause(
     filters: OpportunityFilterOptions,
   ): Prisma.OpportunityWhereInput {
     const where: Prisma.OpportunityWhereInput = {};
+    const andConditions: Prisma.OpportunityWhereInput[] = [];
 
     if (!filters.includeDeleted) {
       where.deletedAt = null;
@@ -486,25 +505,55 @@ export class OpportunitiesRepository {
       };
     }
 
+    if (filters.keyword && filters.keyword.trim().length > 0) {
+      const trimmedKeyword = filters.keyword.trim();
+      andConditions.push({
+        OR: [
+          {
+            title: {
+              contains: trimmedKeyword,
+              mode: 'insensitive',
+            },
+          },
+          {
+            description: {
+              contains: trimmedKeyword,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      });
+    }
+
     if (filters.minimumAcademicYear !== undefined) {
-      where.OR = [
-        { minimumAcademicYear: null },
-        { minimumAcademicYear: { lte: filters.minimumAcademicYear } },
-      ];
+      andConditions.push({
+        OR: [
+          { minimumAcademicYear: null },
+          { minimumAcademicYear: { lte: filters.minimumAcademicYear } },
+        ],
+      });
     }
 
     if (filters.maximumAcademicYear !== undefined) {
-      where.OR = [
-        { maximumAcademicYear: null },
-        { maximumAcademicYear: { gte: filters.maximumAcademicYear } },
-      ];
+      andConditions.push({
+        OR: [
+          { maximumAcademicYear: null },
+          { maximumAcademicYear: { gte: filters.maximumAcademicYear } },
+        ],
+      });
     }
 
     if (filters.hasActiveDeadline) {
-      where.OR = [
-        { applicationDeadline: null },
-        { applicationDeadline: { gte: new Date() } },
-      ];
+      andConditions.push({
+        OR: [
+          { applicationDeadline: null },
+          { applicationDeadline: { gte: new Date() } },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     return where;
