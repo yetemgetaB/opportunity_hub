@@ -21,6 +21,8 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
+import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+
 @Controller('opportunities')
 export class OpportunitiesController {
   constructor(
@@ -93,17 +95,66 @@ export class OpportunitiesController {
     return this.opportunitiesService.publishOpportunity(userId, id);
   }
 
-  // STUDENT: Apply to opportunity (placeholder)
+  // ORGANIZATION: Update application status
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Patch(':opportunityId/applications/:applicationId/status')
+  updateApplicationStatus(
+    @CurrentUser('id') userId: string,
+    @Param('opportunityId', ParseUUIDPipe) opportunityId: string,
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+    @Body() data: UpdateApplicationStatusDto,
+  ) {
+    return this.opportunitiesService.updateApplicationStatus(
+      userId,
+      opportunityId,
+      applicationId,
+      data.status,
+    );
+  }
+
+  // STUDENT: Save opportunity
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Post(':id/save')
+  saveOpportunity(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.opportunitiesService.saveOpportunity(userId, id);
+  }
+
+  // STUDENT: Remove saved opportunity
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Delete(':id/save')
+  removeSavedOpportunity(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.opportunitiesService.removeSavedOpportunity(userId, id);
+  }
+
+  // STUDENT: Apply to opportunity
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
   @Post(':id/apply')
-  applyToOpportunity(@Param('id', ParseUUIDPipe) id: string) {
-    return {
-      message: 'Student opportunity application endpoint is protected.',
-      opportunityId: id,
-      role: UserRole.STUDENT,
-    };
+  applyToOpportunity(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.opportunitiesService.applyToOpportunity(userId, id);
   }
+
+  // STUDENT: View my applications
+@UseGuards(SupabaseAuthGuard, RolesGuard)
+@Roles(UserRole.STUDENT)
+@Get('applications')
+getMyApplications(
+  @CurrentUser('id') userId: string,
+) {
+  return this.opportunitiesService.getMyApplications(userId);
+}
 
   // ORGANIZATION: Opportunity assessment (placeholder)
   @UseGuards(SupabaseAuthGuard, RolesGuard)
