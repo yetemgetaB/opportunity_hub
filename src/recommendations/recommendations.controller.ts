@@ -9,20 +9,20 @@ import { RecommendationsService } from './recommendations.service';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 @Controller('students/recommendations')
+@UseGuards(SupabaseAuthGuard, RolesGuard)
+@Roles(UserRole.STUDENT)
 export class RecommendationsController {
   constructor(
     private readonly recommendationsService: RecommendationsService,
   ) {}
 
-  @UseGuards(SupabaseAuthGuard, RolesGuard)
-  @Roles(UserRole.STUDENT)
   @Get()
-  getRecommendations() {
-    return {
-      message: 'Student recommendations endpoint is protected.',
-      role: UserRole.STUDENT,
-    };
+  async getRecommendations(
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.recommendationsService.getRecommendations(userId);
   }
 }
