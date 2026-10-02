@@ -313,6 +313,7 @@ export class OpportunitiesService {
 
   async searchOpportunities(query: SearchOpportunityDto) {
     const filters: OpportunityFilterOptions = {
+      keyword: query.keyword,
       status: OpportunityStatus.PUBLISHED,
       opportunityType: query.type,
       location: query.location,

@@ -24,6 +24,17 @@ export class StudentProfileService {
     return profile;
   }
 
+  async getStudentMatchingProfile(userId: string) {
+    const profile =
+      await this.studentProfileRepository.getStudentMatchingProfile(userId);
+
+    if (!profile) {
+      throw new NotFoundException('Student profile not found.');
+    }
+
+    return profile;
+  }
+
   async createMyProfile(
     userId: string,
     data: CreateStudentProfileDto,
