@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
+
 import { PrismaService } from '@/prisma/prisma.service';
+
 import { CreateOpportunityDto } from './create-opportunity.dto';
 import { UpdateOpportunityDto } from './update-opportunity.dto';
 
 @Injectable()
 export class OpportunitiesRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   async findOrganizationIdByUserId(
     userId: string,
@@ -47,6 +51,23 @@ export class OpportunitiesRepository {
           data.eligibleFields ?? [],
         compensation: data.compensation,
         applicationUrl: data.applicationUrl,
+      },
+    });
+  }
+
+  async findById(opportunityId: string) {
+    return this.prisma.opportunity.findFirst({
+      where: {
+        id: opportunityId,
+        deletedAt: null,
+      },
+      include: {
+        organization: true,
+        skills: {
+          include: {
+            skill: true,
+          },
+        },
       },
     });
   }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Patch,
   Post,
@@ -31,7 +32,8 @@ export class OpportunitiesController {
   @Post(':id/apply')
   applyToOpportunity(@Param('id') id: string) {
     return {
-      message: 'Student opportunity application endpoint is protected.',
+      message:
+        'Student opportunity application endpoint is protected.',
       opportunityId: id,
       role: UserRole.STUDENT,
     };
@@ -49,6 +51,17 @@ export class OpportunitiesController {
     return this.opportunitiesService.createOpportunity(
       userId,
       data,
+    );
+  }
+
+  // PUBLIC / AUTHENTICATED RETRIEVAL
+  // GET /opportunities/:id
+  @Get(':id')
+  getOpportunity(
+    @Param('id') opportunityId: string,
+  ) {
+    return this.opportunitiesService.getOpportunityById(
+      opportunityId,
     );
   }
 
@@ -76,7 +89,8 @@ export class OpportunitiesController {
   @Post(':id/assessment')
   createAssessment(@Param('id') id: string) {
     return {
-      message: 'Organization opportunity assessment endpoint is protected.',
+      message:
+        'Organization opportunity assessment endpoint is protected.',
       opportunityId: id,
       role: UserRole.ORGANIZATION,
     };

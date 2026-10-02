@@ -87,7 +87,6 @@ describe('Opportunity Authorization E2E', () => {
 
     await app.init();
 
-    // Create a second organization for ownership testing.
     const organizationB =
       await prisma.organization.upsert({
         where: {
@@ -196,6 +195,29 @@ describe('Opportunity Authorization E2E', () => {
 
     expect(response.body.message).toBe(
       'Opportunity updated successfully.',
+    );
+  });
+
+  it('should allow retrieving an existing opportunity', async () => {
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .get(
+        `/api/v1/opportunities/${organizationAOpportunityId}`,
+      );
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.id).toBe(
+      organizationAOpportunityId,
+    );
+
+    expect(response.body.organizationId).toBe(
+      '537d2b61-ae27-4ed1-a956-71a7ed241859',
+    );
+
+    expect(response.body.title).toBe(
+      'Updated Backend Developer Internship',
     );
   });
 

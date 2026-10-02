@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 
 import { CreateOpportunityDto } from './create-opportunity.dto';
@@ -32,6 +33,23 @@ export class OpportunitiesService {
       organizationId,
       data,
     );
+  }
+
+  async getOpportunityById(
+    opportunityId: string,
+  ) {
+    const opportunity =
+      await this.opportunitiesRepository.findById(
+        opportunityId,
+      );
+
+    if (!opportunity) {
+      throw new NotFoundException(
+        'Opportunity not found.',
+      );
+    }
+
+    return opportunity;
   }
 
   async updateOpportunity(
