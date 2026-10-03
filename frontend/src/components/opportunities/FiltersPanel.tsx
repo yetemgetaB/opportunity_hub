@@ -1,4 +1,4 @@
-import { FIELDS_OF_STUDY, JOB_TYPES } from '../../utils/studentData'
+import { JOB_TYPES } from '../../utils/studentData'
 
 export default function FiltersPanel() {
   return (
@@ -19,14 +19,11 @@ export default function FiltersPanel() {
 
       <div className="mt-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Field of Study</p>
-        <div className="mt-3 space-y-2">
-          {FIELDS_OF_STUDY.map((f) => (
-            <label key={f} className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="radio" name="field-of-study" className="accent-brand" />
-              {f}
-            </label>
-          ))}
-        </div>
+        {/* TODO: wire this up to real filtering, e.g. with autocomplete suggestions */}
+        <input
+          placeholder="e.g. Computer Science"
+          className="mt-3 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-navy outline-none placeholder:text-slate-400 focus:border-brand"
+        />
       </div>
 
       <div className="mt-6">
