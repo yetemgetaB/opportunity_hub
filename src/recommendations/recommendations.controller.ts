@@ -1,8 +1,10 @@
 import {
   Controller,
   Get,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+
 import { UserRole } from '@prisma/client';
 
 import { RecommendationsService } from './recommendations.service';
@@ -10,6 +12,7 @@ import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { SearchOpportunityDto } from '@/opportunities/dto/search-opportunity.dto';
 
 @Controller('students/recommendations')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
@@ -22,7 +25,11 @@ export class RecommendationsController {
   @Get()
   async getRecommendations(
     @CurrentUser('id') userId: string,
+    @Query() query: SearchOpportunityDto,
   ) {
-    return this.recommendationsService.getRecommendations(userId);
+    return this.recommendationsService.getRecommendations(
+      userId,
+      query,
+    );
   }
 }

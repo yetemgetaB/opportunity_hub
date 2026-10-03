@@ -50,8 +50,9 @@ describe('RecommendationsController', () => {
           id: 'opportunity-1',
           title: 'Python Internship',
         },
-        score: 90,
+        score: 0.85,
         matchedSkills: ['Python'],
+        matchedInterests: ['Python'],
       },
     ];
 
@@ -59,13 +60,45 @@ describe('RecommendationsController', () => {
       recommendations,
     );
 
-    const result = await controller.getRecommendations('student-1');
+    const query = {
+      keyword: 'Python',
+      field: 'Computer Science',
+      location: 'Addis Ababa',
+      skills: 'skill-python',
+    };
+
+    const result = await controller.getRecommendations(
+      'student-1',
+      query,
+    );
+
+    expect(result).toEqual(recommendations);
 
     expect(
       recommendationsService.getRecommendations,
-    ).toHaveBeenCalledWith('student-1');
+    ).toHaveBeenCalledWith(
+      'student-1',
+      query,
+    );
+  });
 
-    expect(result).toEqual(recommendations);
+  it('should pass an empty search query when no filters are provided', async () => {
+    recommendationsService.getRecommendations.mockResolvedValue([]);
+
+    const query = {};
+
+    const result = await controller.getRecommendations(
+      'student-1',
+      query,
+    );
+
+    expect(result).toEqual([]);
+
+    expect(
+      recommendationsService.getRecommendations,
+    ).toHaveBeenCalledWith(
+      'student-1',
+      query,
+    );
   });
 });
-
