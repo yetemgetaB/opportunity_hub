@@ -1,7 +1,6 @@
 import {
   ApplicationStatus,
   Prisma,
-  SavedOpportunity,
 } from '@prisma/client';
 
 export interface CreateApplicationData {
@@ -55,6 +54,42 @@ export type ApplicationWithRelations = Prisma.ApplicationGetPayload<{
     };
     assessmentAttempt: true;
   };
+}>;
+
+export const applicantIncludes = Prisma.validator<Prisma.ApplicationInclude>()({
+  studentProfile: {
+    include: {
+      user: true,
+      skills: {
+        include: {
+          skill: true,
+        },
+      },
+      experiences: {
+        orderBy: {
+          startDate: 'desc',
+        },
+      },
+      cvs: {
+        orderBy: [{ isDefault: 'desc' }, { uploadedAt: 'desc' }],
+      },
+    },
+  },
+  opportunity: {
+    include: {
+      organization: true,
+      skills: {
+        include: {
+          skill: true,
+        },
+      },
+    },
+  },
+  assessmentAttempt: true,
+});
+
+export type ApplicantWithRelations = Prisma.ApplicationGetPayload<{
+  include: typeof applicantIncludes;
 }>;
 
 export type SavedOpportunityWithRelations = Prisma.SavedOpportunityGetPayload<{

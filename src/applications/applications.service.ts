@@ -12,7 +12,6 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  ApplicationFilterOptions,
   ApplicationWithRelations,
   SavedOpportunityWithRelations,
 } from './applications.interface';
