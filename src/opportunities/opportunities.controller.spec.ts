@@ -1,11 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { OpportunityStatus, OpportunityType } from '@prisma/client';import { OpportunitiesController } from './opportunities.controller';
+import {
+  ApplicationStatus,
+  OpportunityStatus,
+  OpportunityType,
+} from '@prisma/client';
+import { OpportunitiesController } from './opportunities.controller';
 import { OpportunitiesService } from './opportunities.service';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { CreateOpportunityDto } from './dto/create-opportunity.dto';
 import { UpdateOpportunityDto } from './dto/update-opportunity.dto';
 import { SearchOpportunityDto } from './dto/search-opportunity.dto';
+import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 
 describe('OpportunitiesController', () => {
   let controller: OpportunitiesController;
@@ -21,7 +27,11 @@ describe('OpportunitiesController', () => {
     searchOpportunities: jest.fn(),
     getPublishedOpportunity: jest.fn(),
     getOpportunityApplicants: jest.fn(),
+    saveOpportunity: jest.fn(),
+    removeSavedOpportunity: jest.fn(),
     applyToOpportunity: jest.fn(),
+    getMyApplications: jest.fn(),
+    updateApplicationStatus: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -97,31 +107,32 @@ describe('OpportunitiesController', () => {
   });
 
   describe('getOpportunityApplicants', () => {
-  it('returns applicants for the authenticated organization', async () => {
-    const userId = '11111111-1111-1111-1111-111111111111';
-    const opportunityId = '22222222-2222-2222-2222-222222222222';
+    it('returns applicants for the authenticated organization', async () => {
+      const userId = '11111111-1111-1111-1111-111111111111';
+      const opportunityId = '22222222-2222-2222-2222-222222222222';
 
-    const applicants = [
-      {
-        id: 'application-1',
-        status: 'PENDING',
-      },
-    ];
+      const applicants = [
+        {
+          id: 'application-1',
+          status: 'PENDING',
+        },
+      ];
 
-    mockService.getOpportunityApplicants.mockResolvedValue(applicants);
+      mockService.getOpportunityApplicants.mockResolvedValue(applicants);
 
-    const result = await controller.getOpportunityApplicants(
-      userId,
-      opportunityId,
-    );
+      const result = await controller.getOpportunityApplicants(
+        userId,
+        opportunityId,
+      );
 
-    expect(
-      mockService.getOpportunityApplicants,
-    ).toHaveBeenCalledWith(userId, opportunityId);
+      expect(mockService.getOpportunityApplicants).toHaveBeenCalledWith(
+        userId,
+        opportunityId,
+      );
 
-    expect(result).toEqual(applicants);
+      expect(result).toEqual(applicants);
+    });
   });
-});
 
   describe('updateOpportunity', () => {
     it('should call service.updateOpportunity with userId, opportunityId, and dto', async () => {
@@ -165,28 +176,74 @@ describe('OpportunitiesController', () => {
     });
   });
 
+  describe('updateApplicationStatus', () => {
+    it('should call service.updateApplicationStatus with userId, oppId, appId, and status', async () => {
+      const userId = '11111111-1111-1111-1111-111111111111';
+      const oppId = '22222222-2222-2222-2222-222222222222';
+      const appId = '33333333-3333-3333-3333-333333333333';
+      const dto: UpdateApplicationStatusDto = {
+        status: ApplicationStatus.ACCEPTED,
+      };
+      const expectedResult = { id: appId, status: ApplicationStatus.ACCEPTED };
+      mockService.updateApplicationStatus.mockResolvedValue(expectedResult);
+
+      const result = await controller.updateApplicationStatus(
+        userId,
+        oppId,
+        appId,
+        dto,
+      );
+
+      expect(service.updateApplicationStatus).toHaveBeenCalledWith(
+        userId,
+        oppId,
+        appId,
+        dto.status,
+      );
+      expect(result).toEqual(expectedResult);
+    });
+  });
+
   describe('placeholders and public routes', () => {
     it('applyToOpportunity calls service with userId and opportunityId', async () => {
-  const userId = '11111111-1111-1111-1111-111111111111';
-  const oppId = '22222222-2222-2222-2222-222222222222';
+      const userId = '11111111-1111-1111-1111-111111111111';
+      const oppId = '22222222-2222-2222-2222-222222222222';
 
-  const application = {
-    id: '33333333-3333-3333-3333-333333333333',
-    studentProfileId: userId,
-    opportunityId: oppId,
-  };
+      const application = {
+        id: '33333333-3333-3333-3333-333333333333',
+        studentProfileId: userId,
+        opportunityId: oppId,
+      };
 
-  mockService.applyToOpportunity.mockResolvedValue(application);
+      mockService.applyToOpportunity.mockResolvedValue(application);
 
-  const result = await controller.applyToOpportunity(userId, oppId);
+      const result = await controller.applyToOpportunity(userId, oppId);
 
-  expect(mockService.applyToOpportunity).toHaveBeenCalledWith(
-    userId,
-    oppId,
-  );
+      expect(mockService.applyToOpportunity).toHaveBeenCalledWith(
+        userId,
+        oppId,
+      );
 
-  expect(result).toEqual(application);
-});
+      expect(result).toEqual(application);
+    });
+
+    it('getMyApplications calls service.getMyApplications with userId', async () => {
+      const userId = '11111111-1111-1111-1111-111111111111';
+      const expectedApplications = [
+        {
+          id: 'app-1',
+          studentProfileId: userId,
+          opportunityId: 'opp-1',
+        },
+      ];
+
+      mockService.getMyApplications.mockResolvedValue(expectedApplications);
+
+      const result = await controller.getMyApplications(userId);
+
+      expect(service.getMyApplications).toHaveBeenCalledWith(userId);
+      expect(result).toEqual(expectedApplications);
+    });
 
     it('searchOpportunities calls service.searchOpportunities', async () => {
       const query: SearchOpportunityDto = { location: 'Addis Ababa' };

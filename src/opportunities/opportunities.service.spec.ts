@@ -549,7 +549,7 @@ describe('OpportunitiesService', () => {
   });
 
   describe('search and public details', () => {
-    it('searchOpportunities searches published opportunities', async () => {
+    it('searchOpportunities searches published opportunities with keyword and filters', async () => {
       const opp = {
         id: oppId,
         title: 'Frontend Engineer',
@@ -561,8 +561,12 @@ describe('OpportunitiesService', () => {
       };
       mockRepository.findMany.mockResolvedValue([opp]);
 
-      const result = await service.searchOpportunities({ type: OpportunityType.JOB });
+      const result = await service.searchOpportunities({
+        keyword: 'Engineer',
+        type: OpportunityType.JOB,
+      });
       expect(repository.findMany).toHaveBeenCalledWith({
+        keyword: 'Engineer',
         status: OpportunityStatus.PUBLISHED,
         opportunityType: OpportunityType.JOB,
         location: undefined,

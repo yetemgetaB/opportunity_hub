@@ -47,6 +47,7 @@ export interface UpdateOpportunityData {
 }
 
 export interface OpportunityFilterOptions {
+  keyword?: string;
   organizationId?: string;
   opportunityType?: OpportunityType;
   status?: OpportunityStatus;
