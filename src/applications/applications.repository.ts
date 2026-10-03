@@ -7,6 +7,8 @@ import {
 import { ApplicationStatus, Prisma, SavedOpportunity } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  applicantIncludes,
+  ApplicantWithRelations,
   ApplicationFilterOptions,
   ApplicationWithRelations,
   CreateApplicationData,
@@ -46,6 +48,12 @@ export class ApplicationsRepository {
     },
     assessmentAttempt: true,
   } as const;
+
+  /**
+   * Dedicated relation include object for applicant retrieval with full profile,
+   * skills, experiences, and CVs (Day 11 requirement).
+   */
+  private readonly defaultApplicantIncludes = applicantIncludes;
 
   /**
    * Common relation include object for saved opportunities.
@@ -182,6 +190,35 @@ export class ApplicationsRepository {
     return this.prisma.application.findMany({
       where,
       include: this.defaultApplicationIncludes,
+      orderBy: { appliedAt: 'desc' },
+      skip: options?.skip,
+      take: options?.take,
+    });
+  }
+
+  /**
+   * Retrieve all applicants for a specific opportunity with full applicant profile,
+   * skills, experiences, and CVs (Day 11 requirement for screening & AI evaluation).
+   */
+  async findApplicantsByOpportunityId(
+    opportunityId: string,
+    options?: {
+      status?: ApplicationStatus;
+      skip?: number;
+      take?: number;
+    },
+  ): Promise<ApplicantWithRelations[]> {
+    const where: Prisma.ApplicationWhereInput = {
+      opportunityId,
+    };
+
+    if (options?.status) {
+      where.status = options.status;
+    }
+
+    return this.prisma.application.findMany({
+      where,
+      include: this.defaultApplicantIncludes,
       orderBy: { appliedAt: 'desc' },
       skip: options?.skip,
       take: options?.take,

@@ -230,6 +230,97 @@ describe('ApplicationsRepository', () => {
     });
   });
 
+  describe('findApplicantsByOpportunityId', () => {
+    const baseApplicant = {
+      ...baseApplication,
+      studentProfile: {
+        ...baseApplication.studentProfile,
+        experiences: [
+          {
+            id: 'exp-1',
+            studentProfileId: 'student-2222-2222-2222-222222222222',
+            title: 'Frontend Intern',
+            organizationName: 'Startup X',
+            experienceType: 'INTERNSHIP',
+            startDate: new Date('2025-01-01'),
+            endDate: null,
+            location: 'Addis Ababa',
+            description: 'Built React components',
+            createdAt: mockDate,
+            updatedAt: mockDate,
+          },
+        ],
+        cvs: [
+          {
+            id: 'cv-1',
+            studentProfileId: 'student-2222-2222-2222-222222222222',
+            fileName: 'resume.pdf',
+            filePath: 'students/cvs/resume.pdf',
+            fileType: 'application/pdf',
+            fileSize: 1024,
+            isDefault: true,
+            uploadedAt: mockDate,
+          },
+        ],
+      },
+    };
+
+    it('should retrieve applicants with full profile, skills, experiences, and cvs', async () => {
+      mockPrisma.application.findMany.mockResolvedValue([baseApplicant]);
+
+      const result = await repository.findApplicantsByOpportunityId(
+        baseApplication.opportunityId,
+      );
+
+      expect(result).toEqual([baseApplicant]);
+      expect(mockPrisma.application.findMany).toHaveBeenCalledWith({
+        where: {
+          opportunityId: baseApplication.opportunityId,
+        },
+        include: expect.objectContaining({
+          studentProfile: expect.objectContaining({
+            include: expect.objectContaining({
+              user: true,
+              skills: { include: { skill: true } },
+              experiences: { orderBy: { startDate: 'desc' } },
+              cvs: { orderBy: [{ isDefault: 'desc' }, { uploadedAt: 'desc' }] },
+            }),
+          }),
+          opportunity: expect.any(Object),
+          assessmentAttempt: true,
+        }),
+        orderBy: { appliedAt: 'desc' },
+        skip: undefined,
+        take: undefined,
+      });
+    });
+
+    it('should support filtering applicants by status and pagination', async () => {
+      mockPrisma.application.findMany.mockResolvedValue([baseApplicant]);
+
+      const result = await repository.findApplicantsByOpportunityId(
+        baseApplication.opportunityId,
+        {
+          status: ApplicationStatus.SUBMITTED,
+          skip: 5,
+          take: 10,
+        },
+      );
+
+      expect(result).toEqual([baseApplicant]);
+      expect(mockPrisma.application.findMany).toHaveBeenCalledWith({
+        where: {
+          opportunityId: baseApplication.opportunityId,
+          status: ApplicationStatus.SUBMITTED,
+        },
+        include: expect.any(Object),
+        orderBy: { appliedAt: 'desc' },
+        skip: 5,
+        take: 10,
+      });
+    });
+  });
+
   describe('findByOrganizationId', () => {
     it('should retrieve applications belonging to organization opportunities', async () => {
       mockPrisma.application.findMany.mockResolvedValue([baseApplication]);

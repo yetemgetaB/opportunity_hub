@@ -12,8 +12,6 @@ import { PrismaService } from '../prisma/prisma.service';
 
 describe('ApplicationsService', () => {
   let service: ApplicationsService;
-  let repository: ApplicationsRepository;
-  let prisma: PrismaService;
 
   const mockRepository = {
     create: jest.fn(),
@@ -94,8 +92,6 @@ describe('ApplicationsService', () => {
     }).compile();
 
     service = module.get<ApplicationsService>(ApplicationsService);
-    repository = module.get<ApplicationsRepository>(ApplicationsRepository);
-    prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 
