@@ -21,6 +21,8 @@ describe('OpportunitiesController', () => {
     publishOpportunity: jest.fn(),
     searchOpportunities: jest.fn(),
     getPublishedOpportunity: jest.fn(),
+    getOpportunityApplicants: jest.fn(),
+    applyToOpportunity: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -95,6 +97,33 @@ describe('OpportunitiesController', () => {
     });
   });
 
+  describe('getOpportunityApplicants', () => {
+  it('returns applicants for the authenticated organization', async () => {
+    const userId = '11111111-1111-1111-1111-111111111111';
+    const opportunityId = '22222222-2222-2222-2222-222222222222';
+
+    const applicants = [
+      {
+        id: 'application-1',
+        status: 'PENDING',
+      },
+    ];
+
+    mockService.getOpportunityApplicants.mockResolvedValue(applicants);
+
+    const result = await controller.getOpportunityApplicants(
+      userId,
+      opportunityId,
+    );
+
+    expect(
+      mockService.getOpportunityApplicants,
+    ).toHaveBeenCalledWith(userId, opportunityId);
+
+    expect(result).toEqual(applicants);
+  });
+});
+
   describe('updateOpportunity', () => {
     it('should call service.updateOpportunity with userId, opportunityId, and dto', async () => {
       const userId = '11111111-1111-1111-1111-111111111111';
@@ -138,15 +167,27 @@ describe('OpportunitiesController', () => {
   });
 
   describe('placeholders and public routes', () => {
-    it('applyToOpportunity returns student protected message', () => {
-      const oppId = '22222222-2222-2222-2222-222222222222';
-      const result = controller.applyToOpportunity(oppId);
-      expect(result).toEqual({
-        message: 'Student opportunity application endpoint is protected.',
-        opportunityId: oppId,
-        role: UserRole.STUDENT,
-      });
-    });
+    it('applyToOpportunity calls service with userId and opportunityId', async () => {
+  const userId = '11111111-1111-1111-1111-111111111111';
+  const oppId = '22222222-2222-2222-2222-222222222222';
+
+  const application = {
+    id: '33333333-3333-3333-3333-333333333333',
+    studentProfileId: userId,
+    opportunityId: oppId,
+  };
+
+  mockService.applyToOpportunity.mockResolvedValue(application);
+
+  const result = await controller.applyToOpportunity(userId, oppId);
+
+  expect(mockService.applyToOpportunity).toHaveBeenCalledWith(
+    userId,
+    oppId,
+  );
+
+  expect(result).toEqual(application);
+});
 
     it('createAssessment returns organization assessment protected message', () => {
       const oppId = '22222222-2222-2222-2222-222222222222';

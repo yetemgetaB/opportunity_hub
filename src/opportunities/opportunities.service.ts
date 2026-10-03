@@ -30,6 +30,7 @@ import {
   mapOpportunityForSearch,
 } from './opportunity-response.mapper';
 
+import { mapApplicantForResponse } from './applicant-response.mapper';
 
 @Injectable()
 export class OpportunitiesService {
@@ -138,6 +139,37 @@ export class OpportunitiesService {
 
     return opportunity;
   }
+
+  async getOpportunityApplicants(
+  userId: string,
+  opportunityId: string,
+) {
+  const membership = await this.prisma.organizationMember.findFirst({
+    where: { userId },
+    include: { organization: true },
+  });
+
+  if (!membership || membership.organization.deletedAt) {
+    throw new NotFoundException('Organization membership not found.');
+  }
+
+  const opportunity =
+    await this.opportunitiesRepository.findByIdAndOrganizationId(
+      opportunityId,
+      membership.organizationId,
+    );
+
+  if (!opportunity) {
+    throw new NotFoundException('Opportunity not found.');
+  }
+
+  const applicants =
+  await this.opportunitiesRepository.findApplicationsByOpportunityId(
+    opportunityId,
+  );
+
+return applicants.map(mapApplicantForResponse);
+}
 
   async updateOpportunity(
     userId: string,

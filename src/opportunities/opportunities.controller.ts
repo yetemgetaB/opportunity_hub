@@ -95,6 +95,20 @@ export class OpportunitiesController {
     return this.opportunitiesService.publishOpportunity(userId, id);
   }
 
+  // ORGANIZATION: View applicants for opportunity
+@UseGuards(SupabaseAuthGuard, RolesGuard)
+@Roles(UserRole.ORGANIZATION)
+@Get(':id/applicants')
+getOpportunityApplicants(
+  @CurrentUser('id') userId: string,
+  @Param('id', ParseUUIDPipe) id: string,
+) {
+  return this.opportunitiesService.getOpportunityApplicants(
+    userId,
+    id,
+  );
+}
+
   // ORGANIZATION: Update application status
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZATION)
