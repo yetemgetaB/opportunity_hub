@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+
 import { StudentProfileController } from './student-profile.controller';
 import { StudentProfileService } from './student-profile.service';
 import { StudentProfileRepository } from './student-profile.repository';
@@ -14,5 +15,6 @@ import { RolesGuard } from '@/common/guards/roles.guard';
     StudentProfileRepository,
     RolesGuard,
   ],
+  exports: [StudentProfileRepository],
 })
 export class StudentProfileModule {}
