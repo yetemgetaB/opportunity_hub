@@ -44,22 +44,25 @@ describe('OpportunitiesRepository', () => {
 
   beforeEach(async () => {
     mockPrisma = {
-      opportunity: {
-        create: jest.fn(),
-        findFirst: jest.fn(),
-        findMany: jest.fn(),
-        count: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-      },
-      opportunitySkill: {
-        upsert: jest.fn(),
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
-        findMany: jest.fn(),
-      },
-      $transaction: jest.fn((callback) => callback(mockPrisma)),
-    };
+  opportunity: {
+    create: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    count: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
+  opportunitySkill: {
+    upsert: jest.fn(),
+    deleteMany: jest.fn(),
+    createMany: jest.fn(),
+    findMany: jest.fn(),
+  },
+  application: {
+    findMany: jest.fn(),
+  },
+  $transaction: jest.fn((callback) => callback(mockPrisma)),
+};
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -510,6 +513,155 @@ describe('OpportunitiesRepository', () => {
       );
     });
   });
+
+  describe('findApplicationsByOpportunityId', () => {
+  it('should retrieve applicants with profile, skills, experiences, and CVs', async () => {
+    const applicants = [
+      {
+        id: 'application-1',
+        status: 'SUBMITTED',
+        appliedAt: mockDate,
+        updatedAt: mockDate,
+        studentProfile: {
+          academicYear: 3,
+          university: 'Unity University',
+          fieldOfStudy: 'Computer Science',
+          location: 'Addis Ababa',
+          careerGoals: 'Become a backend developer',
+          careerGoalTags: ['backend', 'software engineering'],
+          interests: ['AI', 'Web Development'],
+          user: {
+            id: 'student-1',
+            firstName: 'Eyosias',
+            middleName: 'Haile',
+            lastName: 'Yesus',
+            avatarUrl: null,
+          },
+          skills: [
+            {
+              proficiency: 4,
+              yearsOfExperience: 2,
+              skill: {
+                id: 'skill-1',
+                name: 'NestJS',
+                category: 'Backend',
+                description: 'Node.js framework',
+              },
+            },
+          ],
+          experiences: [
+            {
+              id: 'experience-1',
+              title: 'Backend Intern',
+              organizationName: 'Tech Corp',
+              experienceType: 'INTERNSHIP',
+              startDate: new Date('2025-06-01'),
+              endDate: new Date('2025-09-01'),
+              location: 'Addis Ababa',
+              description: 'Worked on backend APIs',
+            },
+          ],
+          cvs: [
+            {
+              id: 'cv-1',
+              fileName: 'resume.pdf',
+              fileType: 'application/pdf',
+              fileSize: 102400,
+              isDefault: true,
+              uploadedAt: mockDate,
+            },
+          ],
+        },
+      },
+    ];
+
+    mockPrisma.application.findMany.mockResolvedValue(applicants);
+
+    const result =
+      await repository.findApplicationsByOpportunityId(
+        baseOpportunity.id,
+      );
+
+    expect(result).toEqual(applicants);
+
+    expect(mockPrisma.application.findMany).toHaveBeenCalledWith({
+      where: {
+        opportunityId: baseOpportunity.id,
+      },
+      select: {
+        id: true,
+        status: true,
+        appliedAt: true,
+        updatedAt: true,
+        studentProfile: {
+          select: {
+            academicYear: true,
+            university: true,
+            fieldOfStudy: true,
+            location: true,
+            careerGoals: true,
+            careerGoalTags: true,
+            interests: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                middleName: true,
+                lastName: true,
+                avatarUrl: true,
+              },
+            },
+            skills: {
+              select: {
+                proficiency: true,
+                yearsOfExperience: true,
+                skill: {
+                  select: {
+                    id: true,
+                    name: true,
+                    category: true,
+                    description: true,
+                  },
+                },
+              },
+            },
+            experiences: {
+              select: {
+                id: true,
+                title: true,
+                organizationName: true,
+                experienceType: true,
+                startDate: true,
+                endDate: true,
+                location: true,
+                description: true,
+              },
+              orderBy: {
+                startDate: 'desc',
+              },
+            },
+            cvs: {
+              select: {
+                id: true,
+                fileName: true,
+                fileType: true,
+                fileSize: true,
+                isDefault: true,
+                uploadedAt: true,
+              },
+              orderBy: {
+                uploadedAt: 'desc',
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        appliedAt: 'desc',
+      },
+    });
+  });
+});
 
   describe('count', () => {
     it('should return matching count', async () => {

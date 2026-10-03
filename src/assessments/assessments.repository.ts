@@ -296,4 +296,47 @@ export class AssessmentsRepository {
       where: { id },
     });
   }
+
+  // ==========================================================================
+  // BACKEND 1 COMPATIBILITY ADAPTERS
+  // ==========================================================================
+
+  /**
+   * Compatibility adapter for Backend 1 assessment creation.
+   * Delegates to create(data: CreateAssessmentData).
+   */
+  async createAssessment(
+    opportunityId: string,
+    title: string,
+    instructions?: string,
+    timeLimitMinutes?: number,
+  ): Promise<AssessmentWithQuestions> {
+    return this.create({
+      opportunityId,
+      title,
+      instructions,
+      timeLimitMinutes,
+    });
+  }
+
+  /**
+   * Compatibility adapter for Backend 1 assessment retrieval with questions.
+   * Delegates to findByIdWithQuestions(id: string).
+   */
+  async getAssessment(
+    assessmentId: string,
+  ): Promise<AssessmentWithQuestions | null> {
+    return this.findByIdWithQuestions(assessmentId);
+  }
+
+  /**
+   * Compatibility adapter for Backend 1 assessment questions retrieval.
+   * Delegates to findQuestionsByAssessmentId(assessmentId: string).
+   */
+  async getAssessmentQuestions(
+    assessmentId: string,
+  ): Promise<AssessmentQuestion[]> {
+    return this.findQuestionsByAssessmentId(assessmentId);
+  }
 }
+

@@ -186,7 +186,7 @@ describe('ApplicationsService', () => {
 
       const result = await service.getMyApplications(studentUserId);
 
-      expect(repository.findByStudentProfileId).toHaveBeenCalledWith(
+      expect(mockRepository.findByStudentProfileId).toHaveBeenCalledWith(
         studentUserId,
         undefined,
       );
@@ -242,7 +242,7 @@ describe('ApplicationsService', () => {
 
       const result = await service.getOrganizationApplications(orgUserId);
 
-      expect(repository.findByOrganizationId).toHaveBeenCalledWith(
+      expect(mockRepository.findByOrganizationId).toHaveBeenCalledWith(
         orgId,
         undefined,
       );
@@ -278,7 +278,7 @@ describe('ApplicationsService', () => {
         ApplicationStatus.SHORTLISTED,
       );
 
-      expect(repository.updateStatus).toHaveBeenCalledWith(
+      expect(mockRepository.updateStatus).toHaveBeenCalledWith(
         appId,
         ApplicationStatus.SHORTLISTED,
       );
@@ -316,7 +316,7 @@ describe('ApplicationsService', () => {
 
       const result = await service.saveOpportunity(studentUserId, oppId);
 
-      expect(repository.saveOpportunity).toHaveBeenCalledWith(
+      expect(mockRepository.saveOpportunity).toHaveBeenCalledWith(
         studentUserId,
         oppId,
       );
@@ -333,7 +333,7 @@ describe('ApplicationsService', () => {
         oppId,
       );
 
-      expect(repository.removeSavedOpportunity).toHaveBeenCalledWith(
+      expect(mockRepository.removeSavedOpportunity).toHaveBeenCalledWith(
         studentUserId,
         oppId,
       );
@@ -353,7 +353,7 @@ describe('ApplicationsService', () => {
 
       const result = await service.getMySavedOpportunities(studentUserId);
 
-      expect(repository.findSavedByStudentProfileId).toHaveBeenCalledWith(
+      expect(mockRepository.findSavedByStudentProfileId).toHaveBeenCalledWith(
         studentUserId,
         undefined,
       );

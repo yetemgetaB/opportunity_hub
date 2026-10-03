@@ -80,3 +80,68 @@ export type OpportunitySkillWithSkill = Prisma.OpportunitySkillGetPayload<{
     skill: true;
   };
 }>;
+
+export type OpportunityApplicant = Prisma.ApplicationGetPayload<{
+  select: {
+    id: true;
+    status: true;
+    appliedAt: true;
+    updatedAt: true;
+    studentProfile: {
+      select: {
+        academicYear: true;
+        university: true;
+        fieldOfStudy: true;
+        location: true;
+        careerGoals: true;
+        careerGoalTags: true;
+        interests: true;
+        user: {
+          select: {
+            id: true;
+            firstName: true;
+            middleName: true;
+            lastName: true;
+            avatarUrl: true;
+          };
+        };
+        skills: {
+          select: {
+            proficiency: true;
+            yearsOfExperience: true;
+            skill: {
+              select: {
+                id: true;
+                name: true;
+                category: true;
+                description: true;
+              };
+            };
+          };
+        };
+        experiences: {
+          select: {
+            id: true;
+            title: true;
+            organizationName: true;
+            experienceType: true;
+            startDate: true;
+            endDate: true;
+            location: true;
+            description: true;
+          };
+        };
+        cvs: {
+          select: {
+            id: true;
+            fileName: true;
+            fileType: true;
+            fileSize: true;
+            isDefault: true;
+            uploadedAt: true;
+          };
+        };
+      };
+    };
+  };
+}>;

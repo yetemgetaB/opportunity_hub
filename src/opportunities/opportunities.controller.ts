@@ -95,6 +95,20 @@ export class OpportunitiesController {
     return this.opportunitiesService.publishOpportunity(userId, id);
   }
 
+  // ORGANIZATION: View applicants for opportunity
+@UseGuards(SupabaseAuthGuard, RolesGuard)
+@Roles(UserRole.ORGANIZATION)
+@Get(':id/applicants')
+getOpportunityApplicants(
+  @CurrentUser('id') userId: string,
+  @Param('id', ParseUUIDPipe) id: string,
+) {
+  return this.opportunitiesService.getOpportunityApplicants(
+    userId,
+    id,
+  );
+}
+
   // ORGANIZATION: Update application status
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZATION)
@@ -155,18 +169,6 @@ getMyApplications(
 ) {
   return this.opportunitiesService.getMyApplications(userId);
 }
-
-  // ORGANIZATION: Opportunity assessment (placeholder)
-  @UseGuards(SupabaseAuthGuard, RolesGuard)
-  @Roles(UserRole.ORGANIZATION)
-  @Post(':id/assessment')
-  createAssessment(@Param('id', ParseUUIDPipe) id: string) {
-    return {
-      message: 'Organization opportunity assessment endpoint is protected.',
-      opportunityId: id,
-      role: UserRole.ORGANIZATION,
-    };
-  }
 
   // PUBLIC: Search published opportunities
   @Get()

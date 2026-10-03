@@ -21,6 +21,7 @@ describe('OpportunitiesService', () => {
     create: jest.fn(),
     findById: jest.fn(),
     findByIdAndOrganizationId: jest.fn(),
+    findApplicationsByOpportunityId: jest.fn(),
     findByOrganizationId: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
@@ -203,6 +204,221 @@ describe('OpportunitiesService', () => {
       );
     });
   });
+
+  describe('getOpportunityApplicants', () => {
+  it('returns applicants when the organization owns the opportunity', async () => {
+    const applicants = [
+  {
+    id: 'application-1',
+    status: 'PENDING',
+    appliedAt: new Date(),
+    updatedAt: new Date(),
+
+    studentProfile: {
+      academicYear: 3,
+      university: 'Unity University',
+      fieldOfStudy: 'Computer Science',
+      location: 'Addis Ababa',
+      careerGoals: 'Become a software engineer',
+      careerGoalTags: ['backend', 'software engineering'],
+      interests: ['AI', 'Web Development'],
+
+      user: {
+        id: userId,
+        firstName: 'John',
+        middleName: 'Doe',
+        lastName: 'Smith',
+        avatarUrl: null,
+      },
+
+      skills: [
+        {
+          proficiency: 4,
+          yearsOfExperience: 2,
+          skill: {
+            id: 'skill-1',
+            name: 'NestJS',
+            category: 'Backend',
+            description: 'Node.js framework',
+          },
+        },
+      ],
+
+      experiences: [
+        {
+          id: 'experience-1',
+          title: 'Backend Intern',
+          organizationName: 'Tech Corp',
+          experienceType: 'INTERNSHIP',
+          startDate: new Date('2025-06-01'),
+          endDate: new Date('2025-09-01'),
+          location: 'Addis Ababa',
+          description: 'Worked on backend APIs',
+        },
+      ],
+
+      cvs: [
+        {
+          id: 'cv-1',
+          fileName: 'resume.pdf',
+          fileType: 'application/pdf',
+          fileSize: 102400,
+          isDefault: true,
+          uploadedAt: new Date(),
+        },
+      ],
+    },
+  },
+];
+
+    mockPrisma.organizationMember.findFirst.mockResolvedValue(
+      mockMembership,
+    );
+
+    mockRepository.findByIdAndOrganizationId.mockResolvedValue({
+      id: oppId,
+      organizationId: orgId,
+    });
+
+    mockRepository.findApplicationsByOpportunityId.mockResolvedValue(
+      applicants,
+    );
+
+    const result = await service.getOpportunityApplicants(userId, oppId);
+
+    expect(
+      prisma.organizationMember.findFirst,
+    ).toHaveBeenCalledWith({
+      where: { userId },
+      include: { organization: true },
+    });
+
+    expect(
+      repository.findByIdAndOrganizationId,
+    ).toHaveBeenCalledWith(oppId, orgId);
+
+    expect(
+      repository.findApplicationsByOpportunityId,
+    ).toHaveBeenCalledWith(oppId);
+
+    expect(result).toEqual([
+  {
+    application: {
+      id: 'application-1',
+      status: 'PENDING',
+      appliedAt: applicants[0].appliedAt,
+      updatedAt: applicants[0].updatedAt,
+    },
+    student: {
+      id: userId,
+      firstName: 'John',
+      middleName: 'Doe',
+      lastName: 'Smith',
+      avatarUrl: null,
+
+      profile: {
+        academicYear: 3,
+        university: 'Unity University',
+        fieldOfStudy: 'Computer Science',
+        location: 'Addis Ababa',
+        careerGoals: 'Become a software engineer',
+        careerGoalTags: ['backend', 'software engineering'],
+        interests: ['AI', 'Web Development'],
+      },
+
+      skills: [
+        {
+          skillId: 'skill-1',
+          name: 'NestJS',
+          category: 'Backend',
+          description: 'Node.js framework',
+          proficiency: 4,
+          yearsOfExperience: 2,
+        },
+      ],
+
+      experiences: [
+        {
+          id: 'experience-1',
+          title: 'Backend Intern',
+          organizationName: 'Tech Corp',
+          experienceType: 'INTERNSHIP',
+          startDate: new Date('2025-06-01'),
+          endDate: new Date('2025-09-01'),
+          location: 'Addis Ababa',
+          description: 'Worked on backend APIs',
+        },
+      ],
+
+      cvs: [
+        {
+          id: 'cv-1',
+          fileName: 'resume.pdf',
+          fileType: 'application/pdf',
+          fileSize: 102400,
+          isDefault: true,
+          uploadedAt: expect.any(Date),
+        },
+      ],
+    },
+  },
+]);
+  });
+
+  it('throws NotFoundException when the opportunity does not belong to the organization', async () => {
+    mockPrisma.organizationMember.findFirst.mockResolvedValue(
+      mockMembership,
+    );
+
+    mockRepository.findByIdAndOrganizationId.mockResolvedValue(null);
+
+    await expect(
+      service.getOpportunityApplicants(userId, oppId),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(
+      repository.findApplicationsByOpportunityId,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundException when the user is not an organization member', async () => {
+    mockPrisma.organizationMember.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.getOpportunityApplicants(userId, oppId),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(
+      repository.findByIdAndOrganizationId,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      repository.findApplicationsByOpportunityId,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundException when the organization is deleted', async () => {
+    mockPrisma.organizationMember.findFirst.mockResolvedValue({
+      ...mockMembership,
+      organization: {
+        ...mockMembership.organization,
+        deletedAt: new Date(),
+      },
+    });
+
+    await expect(
+      service.getOpportunityApplicants(userId, oppId),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(
+      repository.findByIdAndOrganizationId,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      repository.findApplicationsByOpportunityId,
+    ).not.toHaveBeenCalled();
+  });
+});
 
   describe('updateOpportunity', () => {
     it('should update opportunity and replace skills when skills are provided', async () => {

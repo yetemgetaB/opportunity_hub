@@ -15,5 +15,6 @@ import { OrganizationProfileService } from './organization-profile.service';
     OrganizationProfileRepository,
     RolesGuard,
   ],
+  exports: [OrganizationProfileRepository],
 })
 export class OrganizationProfileModule {}
