@@ -8,23 +8,39 @@ import { OpportunitiesRepository } from '@/opportunities/opportunities.repositor
 describe('AssessmentsService', () => {
   let service: AssessmentsService;
 
+  const assessmentsRepository = {
+    createAssessment: jest.fn(),
+    getAssessment: jest.fn(),
+    getAssessmentQuestions: jest.fn(),
+  };
+
+  const organizationProfileRepository = {
+    findByUserId: jest.fn(),
+  };
+
+  const opportunitiesRepository = {
+    findByIdAndOrganizationId: jest.fn(),
+  };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-  AssessmentsService,
-  {
-    provide: AssessmentsRepository,
-    useValue: {},
-  },
-  {
-    provide: OrganizationProfileRepository,
-    useValue: {},
-  },
-  {
-    provide: OpportunitiesRepository,
-    useValue: {},
-  },
-],
+        AssessmentsService,
+        {
+          provide: AssessmentsRepository,
+          useValue: assessmentsRepository,
+        },
+        {
+          provide: OrganizationProfileRepository,
+          useValue: organizationProfileRepository,
+        },
+        {
+          provide: OpportunitiesRepository,
+          useValue: opportunitiesRepository,
+        },
+      ],
     }).compile();
 
     service = module.get<AssessmentsService>(AssessmentsService);
@@ -33,4 +49,134 @@ describe('AssessmentsService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+
+  it('should throw NotFoundException when organization membership is not found', async () => {
+    organizationProfileRepository.findByUserId.mockResolvedValue(null);
+
+    await expect(
+      service.createAssessment('user-123', 'opp-123'),
+    ).rejects.toThrow('Organization membership not found.');
+
+    expect(
+      opportunitiesRepository.findByIdAndOrganizationId,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      assessmentsRepository.createAssessment,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should throw NotFoundException when opportunity is not found', async () => {
+    organizationProfileRepository.findByUserId.mockResolvedValue({
+      organizationId: 'org-123',
+      organization: {
+        deletedAt: null,
+      },
+    });
+
+    opportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(null);
+
+    await expect(
+      service.createAssessment('user-123', 'opp-123'),
+    ).rejects.toThrow('Opportunity not found.');
+
+    expect(
+      assessmentsRepository.createAssessment,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should create an assessment for an organization opportunity', async () => {
+    organizationProfileRepository.findByUserId.mockResolvedValue({
+      organizationId: 'org-123',
+      organization: {
+        deletedAt: null,
+      },
+    });
+
+    opportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue({
+      id: 'opp-123',
+      title: 'Software Engineering Internship',
+    });
+
+    assessmentsRepository.createAssessment.mockResolvedValue({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      title: 'Software Engineering Internship Assessment',
+    });
+
+    const result = await service.createAssessment(
+      'user-123',
+      'opp-123',
+    );
+
+    expect(
+      organizationProfileRepository.findByUserId,
+    ).toHaveBeenCalledWith('user-123');
+
+    expect(
+      opportunitiesRepository.findByIdAndOrganizationId,
+    ).toHaveBeenCalledWith('opp-123', 'org-123');
+
+    expect(
+      assessmentsRepository.createAssessment,
+    ).toHaveBeenCalledWith(
+      'opp-123',
+      'Software Engineering Internship Assessment',
+    );
+
+    expect(result).toEqual({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      title: 'Software Engineering Internship Assessment',
+    });
+  });
+
+  it('should get an assessment', async () => {
+    assessmentsRepository.getAssessment.mockResolvedValue({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      title: 'Software Engineering Internship Assessment',
+    });
+
+    const result = await service.getAssessment('assessment-123');
+
+    expect(
+      assessmentsRepository.getAssessment,
+    ).toHaveBeenCalledWith('assessment-123');
+
+    expect(result).toEqual({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      title: 'Software Engineering Internship Assessment',
+    });
+  });
+
+  it('should get assessment questions', async () => {
+    assessmentsRepository.getAssessmentQuestions.mockResolvedValue([
+      {
+        id: 'question-1',
+        assessmentId: 'assessment-123',
+        questionText: 'What is polymorphism?',
+        questionOrder: 1,
+      },
+    ]);
+
+    const result = await service.getAssessmentQuestions(
+      'assessment-123',
+    );
+
+    expect(
+      assessmentsRepository.getAssessmentQuestions,
+    ).toHaveBeenCalledWith('assessment-123');
+
+    expect(result).toEqual([
+      {
+        id: 'question-1',
+        assessmentId: 'assessment-123',
+        questionText: 'What is polymorphism?',
+        questionOrder: 1,
+      },
+    ]);
+  });
 });
+
