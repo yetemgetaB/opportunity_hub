@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { OpportunityStatus, OpportunityType, UserRole } from '@prisma/client';
-import { OpportunitiesController } from './opportunities.controller';
+import { OpportunityStatus, OpportunityType } from '@prisma/client';import { OpportunitiesController } from './opportunities.controller';
 import { OpportunitiesService } from './opportunities.service';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
@@ -188,16 +187,6 @@ describe('OpportunitiesController', () => {
 
   expect(result).toEqual(application);
 });
-
-    it('createAssessment returns organization assessment protected message', () => {
-      const oppId = '22222222-2222-2222-2222-222222222222';
-      const result = controller.createAssessment(oppId);
-      expect(result).toEqual({
-        message: 'Organization opportunity assessment endpoint is protected.',
-        opportunityId: oppId,
-        role: UserRole.ORGANIZATION,
-      });
-    });
 
     it('searchOpportunities calls service.searchOpportunities', async () => {
       const query: SearchOpportunityDto = { location: 'Addis Ababa' };

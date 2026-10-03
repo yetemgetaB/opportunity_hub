@@ -170,18 +170,6 @@ getMyApplications(
   return this.opportunitiesService.getMyApplications(userId);
 }
 
-  // ORGANIZATION: Opportunity assessment (placeholder)
-  @UseGuards(SupabaseAuthGuard, RolesGuard)
-  @Roles(UserRole.ORGANIZATION)
-  @Post(':id/assessment')
-  createAssessment(@Param('id', ParseUUIDPipe) id: string) {
-    return {
-      message: 'Organization opportunity assessment endpoint is protected.',
-      opportunityId: id,
-      role: UserRole.ORGANIZATION,
-    };
-  }
-
   // PUBLIC: Search published opportunities
   @Get()
   async searchOpportunities(@Query() query: SearchOpportunityDto) {
