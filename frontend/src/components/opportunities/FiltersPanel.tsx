@@ -1,6 +1,6 @@
 import { JOB_TYPES } from '../../utils/studentData'
 
-const SUB_TYPES = new Set(['Paid Internship', 'Unpaid Internship'])
+const RADIO_TYPES = new Set(['Paid Internship', 'Unpaid Internship'])
 
 export default function FiltersPanel() {
   return (
@@ -10,15 +10,20 @@ export default function FiltersPanel() {
       <div className="mt-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Job Type</p>
         <div className="mt-3 space-y-2">
-          {JOB_TYPES.map((t, i) => (
-            <label
-              key={t}
-              className={`flex items-center gap-2 text-sm text-slate-600 ${SUB_TYPES.has(t) ? 'ml-5' : ''}`}
-            >
-              <input type="checkbox" defaultChecked={i === 0} className="accent-brand" />
-              {t}
-            </label>
-          ))}
+          {JOB_TYPES.map((t, i) => {
+            const isRadio = RADIO_TYPES.has(t)
+            return (
+              <label key={t} className={`flex items-center gap-2 text-sm text-slate-600 ${isRadio ? 'ml-5' : ''}`}>
+                <input
+                  type={isRadio ? 'radio' : 'checkbox'}
+                  name={isRadio ? 'internship-pay-type' : undefined}
+                  defaultChecked={!isRadio && i === 0}
+                  className="accent-brand"
+                />
+                {t}
+              </label>
+            )
+          })}
         </div>
       </div>
 
