@@ -1,5 +1,7 @@
 import { JOB_TYPES } from '../../utils/studentData'
 
+const SUB_TYPES = new Set(['Paid Internship', 'Unpaid Internship'])
+
 export default function FiltersPanel() {
   return (
     <aside className="w-full shrink-0 rounded-2xl border border-slate-200 bg-white p-5 lg:w-64">
@@ -9,7 +11,10 @@ export default function FiltersPanel() {
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Job Type</p>
         <div className="mt-3 space-y-2">
           {JOB_TYPES.map((t, i) => (
-            <label key={t} className="flex items-center gap-2 text-sm text-slate-600">
+            <label
+              key={t}
+              className={`flex items-center gap-2 text-sm text-slate-600 ${SUB_TYPES.has(t) ? 'ml-5' : ''}`}
+            >
               <input type="checkbox" defaultChecked={i === 0} className="accent-brand" />
               {t}
             </label>
