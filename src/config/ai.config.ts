@@ -1,0 +1,14 @@
+import { registerAs } from '@nestjs/config';
+
+export interface AiConfig {
+  apiKey?: string;
+  model: string;
+}
+
+export default registerAs(
+  'ai',
+  (): AiConfig => ({
+    apiKey: process.env.AI_API_KEY,
+    model: process.env.AI_MODEL || 'gpt-4o-mini',
+  }),
+);

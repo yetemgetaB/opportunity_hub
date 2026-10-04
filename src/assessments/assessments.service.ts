@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,38 +10,50 @@ import { OpportunitiesRepository } from '@/opportunities/opportunities.repositor
 
 @Injectable()
 export class AssessmentsService {
- constructor(
-  private readonly assessmentsRepository: AssessmentsRepository,
-  private readonly organizationProfileRepository: OrganizationProfileRepository,
-  private readonly opportunitiesRepository: OpportunitiesRepository,
-) {}
+  constructor(
+    private readonly assessmentsRepository: AssessmentsRepository,
+    private readonly organizationProfileRepository: OrganizationProfileRepository,
+    private readonly opportunitiesRepository: OpportunitiesRepository,
+  ) {}
 
   async createAssessment(
-  userId: string,
-  opportunityId: string,
-) {
-  const membership =
-    await this.organizationProfileRepository.findByUserId(userId);
+    userId: string,
+    opportunityId: string,
+  ) {
+    const membership =
+      await this.organizationProfileRepository.findByUserId(userId);
 
-  if (!membership || membership.organization.deletedAt) {
-    throw new NotFoundException('Organization membership not found.');
-  }
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException(
+        'Organization membership not found.',
+      );
+    }
 
-  const opportunity =
-    await this.opportunitiesRepository.findByIdAndOrganizationId(
+    const opportunity =
+      await this.opportunitiesRepository.findById(
+        opportunityId,
+      );
+
+    if (!opportunity) {
+      throw new NotFoundException(
+        'Opportunity not found.',
+      );
+    }
+
+    if (
+      opportunity.organizationId !==
+      membership.organizationId
+    ) {
+      throw new ForbiddenException(
+        'You are not authorized to create an assessment for this opportunity.',
+      );
+    }
+
+    return this.assessmentsRepository.createAssessment(
       opportunityId,
-      membership.organizationId,
+      `${opportunity.title} Assessment`,
     );
-
-  if (!opportunity) {
-    throw new NotFoundException('Opportunity not found.');
   }
-
-  return this.assessmentsRepository.createAssessment(
-    opportunityId,
-    `${opportunity.title} Assessment`,
-  );
-}
 
   getAssessment(assessmentId: string) {
     return this.assessmentsRepository.getAssessment(assessmentId);
@@ -52,3 +65,4 @@ export class AssessmentsService {
     );
   }
 }
+
