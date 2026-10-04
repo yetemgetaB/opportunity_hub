@@ -7,8 +7,11 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 
 describe('AssessmentsController', () => {
   let controller: AssessmentsController;
+
   let service: {
     createAssessment: jest.Mock;
+    prepareApplicantAnalysis: jest.Mock;
+    getAssessmentResultsByOpportunity: jest.Mock;
     getAssessment: jest.Mock;
     getAssessmentQuestions: jest.Mock;
   };
@@ -21,6 +24,8 @@ describe('AssessmentsController', () => {
           provide: AssessmentsService,
           useValue: {
             createAssessment: jest.fn(),
+            prepareApplicantAnalysis: jest.fn(),
+            getAssessmentResultsByOpportunity: jest.fn(),
             getAssessment: jest.fn(),
             getAssessmentQuestions: jest.fn(),
           },
@@ -48,56 +53,6 @@ describe('AssessmentsController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('should get an assessment', async () => {
-  service.getAssessment.mockResolvedValue({
-    id: 'assessment-123',
-    opportunityId: 'opp-123',
-    title: 'Software Engineering Internship Assessment',
-  });
-
-  const result = await controller.getAssessment(
-    'assessment-123',
-  );
-
-  expect(service.getAssessment).toHaveBeenCalledWith(
-    'assessment-123',
-  );
-
-  expect(result).toEqual({
-    id: 'assessment-123',
-    opportunityId: 'opp-123',
-    title: 'Software Engineering Internship Assessment',
-  });
-});
-
-it('should get assessment questions', async () => {
-  service.getAssessmentQuestions.mockResolvedValue([
-    {
-      id: 'question-1',
-      assessmentId: 'assessment-123',
-      questionText: 'What is polymorphism?',
-      questionOrder: 1,
-    },
-  ]);
-
-  const result = await controller.getAssessmentQuestions(
-    'assessment-123',
-  );
-
-  expect(service.getAssessmentQuestions).toHaveBeenCalledWith(
-    'assessment-123',
-  );
-
-  expect(result).toEqual([
-    {
-      id: 'question-1',
-      assessmentId: 'assessment-123',
-      questionText: 'What is polymorphism?',
-      questionOrder: 1,
-    },
-  ]);
-});
-
   it('should create an assessment', async () => {
     service.createAssessment.mockResolvedValue({
       id: 'assessment-123',
@@ -120,5 +75,113 @@ it('should get assessment questions', async () => {
       opportunityId: 'opp-123',
       title: 'Software Engineering Internship Assessment',
     });
+  });
+
+  it('should trigger applicant analysis', async () => {
+    service.prepareApplicantAnalysis.mockResolvedValue({
+      opportunityId: 'opp-123',
+      eligibleApplicants: [],
+      totalEligibleApplicants: 0,
+    });
+
+    const result = await controller.analyzeApplicants(
+      'user-123',
+      'opp-123',
+    );
+
+    expect(service.prepareApplicantAnalysis).toHaveBeenCalledWith(
+      'user-123',
+      'opp-123',
+    );
+
+    expect(result).toEqual({
+      opportunityId: 'opp-123',
+      eligibleApplicants: [],
+      totalEligibleApplicants: 0,
+    });
+  });
+
+  it('should get candidate assessment results', async () => {
+    const filters = {
+      minScore: 70,
+      isFinalApproved: true,
+      orderBy: 'finalScore_desc',
+      skip: 0,
+      take: 20,
+    };
+
+    service.getAssessmentResultsByOpportunity.mockResolvedValue({
+      opportunityId: 'opp-123',
+      candidates: [],
+    });
+
+    const result = await controller.getCandidateResults(
+      'user-123',
+      'opp-123',
+      filters,
+    );
+
+    expect(
+      service.getAssessmentResultsByOpportunity,
+    ).toHaveBeenCalledWith(
+      'user-123',
+      'opp-123',
+      filters,
+    );
+
+    expect(result).toEqual({
+      opportunityId: 'opp-123',
+      candidates: [],
+    });
+  });
+
+  it('should get an assessment', async () => {
+    service.getAssessment.mockResolvedValue({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      title: 'Software Engineering Internship Assessment',
+    });
+
+    const result = await controller.getAssessment(
+      'assessment-123',
+    );
+
+    expect(service.getAssessment).toHaveBeenCalledWith(
+      'assessment-123',
+    );
+
+    expect(result).toEqual({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      title: 'Software Engineering Internship Assessment',
+    });
+  });
+
+  it('should get assessment questions', async () => {
+    service.getAssessmentQuestions.mockResolvedValue([
+      {
+        id: 'question-1',
+        assessmentId: 'assessment-123',
+        questionText: 'What is polymorphism?',
+        questionOrder: 1,
+      },
+    ]);
+
+    const result = await controller.getAssessmentQuestions(
+      'assessment-123',
+    );
+
+    expect(service.getAssessmentQuestions).toHaveBeenCalledWith(
+      'assessment-123',
+    );
+
+    expect(result).toEqual([
+      {
+        id: 'question-1',
+        assessmentId: 'assessment-123',
+        questionText: 'What is polymorphism?',
+        questionOrder: 1,
+      },
+    ]);
   });
 });
