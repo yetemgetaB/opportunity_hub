@@ -1,54 +1,172 @@
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ApplicantStatsRow from '../../components/applicants/ApplicantStatsRow'
 import ApplicantsTable from '../../components/applicants/ApplicantsTable'
 import Icon from '../../components/ui/Icon'
+import type { ApplicantListItem, ApplicantStatus } from '../../types/organization'
 import { APPLICANTS, APPLICANTS_OPPORTUNITY_TITLE } from '../../utils/organizationData'
 
+type StatusFilter = 'All' | ApplicantStatus
+type SortOption = 'Match Score' | 'Date Applied' | 'Applicant Name'
+
+const statuses: StatusFilter[] = ['All', 'Under Review', 'Interview', 'Shortlisted', 'Accepted']
+
 export default function ApplicantsPage() {
+  const navigate = useNavigate()
+  const [applicants, setApplicants] = useState<ApplicantListItem[]>(APPLICANTS)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
+  const [sortBy, setSortBy] = useState<SortOption>('Match Score')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+  const visibleApplicants = useMemo(() => {
+    const filtered = applicants.filter((applicant) => statusFilter === 'All' || applicant.status === statusFilter)
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'Applicant Name') return a.name.localeCompare(b.name)
+      if (sortBy === 'Date Applied') return new Date(b.dateApplied).getTime() - new Date(a.dateApplied).getTime()
+      return b.matchScore - a.matchScore
+    })
+  }, [applicants, sortBy, statusFilter])
+
+  const visibleIds = visibleApplicants.map((applicant) => applicant.id)
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id))
+
+  const toggleApplicant = (id: string) => {
+    setSelectedIds((current) => current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id])
+  }
+
+  const toggleAllVisible = () => {
+    setSelectedIds((current) => allVisibleSelected
+      ? current.filter((id) => !visibleIds.includes(id))
+      : [...new Set([...current, ...visibleIds])])
+  }
+
+  const shortlistSelected = () => {
+    setApplicants((current) => current.map((applicant) => selectedIds.includes(applicant.id)
+      ? { ...applicant, status: 'Shortlisted' }
+      : applicant))
+    setSelectedIds([])
+  }
+
+  const sendAssessment = () => {
+    if (selectedIds.length > 0) navigate(`/organization/applicants/${selectedIds[0]}/assessment`)
+  }
+
+  const exportApplicants = () => {
+    const csv = [
+      ['Applicant Name', 'AI Match Score', 'Skills Match', 'Status', 'Date Applied'],
+      ...visibleApplicants.map((applicant) => [
+        applicant.name,
+        `${applicant.matchScore}%`,
+        `${applicant.skillsMatch}%`,
+        applicant.status,
+        applicant.dateApplied,
+      ]),
+    ].map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'applicants.csv'
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
-    <div>
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="space-y-6">
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Viewing applicants for</p>
-          {/* TODO: turn this into a real opportunity picker once there's more than one posting to view */}
-          <div className="mt-2 flex items-center gap-2 text-lg font-bold text-navy">
-            {APPLICANTS_OPPORTUNITY_TITLE}
-            <Icon name="chevronDown" className="h-4 w-4 text-slate-400" />
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand">Viewing applicants for</p>
+          <label className="relative mt-2 block">
+            <span className="sr-only">Opportunity</span>
+            <select
+              value={APPLICANTS_OPPORTUNITY_TITLE}
+              aria-label="Opportunity"
+              disabled
+              className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-lg font-bold text-navy disabled:cursor-default disabled:opacity-100 sm:w-auto"
+            >
+              <option>{APPLICANTS_OPPORTUNITY_TITLE}</option>
+            </select>
+            <Icon name="chevronDown" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          </label>
         </div>
-        {/* TODO: wire this up to a real CSV/PDF export */}
-        <button className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-navy hover:bg-slate-50">
+        <button
+          type="button"
+          onClick={exportApplicants}
+          className="inline-flex items-center justify-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-navy transition hover:bg-slate-50 sm:self-auto"
+        >
           <Icon name="download" className="h-4 w-4" />
           Export Data
         </button>
-      </div>
+      </section>
 
-      <div className="mt-6">
-        <ApplicantStatsRow />
-      </div>
+      <ApplicantStatsRow />
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-3">
-          {/* TODO: wire these up to real filtering/sorting */}
-          <button className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-navy">
-            Status: All <Icon name="chevronDown" className="h-3.5 w-3.5" />
-          </button>
-          <button className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-navy">
-            Sort: Match Score <Icon name="chevronDown" className="h-3.5 w-3.5" />
-          </button>
+      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap gap-3">
+            <label className="relative">
+              <span className="sr-only">Filter applicants by status</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                className="appearance-none rounded-md border border-slate-200 bg-white py-2 pl-3 pr-9 text-xs font-semibold text-slate-600 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+              >
+                {statuses.map((status) => <option key={status} value={status}>Status: {status}</option>)}
+              </select>
+              <Icon name="chevronDown" className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+            </label>
+            <label className="relative">
+              <span className="sr-only">Sort applicants</span>
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as SortOption)}
+                className="appearance-none rounded-md border border-slate-200 bg-white py-2 pl-3 pr-9 text-xs font-semibold text-slate-600 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+              >
+                {(['Match Score', 'Date Applied', 'Applicant Name'] as SortOption[]).map((option) => (
+                  <option key={option} value={option}>Sort: {option}</option>
+                ))}
+              </select>
+              <Icon name="chevronDown" className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+            </label>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label className="inline-flex items-center gap-2 pr-2 text-xs font-semibold text-slate-500">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleAllVisible}
+                disabled={visibleIds.length === 0}
+                className="h-4 w-4 rounded border-slate-300 accent-brand"
+              />
+              Select all
+            </label>
+            <button
+              type="button"
+              onClick={shortlistSelected}
+              disabled={selectedIds.length === 0}
+              className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-600 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Shortlist Selected{selectedIds.length ? ` (${selectedIds.length})` : ''}
+            </button>
+            <button
+              type="button"
+              onClick={sendAssessment}
+              disabled={selectedIds.length === 0}
+              className="rounded-md bg-navy px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Send Assessment{selectedIds.length ? ` (${selectedIds.length})` : ''}
+            </button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button className="rounded-md border border-emerald-500 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50">
-            Shortlist Selected
-          </button>
-          <button className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white hover:bg-navy-light">
-            Send Assessment
-          </button>
+        <div className="mt-4">
+          <ApplicantsTable
+            applicants={visibleApplicants}
+            selectedIds={selectedIds}
+            onToggleApplicant={toggleApplicant}
+            allSelected={allVisibleSelected}
+            onToggleAll={toggleAllVisible}
+          />
         </div>
-      </div>
-
-      <div className="mt-4">
-        <ApplicantsTable applicants={APPLICANTS} />
-      </div>
+      </section>
     </div>
   )
 }

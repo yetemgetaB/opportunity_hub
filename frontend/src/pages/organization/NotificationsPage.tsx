@@ -25,10 +25,10 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1440px]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-navy">Notifications</h2>
+          <h2 className="font-display text-2xl font-bold text-black">Notifications</h2>
           <p className="mt-1 text-sm text-slate-500">Stay on top of applicant and hiring activity.</p>
         </div>
         <button onClick={markAllRead} className="text-xs font-semibold text-brand hover:underline">
@@ -40,7 +40,7 @@ export default function NotificationsPage() {
         <NotificationTabs active={filter} onChange={setFilter} />
       </div>
 
-      <ul className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <ul className="mt-5 overflow-hidden rounded-xl border border-neutral-200 bg-white">
         {filtered.length === 0 ? (
           <li className="px-5 py-10 text-center text-sm text-slate-500">Nothing here yet.</li>
         ) : (

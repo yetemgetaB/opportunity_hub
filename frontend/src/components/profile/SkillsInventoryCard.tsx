@@ -1,4 +1,4 @@
-import TagList from '../ui/TagList'
+import EditableSkillList from './EditableSkillList'
 import type { ProfileFormState } from '../../types/student'
 
 type Props = {
@@ -8,19 +8,21 @@ type Props = {
 
 export default function SkillsInventoryCard({ profile, onChange }: Props) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-base font-bold text-navy">Skills Inventory</h2>
-      <p className="mt-1 text-xs text-slate-500">Categorized professional competencies.</p>
+    <section className="rounded-xl border border-neutral-200 bg-white p-6">
+      <header className="mb-5">
+        <h2 className="font-display text-xl font-bold text-slate-900">Skills Inventory</h2>
+        <p className="mt-1 text-sm text-gray-500">Categorized professional competencies</p>
+      </header>
 
-      <div className="mt-5 space-y-6">
-        <TagList
+      <div className="space-y-4">
+        <EditableSkillList
           label="Technical Skills"
           items={profile.technicalSkills}
           addLabel="Add Tech Skill"
           onAdd={(v) => onChange('technicalSkills', [...profile.technicalSkills, v])}
           onRemove={(i) => onChange('technicalSkills', profile.technicalSkills.filter((_, idx) => idx !== i))}
         />
-        <TagList
+        <EditableSkillList
           label="Soft Skills"
           items={profile.softSkills}
           addLabel="Add Soft Skill"

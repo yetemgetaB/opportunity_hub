@@ -10,5 +10,6 @@ const styles: Record<ApplicationStatus, string> = {
 }
 
 export default function ApplicationStatusBadge({ status }: { status: ApplicationStatus }) {
-  return <span className={`rounded-full px-3 py-1 text-xs font-medium ${styles[status]}`}>{status}</span>
+  const label = status === 'Interview' ? 'Interview Scheduled' : status
+  return <span className={`inline-flex whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${styles[status]}`}>{label}</span>
 }

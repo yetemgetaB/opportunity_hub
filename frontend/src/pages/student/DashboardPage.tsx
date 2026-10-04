@@ -9,31 +9,33 @@ export default function DashboardPage() {
   const recommended = OPPORTUNITIES.filter((o) => o.recommended)
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-navy">Welcome back, {STUDENT_NAME}</h2>
-      <p className="mt-1 text-sm text-slate-500">Here's whats happening</p>
+    <div className="mx-auto w-full max-w-[1440px]">
+      <div>
+        <h2 className="font-display text-3xl font-bold tracking-tight text-black">Welcome back, {STUDENT_NAME}</h2>
+        <p className="mt-1.5 text-base text-gray-500">Here’s what’s happening today.</p>
+      </div>
 
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {STUDENT_STATS.map((s) => (
           <StatCard key={s.label} {...s} />
         ))}
       </div>
 
-      <section className="mt-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-bold text-navy">Recommended For You</h2>
-          <Link to="/student/opportunities" className="text-xs font-semibold text-brand hover:underline">
+      <section className="mt-8">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="font-display text-lg font-bold text-black">Recommended For You</h2>
+          <Link to="/student/opportunities" className="shrink-0 text-sm font-semibold text-brand hover:underline">
             View all matches
           </Link>
         </div>
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-3">
           {recommended.map((r) => (
             <RecommendedCard key={r.id} r={r} />
           ))}
         </div>
       </section>
 
-      <div className="mt-10 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="mt-8 grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.8fr)]">
         <UpcomingDeadlines deadlines={UPCOMING_DEADLINES} />
         <RecentActivity items={RECENT_ACTIVITY} />
       </div>

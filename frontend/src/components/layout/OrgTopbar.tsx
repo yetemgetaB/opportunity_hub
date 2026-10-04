@@ -21,11 +21,11 @@ export default function OrgTopbar({ onMenu }: { onMenu: () => void }) {
       : 'Search opportunities, applicants...'
 
   return (
-    <header className="flex items-center gap-4 border-b border-slate-200 bg-white px-6 py-4 lg:px-8">
+    <header className="flex min-h-20 items-center gap-4 border-b border-neutral-200 bg-white px-5 py-4 sm:px-6 lg:px-8">
       <button className="rounded-md p-2 text-navy lg:hidden" aria-label="Open menu" onClick={onMenu}>
         <Icon name="menu" />
       </button>
-      <h1 className="text-xl font-bold text-navy">{title}</h1>
+      <h1 className="font-display text-xl font-bold text-black sm:text-2xl">{title}</h1>
 
       <div className="ml-auto flex items-center gap-5">
         <label className="relative hidden md:block">
@@ -38,7 +38,7 @@ export default function OrgTopbar({ onMenu }: { onMenu: () => void }) {
             className="w-72 rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-navy outline-none placeholder:text-slate-400 focus:border-brand"
           />
         </label>
-        <div className="flex items-center gap-3 md:border-l md:border-slate-200 md:pl-5">
+        <div className="flex items-center gap-3 md:border-l md:border-neutral-200 md:pl-5">
           <span className="grid h-10 w-10 place-items-center rounded-full bg-navy text-white">
             <Icon name="building" className="h-4 w-4" />
           </span>

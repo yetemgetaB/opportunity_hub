@@ -10,7 +10,7 @@ export default function MatchBreakdownChart({ overall, items }: { overall: numbe
 
       <div
         className="relative mx-auto mt-6 h-28 w-28 rounded-full"
-        style={{ background: `conic-gradient(#f5a623 ${overall * 3.6}deg, #e5e7eb 0deg)` }}
+        style={{ background: `conic-gradient(#f3a311 ${overall * 3.6}deg, #e5e5e5 0deg)` }}
       >
         <div className="absolute inset-2 flex flex-col items-center justify-center rounded-full bg-white">
           <span className="text-xl font-bold text-navy">{overall}%</span>

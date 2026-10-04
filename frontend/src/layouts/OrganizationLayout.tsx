@@ -7,11 +7,11 @@ export default function OrganizationLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-slate-50 lg:flex">
+    <div className="organization-layout min-h-screen bg-slate-50 lg:flex">
       <OrgSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <OrgTopbar onMenu={() => setMenuOpen(true)} />
-        <main className="flex-1 p-6 lg:p-8">
+        <main className="flex-1 bg-slate-50 p-5 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

@@ -14,6 +14,7 @@ export interface Opportunity {
   description: string
   tags: string[]
   type: string
+  fieldsOfStudy?: string[]
   fit: number
   deadline: string
   overview: string

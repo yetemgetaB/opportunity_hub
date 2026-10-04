@@ -8,9 +8,9 @@ export const CATEGORIES: [string, string][] = [
 ]
 
 export const STEPS = [
-  { n: '01', title: 'Discover', text: 'Browse internships, scholarships, fellowships and grants that match your goals.' },
-  { n: '02', title: 'Connect', text: 'Apply in minutes and hear back from organizations directly.' },
-  { n: '03', title: 'Succeed', text: 'Complete assessments, track your applications and land your next step.' },
+  { n: '01', title: 'Discover', text: 'Browse and filter opportunities tailored to your skills, interests, and academic goals with clean precision.' },
+  { n: '02', title: 'Connect', text: 'Apply directly and let your profile reach organizations looking for your skills.' },
+  { n: '03', title: 'Succeed', text: 'Track your applications, receive updates, and land the opportunity that advances your career.' },
 ]
 
 export const FEATURED: Opportunity[] = [
@@ -21,21 +21,21 @@ export const FEATURED: Opportunity[] = [
 ]
 
 export const STUDENT_PERKS = [
-  'Build one profile and apply everywhere',
-  'Get matched to opportunities that fit',
-  'Take assessments to stand out',
-  'Track every application in one place',
+  'Smart opportunity matching based on your profile',
+  'One unified profile for your applications',
+  'Real-time updates on your application status',
+  'Connect directly with program directors',
 ]
 
 export const ORG_PERKS = [
-  'Post opportunities in minutes',
-  'Review applicants side by side',
-  'Run assessments and see results',
-  'Reach early-career talent at scale',
+  'Direct access to verified student talent',
+  'Smart candidate filtering and matching',
+  'Post internships and fellowship positions',
+  'Insights on applicants and engagement',
 ]
 
 export const STATS: [string, string][] = [
-  ['50,000+', 'Students'], ['2,500+', 'Organizations'], ['10,000+', 'Opportunities'], ['95%', 'Satisfaction'],
+  ['50,000+', 'Verified Students'], ['2,500+', 'Partner Organizations'], ['10,000+', 'Opportunities Listed'], ['95%', 'Match Satisfaction'],
 ]
 
 export const TESTIMONIALS = [

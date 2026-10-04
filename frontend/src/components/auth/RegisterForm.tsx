@@ -40,42 +40,42 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
   }
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-96 py-1">
       <AuthTabs
         items={[
           { label: 'Student Register', active: isStudent, onSelect: () => navigate('/register/student') },
           { label: 'Organization Register', active: !isStudent, onSelect: () => navigate('/register/organization') },
         ]}
       />
-      <h2 className="mt-8 text-3xl font-bold text-navy">Create Your Account</h2>
-      <p className="mt-2 text-sm text-slate-500">
+      <h2 className="mt-4 font-display text-3xl font-bold text-slate-900">Create Your Account</h2>
+      <p className="mt-2 text-sm text-gray-500">
         {isStudent
           ? 'Join in under a minute and start matching with openings.'
           : 'Post opportunities and start reaching student talent.'}
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-        <TextField label={t.name} name="name" placeholder={t.namePlaceholder} required />
-        <TextField label={t.email} type="email" name="email" placeholder={t.emailPlaceholder} required />
-        <PasswordField label="Password" name="password" placeholder="At least 8 characters" minLength={8} required />
-        <PasswordField label="Confirm Password" name="confirm" placeholder="Re-enter your password" required />
-        <label className="flex items-center gap-2 text-xs text-slate-600">
-          <input type="checkbox" required />
+      <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+        <TextField label={t.name} name="name" placeholder={t.namePlaceholder} required className="bg-gray-50 !py-2.5" />
+        <TextField label={t.email} type="email" name="email" placeholder={t.emailPlaceholder} required className="bg-gray-50 !py-2.5" />
+        <PasswordField label="Password" name="password" placeholder="At least 8 characters" minLength={8} required className="bg-gray-50 !py-2.5" />
+        <PasswordField label="Confirm Password" name="confirm" placeholder="Re-enter your password" required className="bg-gray-50 !py-2.5" />
+        <label className="flex items-center gap-2 text-xs leading-5 text-gray-500">
+          <input type="checkbox" required className="size-4 accent-brand" />
           <span>
-            I agree to the <a href="#" className="text-amber-600">Terms of Service</a> and{' '}
-            <a href="#" className="text-amber-600">Privacy Policy</a>.
+            I agree to the <a href="#terms" className="font-medium text-brand underline decoration-brand/50 underline-offset-2 hover:decoration-brand">Terms of Service</a> and{' '}
+            <a href="#privacy" className="font-medium text-brand underline decoration-brand/50 underline-offset-2 hover:decoration-brand">Privacy Policy</a>.
           </span>
         </label>
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-        <Button type="submit" className="w-full">Create Account</Button>
+        <Button type="submit" className="min-h-14 w-full rounded-lg text-base font-bold">Create Account</Button>
       </form>
 
       <div className="mt-3">
         <SocialButtons verb="Sign up" />
       </div>
-      <p className="mt-6 text-center text-xs text-slate-500">
+      <p className="mt-3 text-center text-sm text-gray-500">
         Already have an account?{' '}
-        <Link to="/login" className="font-semibold text-amber-600">Log in instead</Link>
+        <Link to="/login" className="auth-page-link font-semibold text-brand hover:decoration-brand">Log in instead</Link>
       </p>
     </div>
   )

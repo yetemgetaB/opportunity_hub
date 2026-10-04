@@ -19,7 +19,7 @@ export default function TextField({ label, action, required, disabled, className
         id={id}
         required={required}
         disabled={disabled}
-        className={`w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-navy outline-none placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand/30 disabled:cursor-not-allowed disabled:text-slate-400 ${className}`}
+        className={`w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-3.5 text-sm text-navy outline-none placeholder:text-gray-500 focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:text-gray-500 ${className}`}
         {...props}
       />
     </div>

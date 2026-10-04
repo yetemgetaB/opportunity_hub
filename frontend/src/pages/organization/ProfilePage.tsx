@@ -22,7 +22,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1440px]">
       <ProfileHeaderCard profile={profile} onChange={update} />
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">

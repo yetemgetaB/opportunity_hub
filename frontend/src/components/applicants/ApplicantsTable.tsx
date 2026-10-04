@@ -9,32 +9,58 @@ const statusStyles: Record<ApplicantStatus, string> = {
   Accepted: 'bg-navy/10 text-navy',
 }
 
-export default function ApplicantsTable({ applicants }: { applicants: ApplicantListItem[] }) {
+interface ApplicantsTableProps {
+  applicants: ApplicantListItem[]
+  selectedIds: string[]
+  onToggleApplicant: (id: string) => void
+  allSelected: boolean
+  onToggleAll: () => void
+}
+
+export default function ApplicantsTable({
+  applicants,
+  selectedIds,
+  onToggleApplicant,
+  allSelected,
+  onToggleAll,
+}: ApplicantsTableProps) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-      <table className="w-full min-w-[760px] text-left text-sm">
-        <thead>
-          <tr className="border-b border-slate-100 text-xs font-medium text-slate-500">
-            <th className="w-10 px-4 py-3">
-              <input type="checkbox" aria-label="Select all applicants" />
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <table className="w-full min-w-[860px] text-left text-sm">
+        <thead className="bg-slate-50">
+          <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500">
+            <th className="w-12 px-4 py-3">
+              <input
+                type="checkbox"
+                aria-label="Select all applicants"
+                checked={allSelected}
+                onChange={onToggleAll}
+                className="h-4 w-4 rounded border-slate-300 accent-brand"
+              />
             </th>
-            <th className="px-4 py-3 font-medium">Applicant Name</th>
-            <th className="px-4 py-3 font-medium">AI Match Score</th>
-            <th className="px-4 py-3 font-medium">Skills Match</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium">Date Applied</th>
-            <th className="px-4 py-3 text-right font-medium">Actions</th>
+            <th className="px-4 py-3">Applicant Name</th>
+            <th className="px-4 py-3">AI Match Score</th>
+            <th className="px-4 py-3">Skills Match</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Date Applied</th>
+            <th className="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody>
-          {applicants.map((a) => (
-            <tr key={a.id} className="border-b border-slate-100 last:border-0">
+        <tbody className="divide-y divide-slate-100">
+          {applicants.length > 0 ? applicants.map((a) => (
+            <tr key={a.id} className="transition-colors hover:bg-slate-50/70">
               <td className="px-4 py-4">
-                <input type="checkbox" aria-label={`Select ${a.name}`} />
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${a.name}`}
+                  checked={selectedIds.includes(a.id)}
+                  onChange={() => onToggleApplicant(a.id)}
+                  className="h-4 w-4 rounded border-slate-300 accent-brand"
+                />
               </td>
               <td className="px-4 py-4">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-9 w-9 place-items-center rounded-full bg-navy text-[11px] font-bold text-white">
+                <div className="flex min-w-40 items-center gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy text-[11px] font-bold text-white">
                     {a.initials}
                   </span>
                   <span className="font-semibold text-navy">{a.name}</span>
@@ -43,20 +69,27 @@ export default function ApplicantsTable({ applicants }: { applicants: ApplicantL
               <td className="px-4 py-4">
                 <MatchScoreBar score={a.matchScore} tier={a.matchTier} />
               </td>
-              <td className="px-4 py-4 text-slate-600">{a.skillsMatch}%</td>
+              <td className="px-4 py-4 font-medium text-slate-700">{a.skillsMatch}%</td>
               <td className="px-4 py-4">
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[a.status]}`}>{a.status}</span>
+                <span className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[a.status]}`}>{a.status}</span>
               </td>
-              <td className="px-4 py-4 text-slate-600">{a.dateApplied}</td>
+              <td className="whitespace-nowrap px-4 py-4 text-slate-500">{a.dateApplied}</td>
               <td className="px-4 py-4 text-right">
                 <Link
                   to={`/organization/applicants/${a.id}`}
-                    className="inline-block rounded-md bg-navy px-4 py-2 text-xs font-semibold !text-white hover:bg-navy-light"                >
+                  className="inline-block whitespace-nowrap rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white transition hover:bg-navy-light"
+                >
                   View Profile
                 </Link>
               </td>
             </tr>
-          ))}
+          )) : (
+            <tr>
+              <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
+                No applicants match this status.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import ProfileHeaderCard from '../../components/profile/ProfileHeaderCard'
 import EducationDetailsCard from '../../components/profile/EducationDetailsCard'
@@ -23,10 +22,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <ProfileHeaderCard />
 
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <EducationDetailsCard profile={profile} onChange={update} />
           <CareerGoalsCard profile={profile} onChange={update} />
@@ -38,12 +37,11 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-        <p className="flex items-center gap-1.5 text-xs text-slate-400">
-          <Icon name="clock" className="h-4 w-4" />
-          {LAST_SYNCED}
-        </p>
-        <Button onClick={handleSave}>Save Profile Settings</Button>
+      <div className="flex flex-col-reverse items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <p className="text-xs text-gray-500">{LAST_SYNCED}</p>
+        <Button onClick={handleSave} className="w-full rounded-lg px-6 py-3 font-bold sm:w-auto">
+          Save Profile Settings
+        </Button>
       </div>
     </div>
   )

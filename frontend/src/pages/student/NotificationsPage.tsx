@@ -25,10 +25,10 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1440px]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-navy">Notifications</h2>
+          <h2 className="font-display text-2xl font-bold text-black">Notifications</h2>
           <p className="mt-1 text-sm text-slate-500">Updates on your applications and saved opportunities.</p>
         </div>
         <button onClick={markAllRead} className="text-xs font-semibold text-brand hover:underline">

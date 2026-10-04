@@ -11,37 +11,48 @@ export default function OpportunitiesPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-navy">My Opportunities</h2>
-      <p className="mt-1 text-sm text-slate-500">Manage your postings and review your hiring history.</p>
+      <header className="mb-7">
+        <h2 className="font-display text-3xl font-bold text-slate-900">My Opportunities</h2>
+        <p className="mt-1.5 text-base text-gray-500">Manage your postings and review your hiring history.</p>
+      </header>
 
-      <div className="mt-5 inline-flex gap-1 rounded-xl border border-slate-200 bg-white p-1" role="tablist">
+      <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-neutral-200 bg-white p-1" role="tablist">
         <button
           type="button"
           role="tab"
+          id="organization-create-tab"
           aria-selected={tab === 'create'}
+          aria-controls="organization-opportunity-panel"
           onClick={() => setTab('create')}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition ${
-            tab === 'create' ? 'bg-navy text-white' : 'text-slate-500 hover:bg-slate-50'
+          className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 ${
+            tab === 'create' ? 'bg-slate-800 text-white' : 'text-gray-500 hover:bg-slate-50'
           }`}
         >
-          <Icon name="plus" className="h-4 w-4" />
+          <Icon name="plus" className="size-4" />
           Create New Opportunity
         </button>
         <button
           type="button"
           role="tab"
+          id="organization-history-tab"
           aria-selected={tab === 'history'}
+          aria-controls="organization-opportunity-panel"
           onClick={() => setTab('history')}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition ${
-            tab === 'history' ? 'bg-navy text-white' : 'text-slate-500 hover:bg-slate-50'
+          className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 ${
+            tab === 'history' ? 'bg-slate-800 text-white' : 'text-gray-500 hover:bg-slate-50'
           }`}
         >
-          <Icon name="clipboard" className="h-4 w-4" />
+          <Icon name="clipboard" className="size-4" />
           Opportunity History
         </button>
       </div>
 
-      <div className="mt-5">
+      <div
+        id="organization-opportunity-panel"
+        role="tabpanel"
+        aria-labelledby={tab === 'create' ? 'organization-create-tab' : 'organization-history-tab'}
+        className="mt-5"
+      >
         {tab === 'create' ? <CreateOpportunityPrompt /> : <OpportunityHistoryTable items={OPPORTUNITY_HISTORY} />}
       </div>
     </div>

@@ -10,9 +10,9 @@ export const STUDENT_INSTITUTION = 'Stanford University'
 export const STUDENT_NAV: { label: string; title: string; to: string; icon: IconName; end?: boolean }[] = [
   { label: 'Dashboard', title: 'Personal Overview', to: '/student', icon: 'dashboard', end: true },
   { label: 'Opportunities', title: 'Browse Opportunities', to: '/student/opportunities', icon: 'briefcase' },
-  { label: 'Applications', title: 'Applications', to: '/student/applications', icon: 'folder' },
+  { label: 'Applications', title: 'Application Tracker', to: '/student/applications', icon: 'folder' },
   { label: 'Saved', title: 'Saved', to: '/student/saved', icon: 'bookmark' },
-  { label: 'Profile', title: 'Profile', to: '/student/profile', icon: 'user' },
+  { label: 'Profile', title: 'Student Profile', to: '/student/profile', icon: 'user' },
   { label: 'Notifications', title: 'Notifications', to: '/student/notifications', icon: 'bell' },
   { label: 'Reports', title: 'Reports', to: '/student/reports', icon: 'clipboard' },
   { label: 'Settings', title: 'Settings', to: '/student/settings', icon: 'settings' },
@@ -38,6 +38,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       "We are looking for a Product Design Intern to join our Dashboard design team. You'll work closely with other designers, engineers, and product managers to craft tools that help millions of businesses start, run, and scale.",
     tags: ['Figma', 'SaaS', 'Design Systems'],
     type: 'Internship',
+    fieldsOfStudy: ['Product Design'],
     fit: 94,
     deadline: 'October 15, 2026',
     overview:
@@ -73,6 +74,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       "Join the Core team building the frameworks and infrastructure powering millions of websites. You'll ship features used by developers around the world.",
     tags: ['Next.js', 'React', 'TypeScript'],
     type: 'Full-time',
+    fieldsOfStudy: ['Computer Science'],
     fit: 89,
     deadline: 'November 3, 2026',
     overview:
@@ -106,6 +108,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       "Support the operations behind Scale's data annotation pipelines, working closely with ML engineers to improve data quality at scale.",
     tags: ['Python', 'LLMs', 'Data Annotation'],
     type: 'Full-time',
+    fieldsOfStudy: ['Computer Science', 'Data Science'],
     fit: 87,
     deadline: 'October 28, 2026',
     overview:
@@ -139,6 +142,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       "Join a small, high-craft engineering team building the tools that product teams use every day. You'll ship real features from your first week.",
     tags: ['TypeScript', 'GraphQL', 'React'],
     type: 'Internship',
+    fieldsOfStudy: ['Computer Science'],
     fit: 84,
     deadline: 'November 10, 2026',
     overview:

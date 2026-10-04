@@ -1,19 +1,31 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
 
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-navy: #0b1437;
-  --color-navy-light: #16224f;
-  --color-brand: #f5a623;
-  --font-sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --color-navy: #14213d;
+  --color-navy-light: #1f2d4a;
+  --color-brand: #f3a311;
+  --color-amber-500: #f3a311;
+  --color-slate-800: #14213d;
+  --color-slate-50: #f9fbfd;
+  --color-blue-950: #1f2d4a;
+  --color-gray-500: #5f6b7d;
+  --color-gray-300: #d1d5db;
+  --color-neutral-200: #e5e5e5;
+  --color-gray-100: #f3f4f6;
+  --color-gray-50: #f8f9fa;
+  --color-red-600: #f31111;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
 }
 
 html { scroll-behavior: smooth; }
 body { @apply bg-white text-slate-900 font-sans; }
 button, input { font: inherit; }
 a { color: inherit; text-decoration: none; }
+.auth-page-link { text-decoration: underline !important; text-underline-offset: 4px; }
 
 .dark { color-scheme: dark; }
 .dark body { background-color: #0b1220; }
@@ -40,3 +52,28 @@ a { color: inherit; text-decoration: none; }
 
 .dark .shadow-sm { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important; }
 .dark ::-webkit-scrollbar-thumb { background-color: #2a3555; }
+
+.dark .landing-page .bg-white { background-color: #fff !important; }
+.dark .landing-page .bg-gray-50 { background-color: #f8f9fa !important; }
+.dark .landing-page .bg-gray-100 { background-color: #f3f4f6 !important; }
+.dark .landing-page .text-navy { color: #14213d !important; }
+
+.dark .student-layout .bg-white { background-color: #fff !important; }
+.dark .student-layout .text-navy { color: #14213d !important; }
+.dark .student-layout .text-slate-900 { color: #0f172a !important; }
+.dark .student-layout .text-slate-500 { color: #5f6b7d !important; }
+.dark .student-layout .student-canvas.bg-slate-50 { background-color: #f9fbfd !important; }
+
+.student-layout .border-slate-200 { border-color: #e5e5e5; }
+.student-layout .text-slate-600 { color: #5f6b7d; }
+.dark .student-layout .border-slate-200 { border-color: #e5e5e5 !important; }
+.dark .student-layout .text-slate-600 { color: #5f6b7d !important; }
+
+.dark .organization-layout .bg-white { background-color: #fff !important; }
+.dark .organization-layout .bg-slate-50 { background-color: #f9fbfd !important; }
+.dark .organization-layout .bg-slate-100 { background-color: #f3f4f6 !important; }
+.dark .organization-layout .text-navy { color: #14213d !important; }
+.dark .organization-layout .text-slate-900 { color: #14213d !important; }
+.dark .organization-layout .text-slate-600,
+.dark .organization-layout .text-slate-500 { color: #5f6b7d !important; }
+.dark .organization-layout .border-slate-200 { border-color: #e5e5e5 !important; }

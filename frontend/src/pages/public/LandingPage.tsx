@@ -11,7 +11,7 @@ import FinalCta from '../../components/landing/FinalCta'
 
 export default function LandingPage() {
   return (
-    <div id="top" className="min-h-screen bg-white">
+    <div id="top" className="landing-page min-h-screen bg-white">
       <Navbar />
       <main>
         <Hero />

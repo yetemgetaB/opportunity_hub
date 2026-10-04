@@ -13,10 +13,10 @@ export default function SavedPage() {
   })
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1440px]">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-navy">Saved Opportunities</h2>
+          <h2 className="font-display text-2xl font-bold text-black">Saved Opportunities</h2>
           <p className="mt-1 text-sm text-slate-500">Opportunities you've bookmarked to revisit later.</p>
         </div>
         <div className="flex items-center gap-4 text-xs text-slate-500">

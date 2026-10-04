@@ -35,34 +35,42 @@ export default function LoginPage() {
   }
 
   return (
-    <div>
+    <div className="flex min-h-[calc(100svh-2.5rem)] flex-col justify-between py-2">
       <AuthTabs
         items={[
           { label: 'Student Login', active: role === 'student', onSelect: () => setRole('student') },
           { label: 'Organization Login', active: role === 'organization', onSelect: () => setRole('organization') },
         ]}
       />
-      <h2 className="mt-10 text-3xl font-bold text-navy">Welcome Back</h2>
-      <p className="mt-2 text-sm text-slate-500">Please log in to continue to your {role} portal.</p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-        <TextField label={t.email} type="email" name="email" placeholder={t.emailPlaceholder} required />
-        <PasswordField
-          label="Password"
-          name="password"
-          placeholder="Enter your password"
-          required
-          action={<a href="#" className="text-xs font-semibold text-amber-600">Forgot Password?</a>}
-        />
-        <Button type="submit" className="w-full">Login</Button>
-      </form>
+      <div className="mx-auto my-6 w-full max-w-96">
+        <header className="mb-6">
+          <h2 className="font-display text-3xl font-bold text-slate-900">Welcome Back</h2>
+          <p className="mt-2 text-sm text-gray-500">Please log in to continue to your {role} portal.</p>
+        </header>
 
-      <div className="mt-3">
-        <SocialButtons verb="Sign in" />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <TextField label={t.email} type="email" name="email" placeholder={t.emailPlaceholder} required />
+          <PasswordField
+            label="Password"
+            name="password"
+            placeholder="Enter your password"
+            required
+            action={<span className="cursor-pointer text-xs font-semibold text-brand">Forgot Password?</span>}
+          />
+          <Button type="submit" className="min-h-14 w-full rounded-lg py-3.5 text-base font-bold">Login</Button>
+        </form>
+
+        <div className="mt-3">
+          <SocialButtons verb="Sign in" />
+        </div>
       </div>
-      <p className="mt-8 text-center text-xs text-slate-500">
+
+      <p className="text-center text-sm text-gray-500">
         New to Opportunity Hub?{' '}
-        <Link to={t.registerTo} className="font-semibold text-amber-600">{t.registerText}</Link>
+        <Link to={t.registerTo} className="auth-page-link font-semibold text-brand hover:decoration-brand">
+          {t.registerText}
+        </Link>
       </p>
     </div>
   )

@@ -6,10 +6,10 @@ import { MONTHLY_APPLICATIONS, REPORT_STATS, SKILL_MATCHES, STATUS_FUNNEL } from
 
 export default function ReportsPage() {
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1440px]">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-navy">Your Application Report</h2>
+          <h2 className="font-display text-2xl font-bold text-black">Your Application Report</h2>
           <p className="mt-1 text-sm text-slate-500">A summary of your job search activity and performance.</p>
         </div>
         {/* TODO: wire this up to a real date range selector */}
