@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -6,6 +7,9 @@ import {
 } from '@nestjs/common';
 import {
   Assessment,
+  AssessmentAnswer,
+  AssessmentAttempt,
+  AssessmentAttemptStatus,
   AssessmentQuestion,
   AssessmentStatus,
   Prisma,
@@ -13,10 +17,20 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  applicantAnalysisDataIncludes,
+  ApplicantAnalysisData,
+  assessmentAttemptWithAnswersIncludes,
+  AssessmentAttemptWithAnswers,
+  assessmentResultWithRelationsIncludes,
+  AssessmentResultWithRelations,
   assessmentWithQuestionsIncludes,
   AssessmentWithQuestions,
+  AssessmentResultFilterOptions,
+  CreateAssessmentAttemptData,
   CreateAssessmentData,
   CreateAssessmentQuestionData,
+  SaveAssessmentAnswerData,
+  SaveAssessmentResultData,
   UpdateAssessmentData,
 } from './assessments.interface';
 
@@ -338,5 +352,593 @@ export class AssessmentsRepository {
   ): Promise<AssessmentQuestion[]> {
     return this.findQuestionsByAssessmentId(assessmentId);
   }
+
+  // ==========================================================================
+  // DAY 13: ASSESSMENT ATTEMPT PERSISTENCE & LIFECYCLE
+  // ==========================================================================
+
+  /**
+   * Create/start an assessment attempt for an application.
+   * Enforces:
+   * - 1:1 relationship between application and attempt (uq_assessment_attempts_app)
+   * - Diamond 1 integrity: application.opportunityId === assessment.opportunityId
+   * - Status initialized to IN_PROGRESS (or NOT_STARTED)
+   */
+  async createAttempt(
+    data: CreateAssessmentAttemptData,
+  ): Promise<AssessmentAttempt> {
+    const application = await this.prisma.application.findUnique({
+      where: { id: data.applicationId },
+      include: { opportunity: true },
+    });
+
+    if (!application) {
+      throw new NotFoundException(
+        `Application with ID ${data.applicationId} not found.`,
+      );
+    }
+
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: data.assessmentId },
+    });
+
+    if (!assessment) {
+      throw new NotFoundException(
+        `Assessment with ID ${data.assessmentId} not found.`,
+      );
+    }
+
+    // Enforce Diamond 1 Integrity: Application and Assessment must belong to the exact same Opportunity
+    if (application.opportunityId !== assessment.opportunityId) {
+      throw new BadRequestException(
+        `Diamond Integrity Violation: Application and Assessment must belong to the exact same Opportunity. (application opportunity: ${application.opportunityId}, assessment opportunity: ${assessment.opportunityId})`,
+      );
+    }
+
+    // Check existing attempt (strictly 1 attempt per application in MVP)
+    const existing = await this.prisma.assessmentAttempt.findUnique({
+      where: { applicationId: data.applicationId },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        'An assessment attempt already exists for this application.',
+      );
+    }
+
+    const status = data.status ?? AssessmentAttemptStatus.IN_PROGRESS;
+    const now = new Date();
+
+    try {
+      const attempt = await this.prisma.assessmentAttempt.create({
+        data: {
+          application: { connect: { id: data.applicationId } },
+          assessment: { connect: { id: data.assessmentId } },
+          status,
+          startedAt: status === AssessmentAttemptStatus.IN_PROGRESS ? now : null,
+        },
+      });
+
+      this.logger.log(
+        `Created attempt ${attempt.id} for application ${data.applicationId} [Assessment: ${data.assessmentId}, Status: ${attempt.status}]`,
+      );
+
+      return attempt;
+    } catch (error: any) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException(
+            'An assessment attempt already exists for this application.',
+          );
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Look up an assessment attempt by ID.
+   */
+  async findAttemptById(id: string): Promise<AssessmentAttempt | null> {
+    return this.prisma.assessmentAttempt.findUnique({
+      where: { id },
+    });
+  }
+
+  /**
+   * Look up an assessment attempt with its application, assessment, questions, answers, and result.
+   */
+  async findAttemptByIdWithAnswers(
+    id: string,
+  ): Promise<AssessmentAttemptWithAnswers | null> {
+    return this.prisma.assessmentAttempt.findUnique({
+      where: { id },
+      include: assessmentAttemptWithAnswersIncludes,
+    });
+  }
+
+  /**
+   * Look up an attempt by application ID.
+   */
+  async findAttemptByApplicationId(
+    applicationId: string,
+  ): Promise<AssessmentAttemptWithAnswers | null> {
+    return this.prisma.assessmentAttempt.findUnique({
+      where: { applicationId },
+      include: assessmentAttemptWithAnswersIncludes,
+    });
+  }
+
+  /**
+   * Submit an assessment attempt.
+   * Transitions status to SUBMITTED and sets submittedAt timestamp.
+   * Rejects if attempt is already SUBMITTED.
+   */
+  async submitAttempt(id: string): Promise<AssessmentAttempt> {
+    const existing = await this.prisma.assessmentAttempt.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Assessment attempt with ID ${id} not found.`);
+    }
+
+    if (existing.status === AssessmentAttemptStatus.SUBMITTED) {
+      throw new ConflictException(
+        'Assessment attempt has already been submitted.',
+      );
+    }
+
+    const now = new Date();
+    const startedAt = existing.startedAt ?? now;
+
+    return this.prisma.assessmentAttempt.update({
+      where: { id },
+      data: {
+        status: AssessmentAttemptStatus.SUBMITTED,
+        startedAt,
+        submittedAt: now,
+      },
+    });
+  }
+
+  /**
+   * Retrieve all submitted attempts for a specific assessment.
+   * Strictly filters for status = SUBMITTED.
+   */
+  async findSubmittedAttemptsByAssessmentId(
+    assessmentId: string,
+  ): Promise<AssessmentAttemptWithAnswers[]> {
+    return this.prisma.assessmentAttempt.findMany({
+      where: {
+        assessmentId,
+        status: AssessmentAttemptStatus.SUBMITTED,
+      },
+      include: assessmentAttemptWithAnswersIncludes,
+      orderBy: { submittedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Retrieve all submitted attempts for an opportunity.
+   * Strictly filters for status = SUBMITTED.
+   */
+  async findSubmittedAttemptsByOpportunityId(
+    opportunityId: string,
+  ): Promise<AssessmentAttemptWithAnswers[]> {
+    return this.prisma.assessmentAttempt.findMany({
+      where: {
+        assessment: {
+          opportunityId,
+        },
+        status: AssessmentAttemptStatus.SUBMITTED,
+      },
+      include: assessmentAttemptWithAnswersIncludes,
+      orderBy: { submittedAt: 'desc' },
+    });
+  }
+
+  // ==========================================================================
+  // DAY 13: ASSESSMENT ANSWER PERSISTENCE & INTEGRITY
+  // ==========================================================================
+
+  /**
+   * Persist a candidate answer to a question within an attempt.
+   * Enforces:
+   * - Attempt must exist and be IN_PROGRESS (cannot answer if NOT_STARTED or SUBMITTED)
+   * - Diamond 2 integrity: question must belong to the exact same assessment as the attempt
+   * - Upserts answer for idempotency and student answer updates during active attempts
+   */
+  async saveAnswer(data: SaveAssessmentAnswerData): Promise<AssessmentAnswer> {
+    const attempt = await this.prisma.assessmentAttempt.findUnique({
+      where: { id: data.assessmentAttemptId },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException(
+        `Assessment attempt with ID ${data.assessmentAttemptId} not found.`,
+      );
+    }
+
+    if (attempt.status === AssessmentAttemptStatus.SUBMITTED) {
+      throw new BadRequestException(
+        'Cannot modify answers for a submitted assessment attempt.',
+      );
+    }
+
+    if (attempt.status === AssessmentAttemptStatus.NOT_STARTED) {
+      throw new BadRequestException(
+        'Cannot answer questions for an attempt that has not been started.',
+      );
+    }
+
+    const question = await this.prisma.assessmentQuestion.findUnique({
+      where: { id: data.assessmentQuestionId },
+    });
+
+    if (!question) {
+      throw new NotFoundException(
+        `Assessment question with ID ${data.assessmentQuestionId} not found.`,
+      );
+    }
+
+    // Enforce Diamond 2 Integrity: Question must belong to the exact same assessment as the attempt
+    if (question.assessmentId !== attempt.assessmentId) {
+      throw new BadRequestException(
+        'Diamond Integrity Violation: Question does not belong to the assessment for this attempt.',
+      );
+    }
+
+    const now = new Date();
+
+    return this.prisma.assessmentAnswer.upsert({
+      where: {
+        assessmentAttemptId_assessmentQuestionId: {
+          assessmentAttemptId: data.assessmentAttemptId,
+          assessmentQuestionId: data.assessmentQuestionId,
+        },
+      },
+      create: {
+        assessmentAttemptId: data.assessmentAttemptId,
+        assessmentQuestionId: data.assessmentQuestionId,
+        assessmentId: attempt.assessmentId,
+        answerText: data.answerText.trim(),
+        answeredAt: now,
+      },
+      update: {
+        answerText: data.answerText.trim(),
+        answeredAt: now,
+      },
+      include: {
+        question: true,
+      },
+    });
+  }
+
+  /**
+   * Batch save answers for an attempt.
+   */
+  async saveAnswers(
+    attemptId: string,
+    answers: Array<{ assessmentQuestionId: string; answerText: string }>,
+  ): Promise<AssessmentAnswer[]> {
+    const results: AssessmentAnswer[] = [];
+    for (const ans of answers) {
+      const saved = await this.saveAnswer({
+        assessmentAttemptId: attemptId,
+        assessmentQuestionId: ans.assessmentQuestionId,
+        answerText: ans.answerText,
+      });
+      results.push(saved);
+    }
+    return results;
+  }
+
+  /**
+   * Retrieve all answers for a specific attempt, ordered deterministically by questionOrder ASC.
+   */
+  async findAnswersByAttemptId(
+    attemptId: string,
+  ): Promise<AssessmentAnswer[]> {
+    return this.prisma.assessmentAnswer.findMany({
+      where: { assessmentAttemptId: attemptId },
+      include: {
+        question: true,
+      },
+      orderBy: {
+        question: {
+          questionOrder: 'asc',
+        },
+      },
+    });
+  }
+
+  // ==========================================================================
+  // DAY 13: APPLICANT ANALYSIS DATA ACCESS (BACKEND 1 & 3 CONTRACT)
+  // ==========================================================================
+
+  /**
+   * Retrieve full applicant analysis data for an application:
+   * Opportunity -> Application -> StudentProfile -> User, Skills, Experiences, CVs
+   * -> Assessment -> Attempt -> Answers (with Questions) -> Result
+   */
+  async getApplicantAnalysisData(
+    applicationId: string,
+  ): Promise<ApplicantAnalysisData | null> {
+    return this.prisma.application.findUnique({
+      where: { id: applicationId },
+      include: applicantAnalysisDataIncludes,
+    });
+  }
+
+  /**
+   * Retrieve full applicant analysis data specifically requiring attempt to be SUBMITTED.
+   * Returns null if attempt is missing or not yet submitted.
+   */
+  async getSubmittedApplicantAnalysisData(
+    applicationId: string,
+  ): Promise<ApplicantAnalysisData | null> {
+    return this.prisma.application.findFirst({
+      where: {
+        id: applicationId,
+        assessmentAttempt: {
+          status: AssessmentAttemptStatus.SUBMITTED,
+        },
+      },
+      include: applicantAnalysisDataIncludes,
+    });
+  }
+
+  /**
+   * Retrieve all eligible applicants for an opportunity ready for AI analysis.
+   * Strictly filters for applications whose assessmentAttempt.status === SUBMITTED.
+   * Incomplete attempts (NOT_STARTED, IN_PROGRESS) are strictly excluded.
+   */
+  async findEligibleApplicantsForAnalysis(
+    opportunityId: string,
+  ): Promise<ApplicantAnalysisData[]> {
+    return this.prisma.application.findMany({
+      where: {
+        opportunityId,
+        assessmentAttempt: {
+          status: AssessmentAttemptStatus.SUBMITTED,
+        },
+      },
+      include: applicantAnalysisDataIncludes,
+      orderBy: { appliedAt: 'desc' },
+    });
+  }
+
+  // ==========================================================================
+  // DAY 13: CANDIDATE ANALYSIS RESULT PERSISTENCE & RETRIEVAL
+  // ==========================================================================
+
+  /**
+   * Persist candidate analysis result using the authoritative AssessmentResult model.
+   * Enforces:
+   * - Attempt must exist and be SUBMITTED before evaluation results can be saved
+   * - 1:1 attempt-to-result mapping (uq_assessment_results_attempt)
+   * - Preserves AI provenance, human review fields, and authoritative final score/summary
+   * - Handles retry/re-analysis gracefully via upsert
+   */
+  async saveAssessmentResult(
+    data: SaveAssessmentResultData,
+  ): Promise<AssessmentResultWithRelations> {
+    const attempt = await this.prisma.assessmentAttempt.findUnique({
+      where: { id: data.assessmentAttemptId },
+      include: { application: true },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException(
+        `Assessment attempt with ID ${data.assessmentAttemptId} not found.`,
+      );
+    }
+
+    if (attempt.status !== AssessmentAttemptStatus.SUBMITTED) {
+      throw new BadRequestException(
+        'Cannot persist evaluation result for an unsubmitted assessment attempt.',
+      );
+    }
+
+    const now = new Date();
+    const finalScore = data.finalScore ?? data.aiScore ?? 0;
+    const finalSummary =
+      data.finalSummary ?? data.aiSummary ?? 'AI Evaluation Completed';
+    const finalStrengths = data.finalStrengths ?? data.aiStrengths ?? [];
+    const finalGaps = data.finalGaps ?? data.aiGaps ?? [];
+
+    return this.prisma.assessmentResult.upsert({
+      where: { assessmentAttemptId: data.assessmentAttemptId },
+      create: {
+        assessmentAttemptId: data.assessmentAttemptId,
+        aiScore: data.aiScore ?? null,
+        aiRequirementMatch: data.aiRequirementMatch ?? null,
+        aiSkillAnalysis:
+          data.aiSkillAnalysis !== undefined
+            ? data.aiSkillAnalysis
+            : Prisma.JsonNull,
+        aiStrengths: data.aiStrengths ?? [],
+        aiGaps: data.aiGaps ?? [],
+        aiSummary: data.aiSummary ?? null,
+        aiEvaluatedAt: data.aiEvaluatedAt
+          ? new Date(data.aiEvaluatedAt)
+          : data.aiScore !== undefined || data.aiSummary
+            ? now
+            : null,
+        humanScore: data.humanScore ?? null,
+        humanFeedback: data.humanFeedback ?? null,
+        humanEvaluatorId: data.humanEvaluatorId ?? null,
+        humanEvaluatedAt: data.humanEvaluatedAt
+          ? new Date(data.humanEvaluatedAt)
+          : null,
+        finalScore,
+        finalSummary,
+        finalStrengths,
+        finalGaps,
+        isFinalApproved: data.isFinalApproved ?? false,
+        approvedAt: data.approvedAt ? new Date(data.approvedAt) : null,
+      },
+      update: {
+        ...(data.aiScore !== undefined && { aiScore: data.aiScore }),
+        ...(data.aiRequirementMatch !== undefined && {
+          aiRequirementMatch: data.aiRequirementMatch,
+        }),
+        ...(data.aiSkillAnalysis !== undefined && {
+          aiSkillAnalysis: data.aiSkillAnalysis,
+        }),
+        ...(data.aiStrengths !== undefined && {
+          aiStrengths: data.aiStrengths,
+        }),
+        ...(data.aiGaps !== undefined && { aiGaps: data.aiGaps }),
+        ...(data.aiSummary !== undefined && { aiSummary: data.aiSummary }),
+        ...(data.aiEvaluatedAt !== undefined && {
+          aiEvaluatedAt: data.aiEvaluatedAt ? new Date(data.aiEvaluatedAt) : null,
+        }),
+        ...(data.humanScore !== undefined && { humanScore: data.humanScore }),
+        ...(data.humanFeedback !== undefined && {
+          humanFeedback: data.humanFeedback,
+        }),
+        ...(data.humanEvaluatorId !== undefined && {
+          humanEvaluatorId: data.humanEvaluatorId,
+        }),
+        ...(data.humanEvaluatedAt !== undefined && {
+          humanEvaluatedAt: data.humanEvaluatedAt
+            ? new Date(data.humanEvaluatedAt)
+            : null,
+        }),
+        ...(data.finalScore !== undefined && { finalScore: data.finalScore }),
+        ...(data.finalSummary !== undefined && {
+          finalSummary: data.finalSummary,
+        }),
+        ...(data.finalStrengths !== undefined && {
+          finalStrengths: data.finalStrengths,
+        }),
+        ...(data.finalGaps !== undefined && { finalGaps: data.finalGaps }),
+        ...(data.isFinalApproved !== undefined && {
+          isFinalApproved: data.isFinalApproved,
+        }),
+        ...(data.approvedAt !== undefined && {
+          approvedAt: data.approvedAt ? new Date(data.approvedAt) : null,
+        }),
+      },
+      include: assessmentResultWithRelationsIncludes,
+    });
+  }
+
+  /**
+   * Retrieve an assessment result by result ID.
+   */
+  async findAssessmentResultById(
+    id: string,
+  ): Promise<AssessmentResultWithRelations | null> {
+    return this.prisma.assessmentResult.findUnique({
+      where: { id },
+      include: assessmentResultWithRelationsIncludes,
+    });
+  }
+
+  /**
+   * Retrieve an assessment result by assessment attempt ID.
+   */
+  async findAssessmentResultByAttemptId(
+    assessmentAttemptId: string,
+  ): Promise<AssessmentResultWithRelations | null> {
+    return this.prisma.assessmentResult.findUnique({
+      where: { assessmentAttemptId },
+      include: assessmentResultWithRelationsIncludes,
+    });
+  }
+
+  /**
+   * Retrieve an assessment result by application ID.
+   */
+  async findAssessmentResultByApplicationId(
+    applicationId: string,
+  ): Promise<AssessmentResultWithRelations | null> {
+    return this.prisma.assessmentResult.findFirst({
+      where: {
+        attempt: {
+          applicationId,
+        },
+      },
+      include: assessmentResultWithRelationsIncludes,
+    });
+  }
+
+  /**
+   * Retrieve assessment results for an opportunity with filtering & sorting.
+   * Supports:
+   * - minScore, maxScore
+   * - isFinalApproved
+   * - aiRequirementMatch
+   * - deterministic ordering (default: finalScore DESC)
+   */
+  async findAssessmentResultsByOpportunityId(
+    opportunityId: string,
+    options?: AssessmentResultFilterOptions,
+  ): Promise<AssessmentResultWithRelations[]> {
+    const where: Prisma.AssessmentResultWhereInput = {
+      attempt: {
+        assessment: {
+          opportunityId,
+        },
+      },
+    };
+
+    if (options?.isFinalApproved !== undefined) {
+      where.isFinalApproved = options.isFinalApproved;
+    }
+
+    if (options?.minScore !== undefined || options?.maxScore !== undefined) {
+      where.finalScore = {};
+      if (options.minScore !== undefined) where.finalScore.gte = options.minScore;
+      if (options.maxScore !== undefined) where.finalScore.lte = options.maxScore;
+    }
+
+    if (options?.aiRequirementMatch) {
+      where.aiRequirementMatch = options.aiRequirementMatch;
+    }
+
+    let orderBy: Prisma.AssessmentResultOrderByWithRelationInput = {
+      finalScore: 'desc',
+    };
+
+    if (options?.orderBy) {
+      if (typeof options.orderBy === 'string') {
+        switch (options.orderBy) {
+          case 'finalScore_desc':
+            orderBy = { finalScore: 'desc' };
+            break;
+          case 'finalScore_asc':
+            orderBy = { finalScore: 'asc' };
+            break;
+          case 'aiScore_desc':
+            orderBy = { aiScore: 'desc' };
+            break;
+          case 'aiScore_asc':
+            orderBy = { aiScore: 'asc' };
+            break;
+          case 'createdAt_desc':
+            orderBy = { createdAt: 'desc' };
+            break;
+          case 'createdAt_asc':
+            orderBy = { createdAt: 'asc' };
+            break;
+        }
+      } else {
+        orderBy = options.orderBy;
+      }
+    }
+
+    return this.prisma.assessmentResult.findMany({
+      where,
+      include: assessmentResultWithRelationsIncludes,
+      orderBy,
+      skip: options?.skip,
+      take: options?.take,
+    });
+  }
 }
+
 
