@@ -6,6 +6,8 @@ import {
 import { AssessmentsRepository } from './assessments.repository';
 import { OrganizationProfileRepository } from '@/organization-profile/organization-profile.repository';
 import { OpportunitiesRepository } from '@/opportunities/opportunities.repository';
+import { mapApplicantAnalysisData } from './assessment-analysis.mapper';
+import { AssessmentResultFilterDto } from './dto/assessment-result-filter.dto';
 
 @Injectable()
 export class AssessmentsService {
@@ -157,6 +159,27 @@ export class AssessmentsService {
     );
   }
 
+    /**
+   * Build the AI-ready input for a submitted applicant assessment.
+   *
+   * This method only prepares the data.
+   * Backend 3 will be responsible for the actual AI analysis.
+   */
+  async buildApplicantAnalysisInput(applicationId: string) {
+    const data =
+      await this.assessmentsRepository.getSubmittedApplicantAnalysisData(
+        applicationId,
+      );
+
+    if (!data) {
+      throw new NotFoundException(
+        'Submitted applicant analysis data not found.',
+      );
+    }
+
+    return mapApplicantAnalysisData(data);
+  }
+
   /**
    * Retrieve all eligible applicants for an opportunity ready for AI analysis (SUBMITTED attempts only).
    */
@@ -164,6 +187,48 @@ export class AssessmentsService {
     return this.assessmentsRepository.findEligibleApplicantsForAnalysis(
       opportunityId,
     );
+  }
+
+    /**
+   * Prepare eligible applicants for analysis.
+   *
+   * This verifies that the authenticated organization owns the
+   * opportunity and retrieves only applicants who submitted
+   * their assessment.
+   *
+   * Backend 3 AI analysis will be connected at the next stage.
+   */
+  async prepareApplicantAnalysis(
+    userId: string,
+    opportunityId: string,
+  ) {
+    const membership =
+      await this.organizationProfileRepository.findByUserId(userId);
+
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const opportunity =
+      await this.opportunitiesRepository.findByIdAndOrganizationId(
+        opportunityId,
+        membership.organizationId,
+      );
+
+    if (!opportunity) {
+      throw new NotFoundException('Opportunity not found.');
+    }
+
+    const applicants =
+      await this.assessmentsRepository.findEligibleApplicantsForAnalysis(
+        opportunityId,
+      );
+
+    return {
+      opportunityId,
+      eligibleApplicants: applicants,
+      totalEligibleApplicants: applicants.length,
+    };
   }
 
   /**
@@ -200,12 +265,30 @@ export class AssessmentsService {
    * Retrieve filtered & sorted assessment results for an opportunity.
    */
   async getAssessmentResultsByOpportunity(
-    opportunityId: string,
-    options?: any,
-  ) {
-    return this.assessmentsRepository.findAssessmentResultsByOpportunityId(
-      opportunityId,
-      options,
-    );
+  userId: string,
+  opportunityId: string,
+  options?: AssessmentResultFilterDto,
+) {
+  const membership =
+    await this.organizationProfileRepository.findByUserId(userId);
+
+  if (!membership || membership.organization.deletedAt) {
+    throw new NotFoundException('Organization membership not found.');
   }
-}
+
+  const opportunity =
+    await this.opportunitiesRepository.findByIdAndOrganizationId(
+      opportunityId,
+      membership.organizationId,
+    );
+
+  if (!opportunity) {
+    throw new NotFoundException('Opportunity not found.');
+  }
+
+  return this.assessmentsRepository.findAssessmentResultsByOpportunityId(
+    opportunityId,
+    options,
+  );
+}
+}
