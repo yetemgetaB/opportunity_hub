@@ -55,6 +55,7 @@ export interface OpportunityFilterOptions {
   location?: string;
   eligibleFields?: string[];
   skillIds?: string[];
+  skillNames?: string[];
   minimumAcademicYear?: number;
   maximumAcademicYear?: number;
   hasActiveDeadline?: boolean;
