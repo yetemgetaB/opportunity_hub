@@ -1,41 +1,64 @@
-import { Injectable, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
+import { RecommendationsService } from '@/recommendations/recommendations.service';
+import { VoiceSearchCriteriaService } from './voice-search-criteria.service';
 import { VoiceSearchDto } from './dto/voice-search.dto';
-import { OpportunitiesService } from '@/opportunities/opportunities.service';
-import { SearchOpportunityDto } from '@/opportunities/dto/search-opportunity.dto';
+import { StudentProfileRepository } from '@/student-profile/student-profile.repository';
 
 @Injectable()
 export class VoiceService {
   constructor(
-    @Optional()
-    private readonly opportunitiesService?: OpportunitiesService,
+    private readonly recommendationsService: RecommendationsService,
+    private readonly voiceSearchCriteriaService: VoiceSearchCriteriaService,
+    private readonly studentProfileRepository: StudentProfileRepository,
   ) {}
 
-  /**
-   * Execute a structured voice search query.
-   * Maps voice-extracted intents into typed opportunity search filters,
-   * supporting optional student profile context enrichment.
-   */
-  async search(query: VoiceSearchDto, studentUserId?: string) {
-    if (!this.opportunitiesService) {
-      return [];
+  async searchByVoice(
+    userId: string,
+    query: VoiceSearchDto,
+  ) {
+    const transcript = query.query.trim();
+
+    if (!transcript) {
+      throw new BadRequestException(
+        'Voice search query cannot be empty.',
+      );
     }
 
-    const searchDto: SearchOpportunityDto = {
-      keyword: query.keyword,
-      type: query.type,
-      isRemote: query.isRemote,
-      location: query.location,
-      field: query.field,
-      fields: query.fields,
-      academicYear: query.academicYear,
-      skillIds: query.skillIds,
-      skillNames: query.skills,
-    };
+    const studentProfile =
+      await this.studentProfileRepository.findByUserId(userId);
 
-    return this.opportunitiesService.searchOpportunities(
-      searchDto,
-      studentUserId,
-    );
+    if (!studentProfile) {
+      throw new NotFoundException(
+        'Student profile not found. Please complete your profile before using voice search.',
+      );
+    }
+
+    const criteria =
+      this.voiceSearchCriteriaService.extract(transcript);
+
+    if (Object.keys(criteria).length === 0) {
+      throw new BadRequestException(
+        'Unable to understand the search request. Please provide an opportunity type, location, academic year, or relevant keyword.',
+      );
+    }
+
+    const results =
+      await this.recommendationsService.getRecommendations(
+        userId,
+        criteria,
+      );
+
+    return {
+      results,
+      message:
+        results.length > 0
+          ? 'Matching opportunities found.'
+          : 'No matching opportunities were found. Try changing your search criteria.',
+    };
   }
 }
