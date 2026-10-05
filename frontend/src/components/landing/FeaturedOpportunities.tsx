@@ -47,7 +47,7 @@ export default function FeaturedOpportunities() {
           {featured.map((opportunity) => (
             <Link
               key={opportunity.title}
-              to="/student/opportunities"
+              to="/opportunities"
               className="flex h-full min-h-[285px] flex-col gap-5 rounded-lg border border-gray-300 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-brand/50 hover:shadow-md sm:p-6"
               aria-label={`View ${opportunity.title}`}
             >
@@ -82,7 +82,7 @@ export default function FeaturedOpportunities() {
           ))}
         </div>
         <div className="mt-10 flex justify-center">
-          <Link to="/student/opportunities" className="rounded-md bg-navy px-6 py-3.5 text-sm font-semibold !text-brand transition hover:bg-navy-light">
+          <Link to="/opportunities" className="rounded-md bg-navy px-6 py-3.5 text-sm font-semibold !text-brand transition hover:bg-navy-light">
             Explore All 2,400+ Active Listings
           </Link>
         </div>

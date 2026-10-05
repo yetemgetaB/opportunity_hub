@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom'
 import Button from '../ui/Button'
 
 const links = [
-  { label: 'Opportunities', href: '#opportunities' },
-  { label: 'How It Works', href: '#how-it-works' },
-  { label: 'For Students', href: '#students' },
-  { label: 'For Organizations', href: '#organizations' },
+  { label: 'Opportunities', href: '/opportunities' },
+  { label: 'How It Works', href: '/#how-it-works' },
+  { label: 'For Students', href: '/#students' },
+  { label: 'For Organizations', href: '/#organizations' },
 ]
 
 export default function Navbar() {
@@ -22,9 +22,15 @@ export default function Navbar() {
 
         <nav className="hidden items-center gap-8 lg:flex" aria-label="Main navigation">
           {links.map((link) => (
-            <a key={link.href} href={link.href} className="text-sm font-medium text-gray-300 transition hover:text-white">
-              {link.label}
-            </a>
+            link.href === '/opportunities' ? (
+              <Link key={link.href} to={link.href} className="text-sm font-medium text-gray-300 transition hover:text-white">
+                {link.label}
+              </Link>
+            ) : (
+              <a key={link.href} href={link.href} className="text-sm font-medium text-gray-300 transition hover:text-white">
+                {link.label}
+              </a>
+            )
           ))}
         </nav>
 
@@ -46,14 +52,25 @@ export default function Navbar() {
       {open && (
         <nav className="absolute inset-x-0 top-full space-y-1 border-t border-blue-950 bg-navy px-5 pb-5 pt-3 shadow-lg lg:hidden" aria-label="Mobile navigation">
           {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              onClick={() => setOpen(false)}
-              className="block py-3 text-sm font-medium text-gray-300 hover:text-white"
-            >
-              {link.label}
-            </a>
+            link.href === '/opportunities' ? (
+              <Link
+                key={link.href}
+                to={link.href}
+                onClick={() => setOpen(false)}
+                className="block py-3 text-sm font-medium text-gray-300 hover:text-white"
+              >
+                {link.label}
+              </Link>
+            ) : (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className="block py-3 text-sm font-medium text-gray-300 hover:text-white"
+              >
+                {link.label}
+              </a>
+            )
           ))}
           <div className="flex items-center gap-5 pt-3">
             <Link to="/login" onClick={() => setOpen(false)} className="text-sm font-semibold text-white">Login</Link>

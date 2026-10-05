@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import LandingPage from '../pages/public/LandingPage'
+import PublicOpportunitiesPage from '../pages/public/OpportunitiesPage'
+import PublicOpportunityDetailsPage from '../pages/public/OpportunityDetailsPage'
 import AuthLayout from '../layouts/AuthLayout'
 import LoginPage from '../pages/auth/LoginPage'
 import StudentRegisterPage from '../pages/auth/StudentRegisterPage'
@@ -30,6 +32,8 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/opportunities" element={<PublicOpportunitiesPage />} />
+      <Route path="/opportunities/:id" element={<PublicOpportunityDetailsPage />} />
 
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />

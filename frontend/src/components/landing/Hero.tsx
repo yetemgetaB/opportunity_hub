@@ -62,7 +62,7 @@ export default function Hero() {
   function search(event?: FormEvent<HTMLFormElement>, term = query) {
     event?.preventDefault()
     const value = term.trim()
-    navigate(value ? `/student/opportunities?search=${encodeURIComponent(value)}` : '/student/opportunities')
+    navigate(value ? `/opportunities?search=${encodeURIComponent(value)}` : '/opportunities')
   }
 
   return (
@@ -123,7 +123,7 @@ export default function Hero() {
           {opportunities.map((opportunity) => (
             <Link
               key={opportunity.company}
-              to="/student/opportunities"
+              to="/opportunities"
               className={`relative z-20 flex flex-col gap-2.5 rounded-xl border border-neutral-200 bg-white p-3.5 text-navy shadow-[0_12px_24px_rgba(0,0,0,0.12),0_4px_10px_rgba(0,0,0,0.06)] transition hover:-translate-y-1 sm:p-4 lg:absolute lg:z-auto ${opportunity.position}`}
               aria-label={`Search for ${opportunity.title}`}
             >
