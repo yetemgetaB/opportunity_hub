@@ -13,45 +13,44 @@ describe('Day 9 - Application Authorization & Integration', () => {
   let app: INestApplication;
   let prisma: PrismaService;
 
-  const studentUserId =
-    '1ac59f6f-13f9-4088-b684-a00cb9ae1e53';
-
   const organizationUserId =
     '2fc5e97d-e397-4a34-be5c-2f579062116d';
 
+  let studentUserId: string;
   let secondStudentUserId: string;
   let opportunityId: string;
   let applicationId: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideGuard(SupabaseAuthGuard)
-      .useValue({
-        canActivate: (context: any) => {
-          const req = context.switchToHttp().getRequest();
-          const testUser = req.headers['x-test-user'];
-
-          if (testUser === 'student') {
-            req.user = { id: studentUserId };
-            return true;
-          }
-
-          if (testUser === 'student-b') {
-            req.user = { id: secondStudentUserId };
-            return true;
-          }
-
-          if (testUser === 'organization') {
-            req.user = { id: organizationUserId };
-            return true;
-          }
-
-          return false;
-        },
+    const moduleFixture: TestingModule =
+      await Test.createTestingModule({
+        imports: [AppModule],
       })
-      .compile();
+        .overrideGuard(SupabaseAuthGuard)
+        .useValue({
+          canActivate: (context: any) => {
+            const req = context.switchToHttp().getRequest();
+            const testUser = req.headers['x-test-user'];
+
+            if (testUser === 'student') {
+              req.user = { id: studentUserId };
+              return true;
+            }
+
+            if (testUser === 'student-b') {
+              req.user = { id: secondStudentUserId };
+              return true;
+            }
+
+            if (testUser === 'organization') {
+              req.user = { id: organizationUserId };
+              return true;
+            }
+
+            return false;
+          },
+        })
+        .compile();
 
     app = moduleFixture.createNestApplication();
 
@@ -69,25 +68,24 @@ describe('Day 9 - Application Authorization & Integration', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    // Find another existing student dynamically.
-    const secondStudent = await prisma.studentProfile.findFirst({
-      where: {
-        userId: {
-          not: studentUserId,
-        },
-      },
+    // Find two existing students dynamically.
+    // This keeps the integration test independent of hard-coded
+    // student user IDs that may no longer exist in the database.
+    const students = await prisma.studentProfile.findMany({
       select: {
         userId: true,
       },
+      take: 2,
     });
 
-    if (!secondStudent) {
+    if (students.length < 2) {
       throw new Error(
         'Day 9 test requires at least two student profiles in the database.',
       );
     }
 
-    secondStudentUserId = secondStudent.userId;
+    studentUserId = students[0].userId;
+    secondStudentUserId = students[1].userId;
 
     // Find the existing organization belonging to the organization user.
     const testOrganization = await prisma.organization.findFirst({
@@ -118,7 +116,8 @@ describe('Day 9 - Application Authorization & Integration', () => {
           },
         },
         title: `Day 9 Application Test ${Date.now()}`,
-        description: 'Temporary opportunity for Day 9 Backend 3 testing.',
+        description:
+          'Temporary opportunity for Day 9 Backend 3 testing.',
         opportunityType: OpportunityType.INTERNSHIP,
         status: OpportunityStatus.PUBLISHED,
         applicationDeadline: new Date(
@@ -262,4 +261,3 @@ describe('Day 9 - Application Authorization & Integration', () => {
     });
   });
 });
-

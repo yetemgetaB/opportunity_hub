@@ -8,6 +8,7 @@ import request = require('supertest');
 import { AppModule } from '@/app.module';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { PrismaService } from '@/prisma/prisma.service';
+import { AIQuestionService } from '@/assessments/ai-question.service';
 
 jest.setTimeout(30000);
 
@@ -66,6 +67,38 @@ describe('Day 11 Assessment Authorization E2E', () => {
 
             return false;
           },
+        })
+        .overrideProvider(AIQuestionService)
+        .useValue({
+          generateQuestions: jest.fn().mockResolvedValue({
+            questions: [
+              {
+                question:
+                  'Explain how your skills relate to this opportunity.',
+                type: 'technical',
+              },
+              {
+                question:
+                  'Describe a relevant project or experience you have completed.',
+                type: 'experience',
+              },
+              {
+                question:
+                  'How would you approach a challenge related to this opportunity?',
+                type: 'technical',
+              },
+              {
+                question:
+                  'Describe how you work with others on a technical task.',
+                type: 'behavioral',
+              },
+              {
+                question:
+                  'Why are you interested in this opportunity?',
+                type: 'general',
+              },
+            ],
+          }),
         })
         .compile();
 
@@ -178,7 +211,7 @@ describe('Day 11 Assessment Authorization E2E', () => {
     );
   });
 
-  it('should reject another organization from creating an assessment for an opportunity it does not own', async () => {
+  it('should return 403 when another organization attempts to create an assessment for an opportunity it does not own', async () => {
     const response = await request(
       app.getHttpServer(),
     )
@@ -190,7 +223,7 @@ describe('Day 11 Assessment Authorization E2E', () => {
     expect(response.status).toBe(403);
   });
 
-  it('should reject an invalid opportunity id', async () => {
+  it('should return 404 for an invalid opportunity id', async () => {
     const response = await request(
       app.getHttpServer(),
     )
@@ -202,4 +235,3 @@ describe('Day 11 Assessment Authorization E2E', () => {
     expect(response.status).toBe(404);
   });
 });
-

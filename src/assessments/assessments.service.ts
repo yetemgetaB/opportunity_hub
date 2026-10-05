@@ -3,20 +3,23 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AssessmentQuestionType } from '@prisma/client';
 
 import { AssessmentsRepository } from './assessments.repository';
 import { OrganizationProfileRepository } from '@/organization-profile/organization-profile.repository';
 import { OpportunitiesRepository } from '@/opportunities/opportunities.repository';
+import { AIQuestionService } from './ai-question.service';
 import { mapApplicantAnalysisData } from './assessment-analysis.mapper';
 import { AssessmentResultFilterDto } from './dto/assessment-result-filter.dto';
 
 @Injectable()
 export class AssessmentsService {
- constructor(
-  private readonly assessmentsRepository: AssessmentsRepository,
-  private readonly organizationProfileRepository: OrganizationProfileRepository,
-  private readonly opportunitiesRepository: OpportunitiesRepository,
-) {}
+  constructor(
+    private readonly assessmentsRepository: AssessmentsRepository,
+    private readonly organizationProfileRepository: OrganizationProfileRepository,
+    private readonly opportunitiesRepository: OpportunitiesRepository,
+    private readonly aiQuestionService: AIQuestionService,
+  ) {}
 
   async createAssessment(
     userId: string,
@@ -26,20 +29,14 @@ export class AssessmentsService {
       await this.organizationProfileRepository.findByUserId(userId);
 
     if (!membership || membership.organization.deletedAt) {
-      throw new NotFoundException(
-        'Organization membership not found.',
-      );
+      throw new NotFoundException('Organization membership not found.');
     }
 
     const opportunity =
-      await this.opportunitiesRepository.findById(
-        opportunityId,
-      );
+      await this.opportunitiesRepository.findById(opportunityId);
 
     if (!opportunity) {
-      throw new NotFoundException(
-        'Opportunity not found.',
-      );
+      throw new NotFoundException('Opportunity not found.');
     }
 
     if (
@@ -51,10 +48,46 @@ export class AssessmentsService {
       );
     }
 
-    return this.assessmentsRepository.createAssessment(
-      opportunityId,
-      `${opportunity.title} Assessment`,
+    // Get the skills explicitly marked as required for the opportunity.
+    const requiredSkills = opportunity.skills
+      .filter((item) => item.requirementLevel === 'REQUIRED')
+      .map((item) => item.skill.name);
+
+    // Generate assessment questions from the actual opportunity requirements.
+    const generated =
+      await this.aiQuestionService.generateQuestions({
+        title: opportunity.title,
+        description: opportunity.description ?? '',
+        requiredSkills,
+        location: opportunity.location ?? null,
+        eligibleFields: opportunity.eligibleFields ?? [],
+        minimumAcademicYear:
+          opportunity.minimumAcademicYear ?? null,
+        maximumAcademicYear:
+          opportunity.maximumAcademicYear ?? null,
+        minimumGpa: opportunity.minimumGpa
+          ? Number(opportunity.minimumGpa)
+          : null,
+        opportunityType:
+          opportunity.opportunityType ?? null,
+      });
+
+    // Convert generated AI questions into the database format.
+    const questions = generated.questions.map(
+      (item, index) => ({
+        questionText: item.question,
+        questionType: AssessmentQuestionType.TEXT,
+        questionOrder: index + 1,
+        isAiGenerated: true,
+      }),
     );
+
+    // Create the assessment and all generated questions together.
+    return this.assessmentsRepository.create({
+      opportunityId,
+      title: `${opportunity.title} Assessment`,
+      questions,
+    });
   }
 
   getAssessment(assessmentId: string) {
@@ -157,7 +190,8 @@ export class AssessmentsService {
 
   /**
    * Retrieve complete applicant analysis data tree for Backend 1 & 3:
-   * Opportunity -> Application -> StudentProfile (Skills, Experiences, CVs) -> Assessment -> Attempt -> Answers -> Result
+   * Opportunity -> Application -> StudentProfile
+   * (Skills, Experiences, CVs) -> Assessment -> Attempt -> Answers -> Result
    */
   async getApplicantAnalysisData(applicationId: string) {
     return this.assessmentsRepository.getApplicantAnalysisData(applicationId);
@@ -172,7 +206,7 @@ export class AssessmentsService {
     );
   }
 
-    /**
+  /**
    * Build the AI-ready input for a submitted applicant assessment.
    *
    * This method only prepares the data.
@@ -194,7 +228,8 @@ export class AssessmentsService {
   }
 
   /**
-   * Retrieve all eligible applicants for an opportunity ready for AI analysis (SUBMITTED attempts only).
+   * Retrieve all eligible applicants for an opportunity ready for AI analysis
+   * (SUBMITTED attempts only).
    */
   async getEligibleApplicantsForAnalysis(opportunityId: string) {
     return this.assessmentsRepository.findEligibleApplicantsForAnalysis(
@@ -202,7 +237,7 @@ export class AssessmentsService {
     );
   }
 
-    /**
+  /**
    * Prepare eligible applicants for analysis.
    *
    * This verifies that the authenticated organization owns the
@@ -278,30 +313,30 @@ export class AssessmentsService {
    * Retrieve filtered & sorted assessment results for an opportunity.
    */
   async getAssessmentResultsByOpportunity(
-  userId: string,
-  opportunityId: string,
-  options?: AssessmentResultFilterDto,
-) {
-  const membership =
-    await this.organizationProfileRepository.findByUserId(userId);
+    userId: string,
+    opportunityId: string,
+    options?: AssessmentResultFilterDto,
+  ) {
+    const membership =
+      await this.organizationProfileRepository.findByUserId(userId);
 
-  if (!membership || membership.organization.deletedAt) {
-    throw new NotFoundException('Organization membership not found.');
-  }
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
 
-  const opportunity =
-    await this.opportunitiesRepository.findByIdAndOrganizationId(
+    const opportunity =
+      await this.opportunitiesRepository.findByIdAndOrganizationId(
+        opportunityId,
+        membership.organizationId,
+      );
+
+    if (!opportunity) {
+      throw new NotFoundException('Opportunity not found.');
+    }
+
+    return this.assessmentsRepository.findAssessmentResultsByOpportunityId(
       opportunityId,
-      membership.organizationId,
+      options,
     );
-
-  if (!opportunity) {
-    throw new NotFoundException('Opportunity not found.');
   }
-
-  return this.assessmentsRepository.findAssessmentResultsByOpportunityId(
-    opportunityId,
-    options,
-  );
-}
 }
