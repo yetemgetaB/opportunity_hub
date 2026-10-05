@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ApplicantStatsRow from '../../components/applicants/ApplicantStatsRow'
 import ApplicantsTable from '../../components/applicants/ApplicantsTable'
 import Icon from '../../components/ui/Icon'
 import type { ApplicantListItem, ApplicantStatus } from '../../types/organization'
-import { APPLICANTS, APPLICANTS_OPPORTUNITY_TITLE } from '../../utils/organizationData'
+import type { Opportunity } from '../../types/student'
+import { opportunityService } from '../../services/opportunityService'
+import { useAuthContext } from '../../context/AuthContext'
 
 type StatusFilter = 'All' | ApplicantStatus
 type SortOption = 'Match Score' | 'Date Applied' | 'Applicant Name'
@@ -13,10 +15,29 @@ const statuses: StatusFilter[] = ['All', 'Under Review', 'Interview', 'Shortlist
 
 export default function ApplicantsPage() {
   const navigate = useNavigate()
-  const [applicants, setApplicants] = useState<ApplicantListItem[]>(APPLICANTS)
+  const { user } = useAuthContext()
+  const [applicants, setApplicants] = useState<ApplicantListItem[]>([])
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [opportunityId, setOpportunityId] = useState('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
   const [sortBy, setSortBy] = useState<SortOption>('Match Score')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [error, setError] = useState('')
+
+  const refresh = useCallback(async () => {
+    if (user?.role !== 'ORGANIZATION') return
+    try {
+      const [items] = await Promise.all([opportunityService.getMyOpportunities(user.id)])
+      setOpportunities(items)
+      setApplicants(opportunityService.getApplicants(user.id, opportunityId === 'all' ? undefined : opportunityId))
+      setSelectedIds([])
+      setError('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load applicants.')
+    }
+  }, [opportunityId, user])
+
+  useEffect(() => { void refresh() }, [refresh])
 
   const visibleApplicants = useMemo(() => {
     const filtered = applicants.filter((applicant) => statusFilter === 'All' || applicant.status === statusFilter)
@@ -40,11 +61,13 @@ export default function ApplicantsPage() {
       : [...new Set([...current, ...visibleIds])])
   }
 
-  const shortlistSelected = () => {
-    setApplicants((current) => current.map((applicant) => selectedIds.includes(applicant.id)
-      ? { ...applicant, status: 'Shortlisted' }
-      : applicant))
-    setSelectedIds([])
+  const shortlistSelected = async () => {
+    try {
+      selectedIds.forEach((id) => opportunityService.updateApplicantStatus(id, 'Shortlisted', user?.id))
+      await refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to shortlist applicants.')
+    }
   }
 
   const sendAssessment = () => {
@@ -70,20 +93,26 @@ export default function ApplicantsPage() {
     URL.revokeObjectURL(url)
   }
 
+  const opportunityName = opportunityId === 'all'
+    ? 'All opportunities'
+    : opportunities.find((item) => item.id === opportunityId)?.title ?? 'All opportunities'
+
   return (
     <div className="space-y-6">
+      {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-brand">Viewing applicants for</p>
           <label className="relative mt-2 block">
             <span className="sr-only">Opportunity</span>
             <select
-              value={APPLICANTS_OPPORTUNITY_TITLE}
+              value={opportunityId}
+              onChange={(event) => setOpportunityId(event.target.value)}
               aria-label="Opportunity"
-              disabled
               className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-lg font-bold text-navy disabled:cursor-default disabled:opacity-100 sm:w-auto"
             >
-              <option>{APPLICANTS_OPPORTUNITY_TITLE}</option>
+              <option value="all">All opportunities</option>
+              {opportunities.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
             </select>
             <Icon name="chevronDown" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           </label>
@@ -98,7 +127,8 @@ export default function ApplicantsPage() {
         </button>
       </section>
 
-      <ApplicantStatsRow />
+      <p className="sr-only" aria-live="polite">Viewing {applicants.length} applicants for {opportunityName}.</p>
+      <ApplicantStatsRow applicants={applicants} />
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">

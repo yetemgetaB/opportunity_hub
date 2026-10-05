@@ -29,6 +29,8 @@ import StudentNotificationsPage from '../pages/student/NotificationsPage'
 import StudentReportsPage from '../pages/student/ReportsPage'
 import StudentSettingsPage from '../pages/student/SettingsPage'
 import StudentAssessmentPage from '../pages/student/AssessmentPage'
+import ProtectedRoute from './ProtectedRoute'
+import RoleRoute from './RoleRoute'
 
 export default function AppRoutes() {
   return (
@@ -44,33 +46,39 @@ export default function AppRoutes() {
         <Route path="/register/organization" element={<OrganizationRegisterPage />} />
       </Route>
 
-      <Route path="/organization" element={<OrganizationLayout />}>
-        <Route index element={<OrganizationDashboardPage />} />
-        <Route path="opportunities" element={<OpportunitiesPage />} />
-        <Route path="opportunities/new" element={<CreateOpportunityPage />} />
-        <Route path="opportunities/:id/edit" element={<EditOpportunityPage />} />
-        <Route path="applicants" element={<ApplicantsPage />} />
-        <Route path="applicants/:id" element={<ApplicantDetailsPage />} />
-        <Route path="applicants/:id/assessment" element={<AssessmentPage />} />
-        <Route path="assessment" element={<AssessmentListPage />} />
-        <Route path="profile" element={<OrganizationProfilePage />} />
-        <Route path="settings" element={<OrganizationSettingsPage />} />
-        <Route path="notifications" element={<OrganizationNotificationsPage />} />
-        <Route path="*" element={<p className="text-sm text-slate-500">This page is coming soon.</p>} />
-      </Route>
+      <Route element={<ProtectedRoute />}>
+        <Route element={<RoleRoute allowedRoles={['ORGANIZATION']} />}>
+          <Route path="/organization" element={<OrganizationLayout />}>
+            <Route index element={<OrganizationDashboardPage />} />
+            <Route path="opportunities" element={<OpportunitiesPage />} />
+            <Route path="opportunities/new" element={<CreateOpportunityPage />} />
+            <Route path="opportunities/:id/edit" element={<EditOpportunityPage />} />
+            <Route path="applicants" element={<ApplicantsPage />} />
+            <Route path="applicants/:id" element={<ApplicantDetailsPage />} />
+            <Route path="applicants/:id/assessment" element={<AssessmentPage />} />
+            <Route path="assessment" element={<AssessmentListPage />} />
+            <Route path="profile" element={<OrganizationProfilePage />} />
+            <Route path="settings" element={<OrganizationSettingsPage />} />
+            <Route path="notifications" element={<OrganizationNotificationsPage />} />
+            <Route path="*" element={<p className="text-sm text-slate-500">This page is coming soon.</p>} />
+          </Route>
+        </Route>
 
-      <Route path="/student" element={<StudentLayout />}>
-        <Route index element={<StudentDashboardPage />} />
-        <Route path="opportunities" element={<StudentOpportunitiesPage />} />
-        <Route path="opportunities/:id" element={<OpportunityDetailPage />} />
-        <Route path="applications" element={<StudentApplicationsPage />} />
-        <Route path="assessment/:id" element={<StudentAssessmentPage />} />
-        <Route path="saved" element={<StudentSavedPage />} />
-        <Route path="notifications" element={<StudentNotificationsPage />} />
-        <Route path="reports" element={<StudentReportsPage />} />
-        <Route path="settings" element={<StudentSettingsPage />} /> {/* NEW */}
-        <Route path="profile" element={<StudentProfilePage />} />
-        <Route path="*" element={<p className="text-sm text-slate-500">This page is coming soon.</p>} />
+        <Route element={<RoleRoute allowedRoles={['STUDENT']} />}>
+          <Route path="/student" element={<StudentLayout />}>
+            <Route index element={<StudentDashboardPage />} />
+            <Route path="opportunities" element={<StudentOpportunitiesPage />} />
+            <Route path="opportunities/:id" element={<OpportunityDetailPage />} />
+            <Route path="applications" element={<StudentApplicationsPage />} />
+            <Route path="assessment/:id" element={<StudentAssessmentPage />} />
+            <Route path="saved" element={<StudentSavedPage />} />
+            <Route path="notifications" element={<StudentNotificationsPage />} />
+            <Route path="reports" element={<StudentReportsPage />} />
+            <Route path="settings" element={<StudentSettingsPage />} />
+            <Route path="profile" element={<StudentProfilePage />} />
+            <Route path="*" element={<p className="text-sm text-slate-500">This page is coming soon.</p>} />
+          </Route>
+        </Route>
       </Route>
     </Routes>
   )

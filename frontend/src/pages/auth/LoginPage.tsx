@@ -4,7 +4,8 @@ import Button from '../../components/ui/Button'
 import TextField from '../../components/ui/TextField'
 import PasswordField from '../../components/ui/PasswordField'
 import AuthTabs from '../../components/auth/AuthTabs'
-import SocialButtons from '../../components/auth/SocialButtons'
+import { getDemoLoginHelp } from '../../services/authService'
+import { useAuthContext } from '../../context/AuthContext'
 
 const copy = {
   student: {
@@ -12,28 +13,53 @@ const copy = {
     emailPlaceholder: 'alex.mercer@stanford.edu',
     registerTo: '/register/student',
     registerText: 'Create a free student account',
-    home: '/student',
   },
   organization: {
     email: 'Company Email',
     emailPlaceholder: 'hiring@acme.com',
     registerTo: '/register/organization',
     registerText: 'Create a free organization account',
-    home: '/organization',
   },
 }
 
 export default function LoginPage() {
   const [role, setRole] = useState<'student' | 'organization'>('student')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const { login } = useAuthContext()
   const t = copy[role]
-  const registrationState = location.state as { registrationComplete?: boolean; accountRole?: 'student' | 'organization' } | null
+  const locationState = location.state as {
+    registrationComplete?: boolean
+    accountRole?: 'student' | 'organization'
+    from?: { pathname?: string }
+  } | null
+  const registrationState = locationState
+  const demoAccounts = getDemoLoginHelp()
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    // TODO: call authService.login({ role, ... }), then redirect based on the user's role
-    navigate(t.home)
+    const data = new FormData(e.currentTarget)
+    const email = String(data.get('email') ?? '')
+    const password = String(data.get('password') ?? '')
+    setError('')
+    setSubmitting(true)
+    try {
+      const user = await login(email, password)
+      const intendedPath = locationState?.from?.pathname
+      const roleHome = user.role === 'ORGANIZATION' ? '/organization' : user.role === 'ADMIN' ? '/admin' : '/student'
+      const rolePathAllowed = user.role === 'STUDENT'
+        ? !intendedPath?.startsWith('/organization') && !intendedPath?.startsWith('/admin')
+        : user.role === 'ORGANIZATION'
+          ? !intendedPath?.startsWith('/student') && !intendedPath?.startsWith('/admin')
+          : true
+      navigate(intendedPath && rolePathAllowed ? intendedPath : roleHome, { replace: true })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to sign in. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -65,11 +91,22 @@ export default function LoginPage() {
             required
             action={<span className="cursor-pointer text-xs font-semibold text-brand">Forgot Password?</span>}
           />
-          <Button type="submit" className="min-h-14 w-full rounded-lg py-3.5 text-base font-bold">Login</Button>
+          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          <Button type="submit" disabled={submitting} className="min-h-14 w-full rounded-lg py-3.5 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60">
+            {submitting ? 'Signing in…' : 'Login'}
+          </Button>
         </form>
 
-        <div className="mt-3">
-          <SocialButtons verb="Sign in" />
+        <div className="mt-4 rounded-lg border border-neutral-200 bg-slate-50 p-3">
+          <p className="text-xs font-semibold text-navy">Demo accounts</p>
+          <div className="mt-2 space-y-2 text-[11px] leading-4 text-slate-600">
+            {demoAccounts.map((account) => (
+              <p key={account.email}>
+                {account.role === 'STUDENT' ? 'Student' : 'Organization'}: <code>{account.email}</code>
+                <br />Password: <code>{account.password}</code>
+              </p>
+            ))}
+          </div>
         </div>
       </div>
 

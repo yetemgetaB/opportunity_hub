@@ -7,7 +7,15 @@ const statusStyles: Record<OpportunityStatus, string> = {
   Draft: 'bg-amber-500/10 text-amber-600',
 }
 
-export default function OpportunityHistoryTable({ items }: { items: OpportunityHistoryItem[] }) {
+export default function OpportunityHistoryTable({
+  items,
+  onPublish,
+  onDelete,
+}: {
+  items: OpportunityHistoryItem[]
+  onPublish?: (id: string) => void
+  onDelete?: (id: string) => void
+}) {
   if (items.length === 0) {
     return (
       <div className="rounded-xl border border-neutral-200 bg-white p-10 text-center">
@@ -40,13 +48,25 @@ export default function OpportunityHistoryTable({ items }: { items: OpportunityH
                 <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[o.status]}`}>{o.status}</span>
               </td>
               <td className="px-4 py-4 text-right">
-                <Link
-                  to={`/organization/opportunities/${encodeURIComponent(o.id)}/edit`}
-                  className="font-semibold text-amber-700 underline-offset-4 hover:underline"
-                  aria-label={`Edit ${o.title}`}
-                >
-                  Edit
-                </Link>
+                <div className="inline-flex items-center gap-3">
+                  {o.status === 'Draft' && onPublish && (
+                    <button type="button" onClick={() => onPublish(o.id)} className="font-semibold text-emerald-700 underline-offset-4 hover:underline">
+                      Publish
+                    </button>
+                  )}
+                  <Link
+                    to={`/organization/opportunities/${encodeURIComponent(o.id)}/edit`}
+                    className="font-semibold text-amber-700 underline-offset-4 hover:underline"
+                    aria-label={`Edit ${o.title}`}
+                  >
+                    Edit
+                  </Link>
+                  {onDelete && (
+                    <button type="button" onClick={() => onDelete(o.id)} className="font-semibold text-red-600 underline-offset-4 hover:underline" aria-label={`Delete ${o.title}`}>
+                      Delete
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}

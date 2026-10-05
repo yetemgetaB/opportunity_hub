@@ -2,14 +2,17 @@ import { Link } from 'react-router-dom'
 import SavedCard from '../../components/opportunities/SavedCard'
 import BookmarkIcon from '../../components/ui/BookmarkIcon'
 import { useSaved } from '../../context/SavedContext'
-import { OPPORTUNITIES } from '../../utils/studentData'
+import { opportunityService } from '../../services/opportunityService'
+import { useAuthContext } from '../../context/AuthContext'
 
 export default function SavedPage() {
   const { saved } = useSaved()
+  const { user } = useAuthContext()
 
+  const savedItems = user?.role === 'STUDENT' ? opportunityService.getSavedOpportunities(user.id) : []
   const items = saved.flatMap((entry) => {
-    const opportunity = OPPORTUNITIES.find((o) => o.id === entry.id)
-    return opportunity ? [{ entry, opportunity }] : []
+    const match = savedItems.find((item) => item.entry.id === entry.id)
+    return match ? [{ entry, opportunity: match.opportunity }] : []
   })
 
   return (

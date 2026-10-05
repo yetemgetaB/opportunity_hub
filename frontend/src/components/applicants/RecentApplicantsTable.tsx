@@ -5,6 +5,7 @@ const statusStyles: Record<ApplicantStatus, string> = {
   'Under Review': 'bg-amber-100 text-amber-600',
   Interview: 'bg-blue-100 text-blue-600',
   Shortlisted: 'bg-emerald-100 text-emerald-600',
+  Accepted: 'bg-emerald-100 text-emerald-700',
 }
 
 export default function RecentApplicantsTable({ applicants }: { applicants: RecentApplicant[] }) {

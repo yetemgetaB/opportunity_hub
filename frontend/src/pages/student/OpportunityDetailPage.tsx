@@ -1,17 +1,38 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import BookmarkIcon from '../../components/ui/BookmarkIcon'
 import MatchBreakdownChart from '../../components/opportunities/MatchBreakdownChart'
 import { useSaved } from '../../context/SavedContext'
-import { OPPORTUNITIES } from '../../utils/studentData'
+import type { Opportunity } from '../../types/student'
+import { opportunityService } from '../../services/opportunityService'
+import { useAuthContext } from '../../context/AuthContext'
 
 export default function OpportunityDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuthContext()
   const { isSaved, toggleSaved } = useSaved()
   const [shareMessage, setShareMessage] = useState('')
-  const o = OPPORTUNITIES.find((item) => item.id === id)
+  const [applyMessage, setApplyMessage] = useState('')
+  const [o, setOpportunity] = useState<Opportunity>()
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!id) return
+    let active = true
+    setLoading(true)
+    opportunityService.getOpportunityById(id)
+      .then((item) => { if (active) setOpportunity(item) })
+      .catch(() => { if (active) setOpportunity(undefined) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [id])
+
+  if (loading) {
+    return <div className="h-80 animate-pulse rounded-xl border border-neutral-200 bg-white" aria-label="Loading opportunity" />
+  }
 
   if (!o) {
     return (
@@ -24,13 +45,18 @@ export default function OpportunityDetailPage() {
     )
   }
 
+  const opportunity = o
   const saved = isSaved(o.id)
+  const deadlineDate = o.deadline ? new Date(o.deadline) : undefined
+  if (deadlineDate && !Number.isNaN(deadlineDate.getTime())) deadlineDate.setHours(23, 59, 59, 999)
+  const expired = Boolean(deadlineDate && !Number.isNaN(deadlineDate.getTime()) && deadlineDate.getTime() < Date.now())
+  const alreadyApplied = user?.role === 'STUDENT' && opportunityService.getApplications(user.id).some((application) => application.opportunityId === o.id)
 
   async function shareOpportunity() {
     const url = window.location.href
     try {
       if (navigator.share) {
-        await navigator.share({ title: o.title, text: `${o.title} at ${o.company}`, url })
+        await navigator.share({ title: opportunity.title, text: `${opportunity.title} at ${opportunity.company}`, url })
       } else {
         await navigator.clipboard.writeText(url)
         setShareMessage('Link copied to clipboard.')
@@ -38,6 +64,23 @@ export default function OpportunityDetailPage() {
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       setShareMessage('Unable to share this opportunity from your browser.')
+    }
+  }
+
+  async function apply() {
+    if (!user) {
+      navigate('/login', { state: { from: { pathname: `/student/opportunities/${opportunity.id}` }, intent: 'apply' } })
+      return
+    }
+    if (user.role !== 'STUDENT') {
+      setApplyMessage('Sign in with a student account to apply.')
+      return
+    }
+    try {
+      await opportunityService.applyToOpportunity(opportunity.id, user.id)
+      setApplyMessage('Application submitted. You can track it in Applications.')
+    } catch (cause) {
+      setApplyMessage(cause instanceof Error ? cause.message : 'Unable to apply right now.')
     }
   }
 
@@ -109,8 +152,11 @@ export default function OpportunityDetailPage() {
 
         <aside className="space-y-5">
           <section className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
-            {/* TODO: connect this action to the application submission service. */}
-            <Button className="w-full rounded-lg py-3.5">Apply Now</Button>
+            <Button type="button" onClick={apply} disabled={expired || alreadyApplied} className="w-full rounded-lg py-3.5 disabled:cursor-not-allowed disabled:opacity-60">
+              {expired ? 'Application closed' : alreadyApplied ? 'Already Applied' : 'Apply Now'}
+            </Button>
+            {expired && <p className="mt-2 text-center text-xs text-red-600">The application deadline has passed.</p>}
+            {applyMessage && <p role="status" className="mt-3 text-center text-xs text-slate-600">{applyMessage}</p>}
             <div className="mt-3 flex gap-3">
               <button
                 type="button"

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import TextField from '../../components/ui/TextField'
 import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
@@ -7,17 +8,39 @@ import OpportunitySkillTags from '../../components/opportunities/OpportunitySkil
 import { OpportunityFormSection, OpportunityTextarea } from '../../components/opportunities/OpportunityFormSection'
 import type { PostOpportunityFormState } from '../../types/organization'
 import { DEFAULT_OPPORTUNITY_FORM, EDUCATION_LEVELS, EXPERIENCE_LEVELS, OPPORTUNITY_TYPES } from '../../utils/organizationData'
+import { opportunityService } from '../../services/opportunityService'
+import { useAuthContext } from '../../context/AuthContext'
 
 export default function CreateOpportunityPage() {
+  const navigate = useNavigate()
+  const { user } = useAuthContext()
   const [form, setForm] = useState<PostOpportunityFormState>(DEFAULT_OPPORTUNITY_FORM)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   function update<K extends keyof PostOpportunityFormState>(key: K, value: PostOpportunityFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function handleSubmit() {
-    // TODO: send `form` to opportunityService.create(...)
-    console.log('Publishing opportunity', form)
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!form.title.trim() || !form.type || !form.description.trim()) {
+      setError('Add a title, opportunity type, and description before publishing.')
+      return
+    }
+    setSubmitting(true)
+    setError('')
+    try {
+      await opportunityService.createOpportunity(form, user?.id)
+      navigate('/organization/opportunities', {
+        replace: true,
+        state: { notice: 'Opportunity created successfully.', tab: 'history' },
+      })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to create the opportunity.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -29,7 +52,7 @@ export default function CreateOpportunityPage() {
         </p>
       </header>
 
-      <div className="space-y-6">
+      <form id="create-opportunity-form" onSubmit={handleSubmit} className="space-y-6">
         <OpportunityFormSection icon="info" title="Basic Information">
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
@@ -133,12 +156,13 @@ export default function CreateOpportunityPage() {
             />
           </div>
         </OpportunityFormSection>
-      </div>
+      </form>
 
+      {error && <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>}
       <div className="mt-6 flex justify-end pt-2">
-        <Button onClick={handleSubmit} className="h-12 rounded-full px-8 text-base font-bold">
+        <Button form="create-opportunity-form" type="submit" disabled={submitting} className="h-12 rounded-full px-8 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60">
           <span className="flex items-center gap-2">
-            Publish Opportunity <Icon name="arrowRight" className="size-4" />
+            {submitting ? 'Publishing…' : 'Publish Opportunity'} <Icon name="arrowRight" className="size-4" />
           </span>
         </Button>
       </div>

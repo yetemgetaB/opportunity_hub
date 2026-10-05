@@ -1,10 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Toast, { type ToastState } from '../components/ui/Toast'
-import { OPPORTUNITIES } from '../utils/studentData'
+import { useAuthContext } from './AuthContext'
+import { opportunityService } from '../services/opportunityService'
 
-const STORAGE_KEY = 'opportunity-hub-saved'
 const TOAST_MS = 3500
-const DAY_MS = 24 * 60 * 60 * 1000
 
 export type SavedEntry = { id: string; savedAt: number }
 
@@ -16,37 +15,20 @@ interface SavedContextValue {
 
 const SavedContext = createContext<SavedContextValue | undefined>(undefined)
 
-function loadInitial(): SavedEntry[] {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed: unknown = JSON.parse(raw)
-      if (Array.isArray(parsed)) {
-        return parsed.filter(
-          (e): e is SavedEntry => !!e && typeof e.id === 'string' && typeof e.savedAt === 'number',
-        )
-      }
-    }
-  } catch {
-    // storage unavailable or corrupted, fall back to the starter list
-  }
-  // TODO: start empty once real data comes from the backend
-  return [{ id: '4', savedAt: Date.now() - 3 * DAY_MS }]
-}
-
 export function SavedProvider({ children }: { children: ReactNode }) {
-  const [saved, setSaved] = useState<SavedEntry[]>(loadInitial)
+  const { user } = useAuthContext()
+  const [saved, setSaved] = useState<SavedEntry[]>([])
   const [toast, setToast] = useState<ToastState | null>(null)
   const timer = useRef<number | undefined>(undefined)
   const counter = useRef(0)
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
-    } catch {
-      // storage unavailable, the list just won't persist
+    if (user?.role !== 'STUDENT') {
+      setSaved([])
+      return
     }
-  }, [saved])
+    setSaved(opportunityService.getSavedOpportunities(user.id).map(({ entry }) => entry))
+  }, [user])
 
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
@@ -66,12 +48,28 @@ export function SavedProvider({ children }: { children: ReactNode }) {
 
   const toggleSaved = useCallback(
     (opportunityId: string) => {
+      if (user?.role !== 'STUDENT') {
+        showToast({
+          variant: 'removed',
+          message: 'Sign in with a student account to manage saved opportunities.',
+          action: { label: 'Sign in', to: '/login' },
+        })
+        return
+      }
       const existing = saved.find((e) => e.id === opportunityId)
-      const opportunity = OPPORTUNITIES.find((o) => o.id === opportunityId)
+      const opportunity = opportunityService.findOpportunity(opportunityId)
       const detail = opportunity ? `${opportunity.title} · ${opportunity.company}` : undefined
 
       if (existing) {
-        // TODO: call studentService.unsaveOpportunity(opportunityId)
+        try {
+          opportunityService.unsaveOpportunity(opportunityId, user?.id)
+        } catch (cause) {
+          showToast({
+            variant: 'removed',
+            message: cause instanceof Error ? cause.message : 'Unable to remove this saved opportunity.',
+          })
+          return
+        }
         setSaved((prev) => prev.filter((e) => e.id !== opportunityId))
         showToast({
           variant: 'removed',
@@ -80,16 +78,30 @@ export function SavedProvider({ children }: { children: ReactNode }) {
           action: {
             label: 'Undo',
             onClick: () => {
-              setSaved((prev) =>
-                prev.some((e) => e.id === existing.id) ? prev : [...prev, existing].sort((a, b) => b.savedAt - a.savedAt),
-              )
-              showToast({ variant: 'saved', message: 'Back in your Saved list', detail })
+              try {
+                opportunityService.saveOpportunity(opportunityId, user?.id)
+                setSaved((prev) =>
+                  prev.some((e) => e.id === existing.id) ? prev : [...prev, existing].sort((a, b) => b.savedAt - a.savedAt),
+                )
+                showToast({ variant: 'saved', message: 'Back in your Saved list', detail })
+              } catch (cause) {
+                showToast({ variant: 'removed', message: cause instanceof Error ? cause.message : 'Unable to restore this saved opportunity.' })
+              }
             },
           },
         })
       } else {
-        // TODO: call studentService.saveOpportunity(opportunityId)
-        setSaved((prev) => [{ id: opportunityId, savedAt: Date.now() }, ...prev])
+        try {
+          opportunityService.saveOpportunity(opportunityId, user?.id)
+          const savedAt = Date.now()
+          setSaved((prev) => [{ id: opportunityId, savedAt }, ...prev])
+        } catch (cause) {
+          showToast({
+            variant: 'removed',
+            message: cause instanceof Error ? cause.message : 'Unable to save this opportunity.',
+          })
+          return
+        }
         showToast({
           variant: 'saved',
           message: 'Saved to your list',
@@ -98,7 +110,7 @@ export function SavedProvider({ children }: { children: ReactNode }) {
         })
       }
     },
-    [saved, showToast],
+    [saved, showToast, user],
   )
 
   const value = useMemo(() => ({ saved, isSaved, toggleSaved }), [saved, isSaved, toggleSaved])

@@ -10,7 +10,9 @@ export default function UpcomingDeadlines({ deadlines }: { deadlines: Deadline[]
           View all deadlines
         </Link>
       </div>
-      <ul className="space-y-3">
+      {deadlines.length === 0 ? (
+        <p className="rounded-xl border border-neutral-200 bg-white p-5 text-sm text-slate-500">No upcoming deadlines.</p>
+      ) : <ul className="space-y-3">
         {deadlines.map((d) => (
           <li key={d.id} className="flex min-h-20 items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 sm:gap-4 sm:px-5">
             <span className="grid size-12 shrink-0 place-items-center rounded-full bg-navy font-display text-lg font-bold text-white">
@@ -32,7 +34,7 @@ export default function UpcomingDeadlines({ deadlines }: { deadlines: Deadline[]
             </div>
           </li>
         ))}
-      </ul>
+      </ul>}
     </section>
   )
 }

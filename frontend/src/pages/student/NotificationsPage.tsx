@@ -1,12 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import StudentNotificationRow from '../../components/notifications/StudentNotificationRow'
 import StudentNotificationTabs, { type StudentNotificationFilter } from '../../components/notifications/StudentNotificationTabs'
-import { STUDENT_NOTIFICATIONS } from '../../utils/studentData'
 import type { StudentNotificationItem } from '../../types/studentNotification'
+import { opportunityService } from '../../services/opportunityService'
+import { useAuthContext } from '../../context/AuthContext'
 
 export default function NotificationsPage() {
-  const [items, setItems] = useState<StudentNotificationItem[]>(STUDENT_NOTIFICATIONS)
+  const { user } = useAuthContext()
+  const [items, setItems] = useState<StudentNotificationItem[]>([])
   const [filter, setFilter] = useState<StudentNotificationFilter>('all')
+
+  useEffect(() => {
+    setItems(opportunityService.getNotifications(user?.id))
+  }, [user])
 
   const filtered = items.filter((n) => {
     if (filter === 'all') return true
@@ -15,13 +21,13 @@ export default function NotificationsPage() {
   })
 
   function markAllRead() {
-    // TODO: call notificationService.markAllRead() once the backend exists
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })))
+    opportunityService.markAllNotificationsRead(user?.id)
+    setItems(opportunityService.getNotifications(user?.id))
   }
 
   function markOneRead(id: string) {
-    // TODO: call notificationService.markRead(id) once the backend exists
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    opportunityService.markNotificationRead(id, user?.id)
+    setItems(opportunityService.getNotifications(user?.id))
   }
 
   return (

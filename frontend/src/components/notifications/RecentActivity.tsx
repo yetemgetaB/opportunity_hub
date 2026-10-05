@@ -11,7 +11,9 @@ export default function RecentActivity({ items }: { items: ActivityItem[] }) {
   return (
     <section className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
       <h2 className="font-display text-lg font-bold text-black">Recent Activity</h2>
-      <ul className="mt-5 space-y-4">
+      {items.length === 0 ? (
+        <p className="mt-5 text-sm text-slate-500">Your recent application activity will appear here.</p>
+      ) : <ul className="mt-5 space-y-4">
         {items.map((a) => (
           <li key={a.id} className="flex gap-3">
             <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand/10 text-brand">
@@ -24,7 +26,7 @@ export default function RecentActivity({ items }: { items: ActivityItem[] }) {
             </div>
           </li>
         ))}
-      </ul>
+      </ul>}
     </section>
   )
 }

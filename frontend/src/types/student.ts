@@ -22,6 +22,17 @@ export interface Opportunity {
   benefits: string[]
   matchBreakdown: MatchBreakdownItem[]
   recommended?: boolean
+  organizationId?: string
+  status?: 'DRAFT' | 'PENDING_APPROVAL' | 'PUBLISHED' | 'CLOSED'
+  isRemote?: boolean
+  eligibleFields?: string[]
+  minimumAcademicYear?: number | null
+  maximumAcademicYear?: number | null
+  minimumGpa?: number | null
+  compensation?: string | null
+  applicationUrl?: string | null
+  createdAt?: string
+  publishedAt?: string | null
 }
 
 export interface Deadline {

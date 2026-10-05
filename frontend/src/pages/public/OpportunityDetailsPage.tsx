@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Footer from '../../components/layout/Footer'
 import Navbar from '../../components/layout/Navbar'
 import Icon from '../../components/ui/Icon'
 import { ApiError } from '../../services/api'
-import { getOpportunity } from '../../services/opportunityService'
+import { getOpportunity, opportunityService } from '../../services/opportunityService'
 import type { PublicOpportunity } from '../../types/opportunity'
+import { useAuthContext } from '../../context/AuthContext'
+import { useSaved } from '../../context/SavedContext'
 
 function formatDate(value?: string | null) {
   if (!value) return null
@@ -25,14 +27,12 @@ function formatDate(value?: string | null) {
 function isExpired(value?: string | null) {
   if (!value) return false
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (!dateOnly) {
-    const timestamp = new Date(value).getTime()
-    return Number.isFinite(timestamp) && timestamp < Date.now()
-  }
-  const deadline = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return deadline < today
+  const deadline = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(value)
+  if (Number.isNaN(deadline.getTime())) return false
+  if (dateOnly || !value.includes('T')) deadline.setHours(23, 59, 59, 999)
+  return deadline.getTime() < Date.now()
 }
 
 function organizationName(opportunity: PublicOpportunity) {
@@ -58,13 +58,15 @@ function DetailSection({ title, children }: { title: string; children: ReactNode
 
 export default function OpportunityDetailsPage() {
   const { id } = useParams<{ id: string }>()
-  const routerLocation = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuthContext()
+  const { isSaved, toggleSaved } = useSaved()
   const [opportunity, setOpportunity] = useState<PublicOpportunity>()
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState(false)
   const [reportMessage, setReportMessage] = useState('')
+  const [actionMessage, setActionMessage] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
@@ -84,7 +86,7 @@ export default function OpportunityDetailsPage() {
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return
         setOpportunity(undefined)
-        if (cause instanceof ApiError && cause.status === 404) setNotFound(true)
+        if ((cause instanceof ApiError && cause.status === 404) || (cause instanceof Error && cause.message === 'Opportunity not found.')) setNotFound(true)
         else setError(true)
       })
       .finally(() => {
@@ -95,12 +97,43 @@ export default function OpportunityDetailsPage() {
   }, [id, reloadKey])
 
   const expired = opportunity ? isExpired(opportunity.applicationDeadline) : false
+  const alreadyApplied = user?.role === 'STUDENT' && Boolean(opportunity && opportunityService.getApplications(user.id).some((item) => item.opportunityId === opportunity.id))
   const skills = opportunity ? skillNames(opportunity) : undefined
 
   function continueToLogin(action: 'apply' | 'save') {
     navigate('/login', {
-      state: { from: routerLocation.pathname, intent: action },
+      state: { from: { pathname: `/student/opportunities/${id}` }, intent: action },
     })
+  }
+
+  async function applyToOpportunity() {
+    if (!user) {
+      continueToLogin('apply')
+      return
+    }
+    if (user.role !== 'STUDENT' || !opportunity) {
+      setActionMessage('Sign in with a student account to apply.')
+      return
+    }
+    try {
+      await opportunityService.applyToOpportunity(opportunity.id, user.id)
+      setActionMessage('Application submitted. Track it from your student dashboard.')
+    } catch (cause) {
+      setActionMessage(cause instanceof Error ? cause.message : 'Unable to submit your application.')
+    }
+  }
+
+  function saveOpportunity() {
+    if (!user) {
+      continueToLogin('save')
+      return
+    }
+    if (user.role !== 'STUDENT' || !opportunity) {
+      setActionMessage('Sign in with a student account to save opportunities.')
+      return
+    }
+    toggleSaved(opportunity.id)
+    setActionMessage(isSaved(opportunity.id) ? 'Removed from saved opportunities.' : 'Saved to your opportunities.')
   }
 
   let content: ReactNode
@@ -258,19 +291,21 @@ export default function OpportunityDetailsPage() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => continueToLogin('apply')}
+                  onClick={applyToOpportunity}
+                  disabled={alreadyApplied}
                   className="mt-5 w-full rounded-lg bg-brand px-4 py-3 text-sm font-bold text-navy transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
-                  Sign in to apply
+                  {alreadyApplied ? 'Already applied' : user?.role === 'STUDENT' ? 'Apply now' : 'Sign in to apply'}
                 </button>
               )}
               <button
                 type="button"
-                onClick={() => continueToLogin('save')}
+                onClick={saveOpportunity}
                 className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-navy transition hover:bg-slate-50"
               >
-                <Icon name="bookmark" className="size-4" /> Save opportunity
+                <Icon name="bookmark" className="size-4" /> {user?.role === 'STUDENT' && opportunity && isSaved(opportunity.id) ? 'Remove saved opportunity' : 'Save opportunity'}
               </button>
+              {actionMessage && <p role="status" className="mt-3 text-xs leading-5 text-slate-600">{actionMessage}</p>}
             </section>
             <section className="rounded-xl border border-neutral-200 bg-white p-5">
               <h2 className="text-sm font-semibold text-navy">Something not right?</h2>

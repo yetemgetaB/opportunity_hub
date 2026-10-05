@@ -4,8 +4,7 @@ import Button from '../ui/Button'
 import TextField from '../ui/TextField'
 import PasswordField from '../ui/PasswordField'
 import AuthTabs from './AuthTabs'
-import { ApiError } from '../../services/api'
-import { registerAccount } from '../../services/authService'
+import { useAuthContext } from '../../context/AuthContext'
 
 const copy = {
   student: {
@@ -47,15 +46,13 @@ function validateName(value: string, required: boolean) {
 }
 
 function registrationErrorMessage(error: unknown) {
-  if (!(error instanceof ApiError)) return 'We could not create your account. Please try again.'
-  if (error.status === 0) return 'Unable to reach the service. Check your connection and try again.'
-  if (error.status === 409) return 'An account with this email already exists.'
-  if (error.status === 400) return 'Some account details could not be accepted. Review them and try again.'
+  if (error instanceof Error && error.message === 'An account with this email already exists.') return error.message
   return 'We could not create your account right now. Please try again later.'
 }
 
 export default function RegisterForm({ role }: { role: 'student' | 'organization' }) {
   const navigate = useNavigate()
+  const { register } = useAuthContext()
   const [errors, setErrors] = useState<FieldErrors>({})
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
@@ -94,7 +91,7 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
 
     setSubmitting(true)
     try {
-      await registerAccount({
+      await register({
         email,
         password: submittedPassword,
         firstName: firstName.trim(),

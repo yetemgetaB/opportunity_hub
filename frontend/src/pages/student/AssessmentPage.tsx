@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import type {
@@ -8,8 +8,10 @@ import type {
   StudentAssessmentQuestion,
   StudentAssessmentRouteState,
 } from '../../types/assessment'
+import { opportunityService } from '../../services/opportunityService'
+import { useAuthContext } from '../../context/AuthContext'
 
-type Stage = 'intro' | 'questions' | 'review'
+type Stage = 'intro' | 'questions' | 'review' | 'submitted'
 type Answers = Record<string, string>
 
 function isOption(value: unknown): value is AssessmentQuestionOption {
@@ -134,7 +136,12 @@ function QuestionAnswer({ question, value, onChange }: {
 
 export default function AssessmentPage() {
   const location = useLocation()
-  const assessment = useMemo(() => assessmentFromState(location.state as StudentAssessmentRouteState | null), [location.state])
+  const { id } = useParams()
+  const { user } = useAuthContext()
+  const routeAssessment = useMemo(() => assessmentFromState(location.state as StudentAssessmentRouteState | null), [location.state])
+  const [assessment, setAssessment] = useState(routeAssessment)
+  const [loading, setLoading] = useState(true)
+  const [submissionMessage, setSubmissionMessage] = useState('')
   const questions = useMemo(
     () => assessment ? [...assessment.questions].sort((a, b) => a.questionOrder - b.questionOrder) : [],
     [assessment],
@@ -144,10 +151,30 @@ export default function AssessmentPage() {
   const [answers, setAnswers] = useState<Answers>({})
 
   useEffect(() => {
+    let active = true
+    setLoading(true)
+    const request = routeAssessment
+      ? Promise.resolve(routeAssessment)
+      : opportunityService.getStudentAssessment(id ?? 'demo-assessment')
+    request.then((result) => {
+      if (active) setAssessment(result)
+    }).catch((cause) => {
+      if (active) setSubmissionMessage(cause instanceof Error ? cause.message : 'Unable to load this assessment.')
+    }).finally(() => {
+      if (active) setLoading(false)
+    })
+    return () => { active = false }
+  }, [id, routeAssessment])
+
+  useEffect(() => {
     setStage('intro')
     setQuestionIndex(0)
     setAnswers({})
   }, [assessment?.id])
+
+  if (loading) {
+    return <div className="h-80 animate-pulse rounded-xl border border-neutral-200 bg-white" aria-label="Loading assessment" />
+  }
 
   if (!assessment) {
     return (
@@ -157,7 +184,7 @@ export default function AssessmentPage() {
         </span>
         <h1 className="mt-5 font-display text-2xl font-bold text-navy">Assessment unavailable</h1>
         <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-600">
-          Assessment questions are not available from the current student API. No assessment data has been generated.
+          {submissionMessage || 'This demo assessment is not available right now.'}
         </p>
         <Link
           to="/student/applications"
@@ -213,7 +240,7 @@ export default function AssessmentPage() {
           <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Final check</p>
           <h1 className="mt-2 font-display text-2xl font-bold text-navy">Review your answers</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Check each response before you submit. The current assessment API does not expose a student submission endpoint, so submission is not available yet.
+            Check each response before you submit.
           </p>
           <ol className="mt-6 divide-y divide-neutral-200">
             {questions.map((question, index) => {
@@ -234,15 +261,39 @@ export default function AssessmentPage() {
           </ol>
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
             <Button type="button" variant="secondary" onClick={() => setStage('questions')}>Go back</Button>
-            <Button type="button" disabled className="cursor-not-allowed opacity-60">
+            <Button
+              type="button"
+              onClick={() => {
+                try {
+                  opportunityService.saveAssessmentAttempt(assessment.id, answers, user?.id)
+                  setSubmissionMessage('Your assessment has been saved on this device.')
+                  setStage('submitted')
+                } catch (cause) {
+                  setSubmissionMessage(cause instanceof Error ? cause.message : 'Unable to submit this assessment.')
+                }
+              }}
+              disabled={questions.some((item) => !answers[item.id]?.trim())}
+              className="disabled:cursor-not-allowed disabled:opacity-50"
+            >
               Submit assessment
             </Button>
           </div>
-          <p className="mt-3 text-right text-xs text-slate-500">
-            Submission will be enabled when the backend provides the student submission endpoint.
-          </p>
+          {submissionMessage && <p role="alert" className="mt-3 text-right text-xs text-red-600">{submissionMessage}</p>}
         </section>
       </div>
+    )
+  }
+
+  if (stage === 'submitted') {
+    return (
+      <section className="mx-auto max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 text-center">
+        <span className="mx-auto grid size-12 place-items-center rounded-full bg-emerald-50 text-emerald-700" aria-hidden="true">✓</span>
+        <h1 className="mt-4 font-display text-2xl font-bold text-navy">Assessment submitted</h1>
+        <p role="status" className="mt-2 text-sm text-slate-600">{submissionMessage}</p>
+        <Link to="/student/applications" className="mt-6 inline-flex rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-navy hover:brightness-95">
+          Back to applications
+        </Link>
+      </section>
     )
   }
 

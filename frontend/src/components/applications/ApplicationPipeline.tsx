@@ -1,4 +1,5 @@
 import type { ApplicationItem, ApplicationStatus } from '../../types/application'
+import { normalizeApplicationStatus } from '../../utils/applicationData'
 
 type Stage = {
   label: string
@@ -6,14 +7,14 @@ type Stage = {
 }
 
 export default function ApplicationPipeline({ items }: { items: ApplicationItem[] }) {
-  const count = (status: ApplicationStatus) => items.filter((item) => item.status === status).length
+  const count = (status: ApplicationStatus) => items.filter((item) => normalizeApplicationStatus(item.status) === status).length
   const closedStatuses: ApplicationStatus[] = ['Accepted', 'Rejected', 'Withdrawn']
   const stages: Stage[] = [
     { label: 'Applied', count: items.length },
     { label: 'Under Review', count: count('Under Review') },
     { label: 'Shortlisted', count: count('Shortlisted') },
     { label: 'Interview Scheduled', count: count('Interview') },
-    { label: 'Offer Accepted / Closed', count: items.filter((item) => closedStatuses.includes(item.status)).length },
+    { label: 'Offer Accepted / Closed', count: items.filter((item) => closedStatuses.includes(normalizeApplicationStatus(item.status))).length },
   ]
 
   return (

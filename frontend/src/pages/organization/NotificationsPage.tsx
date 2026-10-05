@@ -1,12 +1,24 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import NotificationRow from '../../components/notifications/NotificationRow'
 import NotificationTabs, { type NotificationFilter } from '../../components/notifications/NotificationTabs'
-import { NOTIFICATIONS } from '../../utils/organizationData'
 import type { NotificationItem } from '../../types/organization'
+import { opportunityService } from '../../services/opportunityService'
+import { useAuthContext } from '../../context/AuthContext'
 
 export default function NotificationsPage() {
-  const [items, setItems] = useState<NotificationItem[]>(NOTIFICATIONS)
+  const { user } = useAuthContext()
+  const [items, setItems] = useState<NotificationItem[]>([])
   const [filter, setFilter] = useState<NotificationFilter>('all')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    try {
+      setItems(opportunityService.getOrganizationNotifications(user?.id))
+      setError('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load notifications.')
+    }
+  }, [user])
 
   const filtered = items.filter((n) => {
     if (filter === 'all') return true
@@ -15,13 +27,21 @@ export default function NotificationsPage() {
   })
 
   function markAllRead() {
-    // TODO: call notificationService.markAllRead() once the backend exists
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })))
+    try {
+      opportunityService.markAllOrganizationNotificationsRead(user?.id)
+      setItems(opportunityService.getOrganizationNotifications(user?.id))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update notifications.')
+    }
   }
 
   function markOneRead(id: string) {
-    // TODO: call notificationService.markRead(id) once the backend exists
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    try {
+      opportunityService.markOrganizationNotificationRead(id, user?.id)
+      setItems(opportunityService.getOrganizationNotifications(user?.id))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to update notifications.')
+    }
   }
 
   return (
@@ -31,6 +51,7 @@ export default function NotificationsPage() {
           <h2 className="font-display text-2xl font-bold text-black">Notifications</h2>
           <p className="mt-1 text-sm text-slate-500">Stay on top of applicant and hiring activity.</p>
         </div>
+        {error && <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <button onClick={markAllRead} className="text-xs font-semibold text-brand hover:underline">
           Mark all as read
         </button>

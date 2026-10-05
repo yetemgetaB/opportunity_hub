@@ -37,7 +37,7 @@ export const ACTIVE_OPENINGS_TOTAL = 5
 
 import type { PostOpportunityFormState } from '../types/organization'
 
-export const OPPORTUNITY_TYPES = ['Internship', 'Full-time', 'Part-time', 'Fellowship', 'Co-op']
+export const OPPORTUNITY_TYPES = ['Internship', 'Full-time', 'Part-time', 'Scholarship', 'Hackathon', 'Competition', 'Training', 'Volunteer', 'Fellowship']
 export const EDUCATION_LEVELS = ['High School', 'Undergraduate Freshman', 'Undergraduate Junior', 'Undergraduate Senior', 'Graduate']
 export const EXPERIENCE_LEVELS = ['No Experience', 'Beginner (0-1 Years)', 'Intermediate (1+ Years projects)', 'Advanced (2+ Years)']
 
@@ -62,7 +62,7 @@ export const OPPORTUNITY_HISTORY: OpportunityHistoryItem[] = [
   { id: '1', title: 'AI Software Engineering Intern', type: 'Internship', applicants: 24, postedDate: 'Sep 2, 2026', status: 'Active' },
   { id: '2', title: 'Frontend Developer (Copilot Team)', type: 'Full-time', applicants: 15, postedDate: 'Aug 21, 2026', status: 'Active' },
   { id: '3', title: 'Product Design Intern', type: 'Internship', applicants: 42, postedDate: 'Jul 30, 2026', status: 'Closed' },
-  { id: '4', title: 'Data Analytics Co-op', type: 'Co-op', applicants: 9, postedDate: 'Jul 12, 2026', status: 'Closed' },
+  { id: '4', title: 'Data Analysis Internship', type: 'Internship', applicants: 9, postedDate: 'Jul 12, 2026', status: 'Closed' },
   { id: '5', title: 'Summer Research Fellowship', type: 'Fellowship', applicants: 0, postedDate: 'Jun 28, 2026', status: 'Draft' },
 ]
 

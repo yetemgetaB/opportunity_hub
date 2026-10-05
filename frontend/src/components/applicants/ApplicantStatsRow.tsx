@@ -1,13 +1,13 @@
-import { APPLICANT_STATS } from '../../utils/organizationData'
+import type { ApplicantListItem } from '../../types/organization'
 
-const stats = [
-  { label: 'Total Applicants', value: APPLICANT_STATS.total, color: 'text-navy' },
-  { label: 'Shortlisted', value: APPLICANT_STATS.shortlisted, color: 'text-emerald-500' },
-  { label: 'In Assessment', value: APPLICANT_STATS.inAssessment, color: 'text-amber-500' },
-  { label: 'Accepted', value: APPLICANT_STATS.accepted, color: 'text-blue-500' },
-]
+export default function ApplicantStatsRow({ applicants }: { applicants: ApplicantListItem[] }) {
+  const stats = [
+    { label: 'Total Applicants', value: applicants.length, color: 'text-navy' },
+    { label: 'Shortlisted', value: applicants.filter((item) => item.status === 'Shortlisted').length, color: 'text-emerald-500' },
+    { label: 'In Assessment', value: applicants.filter((item) => item.status === 'Interview').length, color: 'text-amber-500' },
+    { label: 'Accepted', value: applicants.filter((item) => item.status === 'Accepted').length, color: 'text-blue-500' },
+  ]
 
-export default function ApplicantStatsRow() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {stats.map((s) => (

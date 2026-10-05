@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import ProfileHeaderCard from '../../components/organization/ProfileHeaderCard'
@@ -8,17 +8,32 @@ import PrimaryContactCard from '../../components/organization/PrimaryContactCard
 import SocialLinksCard from '../../components/organization/SocialLinksCard'
 import type { OrganizationProfileFormState } from '../../types/organization'
 import { DEFAULT_ORG_PROFILE, ORG_LAST_UPDATED } from '../../utils/organizationData'
+import { opportunityService } from '../../services/opportunityService'
+import { useAuthContext } from '../../context/AuthContext'
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<OrganizationProfileFormState>(DEFAULT_ORG_PROFILE)
+  const [message, setMessage] = useState('')
+  const { user } = useAuthContext()
+
+  useEffect(() => {
+    if (user?.role !== 'ORGANIZATION') return
+    opportunityService.getOrganizationProfile(user.id)
+      .then(setProfile)
+      .catch((cause) => setMessage(cause instanceof Error ? cause.message : 'Unable to load your profile.'))
+  }, [user])
 
   function update<K extends keyof OrganizationProfileFormState>(key: K, value: OrganizationProfileFormState[K]) {
     setProfile((prev) => ({ ...prev, [key]: value }))
   }
 
-  function handleSave() {
-    // TODO: send `profile` to organizationService.updateProfile(...)
-    console.log('Saving organization profile', profile)
+  async function handleSave() {
+    try {
+      await opportunityService.saveOrganizationProfile(profile, user?.id)
+      setMessage('Organization profile saved on this device.')
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : 'Unable to save your profile.')
+    }
   }
 
   return (
@@ -39,7 +54,7 @@ export default function ProfilePage() {
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
         <p className="flex items-center gap-1.5 text-xs text-slate-400">
           <Icon name="clock" className="h-4 w-4" />
-          {ORG_LAST_UPDATED}
+          {message || ORG_LAST_UPDATED}
         </p>
         <Button onClick={handleSave}>Save Profile</Button>
       </div>
