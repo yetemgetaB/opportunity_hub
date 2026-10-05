@@ -1,15 +1,45 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { OpportunityType } from '@prisma/client';
+
+import { RecommendationsService } from '@/recommendations/recommendations.service';
+import { StudentProfileRepository } from '@/student-profile/student-profile.repository';
+
+import { VoiceSearchCriteriaService } from './voice-search-criteria.service';
 import { VoiceService } from './voice.service';
-import { OpportunitiesService } from '@/opportunities/opportunities.service';
 
 describe('VoiceService', () => {
   let service: VoiceService;
 
+  const recommendationsService = {
+    getRecommendations: jest.fn(),
+  };
+
+  const studentProfileRepository = {
+    findByUserId: jest.fn(),
+  };
+
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [VoiceService],
-    }).compile();
+    jest.clearAllMocks();
+
+    studentProfileRepository.findByUserId.mockResolvedValue({
+      id: 'profile-1',
+      userId: 'student-user-id',
+    });
+
+    const module: TestingModule =
+      await Test.createTestingModule({
+        providers: [
+          VoiceService,
+          {
+            provide: RecommendationsService,
+            useValue: recommendationsService,
+          },
+          {
+            provide: StudentProfileRepository,
+            useValue: studentProfileRepository,
+          },
+          VoiceSearchCriteriaService,
+        ],
+      }).compile();
 
     service = module.get<VoiceService>(VoiceService);
   });
@@ -18,53 +48,119 @@ describe('VoiceService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should return empty array if OpportunitiesService is not available', async () => {
-    const result = await service.search({ keyword: 'AI' });
-    expect(result).toEqual([]);
-  });
+  it('should extract criteria and return a helpful message when no opportunities match', async () => {
+    recommendationsService.getRecommendations.mockResolvedValue([]);
 
-  it('should delegate search to OpportunitiesService with structured parameters', async () => {
-    const mockOpportunitiesService = {
-      searchOpportunities: jest.fn().mockResolvedValue([{ id: 'opp-1', title: 'AI Intern' }]),
-    };
+    const result = await service.searchByVoice(
+      'student-user-id',
+      {
+        query:
+          'Find me remote AI internships for third-year students',
+      },
+    );
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        VoiceService,
-        {
-          provide: OpportunitiesService,
-          useValue: mockOpportunitiesService,
-        },
-      ],
-    }).compile();
-
-    const voiceServiceWithOpp = module.get<VoiceService>(VoiceService);
-
-    const query = {
-      keyword: 'AI',
-      type: OpportunityType.INTERNSHIP,
-      isRemote: true,
-      field: 'Computer Science',
-      academicYear: 3,
-      skills: ['Python'],
-    };
-
-    const result = await voiceServiceWithOpp.search(query, 'student-user-123');
-
-    expect(mockOpportunitiesService.searchOpportunities).toHaveBeenCalledWith(
+    expect(
+      recommendationsService.getRecommendations,
+    ).toHaveBeenCalledWith(
+      'student-user-id',
       {
         keyword: 'AI',
-        type: OpportunityType.INTERNSHIP,
+        type: 'INTERNSHIP',
         isRemote: true,
-        location: undefined,
-        field: 'Computer Science',
-        fields: undefined,
-        academicYear: 3,
-        skillIds: undefined,
-        skillNames: ['Python'],
+        minimumAcademicYear: 3,
+        maximumAcademicYear: 3,
       },
-      'student-user-123',
     );
-    expect(result).toEqual([{ id: 'opp-1', title: 'AI Intern' }]);
+
+    expect(result).toEqual({
+      results: [],
+      message:
+        'No matching opportunities were found. Try changing your search criteria.',
+    });
+  });
+
+  it('should return matching opportunities with a success message', async () => {
+    const recommendations = [
+      {
+        opportunity: {
+          id: 'opportunity-1',
+        },
+        score: 0.85,
+        matchedSkills: ['Python'],
+        matchedInterests: ['AI'],
+      },
+    ];
+
+    recommendationsService.getRecommendations.mockResolvedValue(
+      recommendations,
+    );
+
+    const result = await service.searchByVoice(
+      'student-user-id',
+      {
+        query: 'Find me remote AI internships',
+      },
+    );
+
+    expect(result).toEqual({
+      results: recommendations,
+      message: 'Matching opportunities found.',
+    });
+  });
+
+  it('should reject voice search when the student profile does not exist', async () => {
+    studentProfileRepository.findByUserId.mockResolvedValue(null);
+
+    await expect(
+      service.searchByVoice('student-user-id', {
+        query: 'Find me remote AI internships',
+      }),
+    ).rejects.toThrow(
+      'Student profile not found. Please complete your profile before using voice search.',
+    );
+
+    expect(
+      recommendationsService.getRecommendations,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should reject an empty voice query', async () => {
+    await expect(
+      service.searchByVoice('student-user-id', {
+        query: '   ',
+      }),
+    ).rejects.toThrow(
+      'Voice search query cannot be empty.',
+    );
+
+    expect(
+      recommendationsService.getRecommendations,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should reject an unclear voice query', async () => {
+    await expect(
+      service.searchByVoice('student-user-id', {
+        query: 'hello there',
+      }),
+    ).rejects.toThrow(
+      'Unable to understand the search request.',
+    );
+
+    expect(
+      recommendationsService.getRecommendations,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should propagate an error when the recommendation service fails', async () => {
+    recommendationsService.getRecommendations.mockRejectedValue(
+      new Error('Search service failed'),
+    );
+
+    await expect(
+      service.searchByVoice('student-user-id', {
+        query: 'Find me remote Python internships',
+      }),
+    ).rejects.toThrow('Search service failed');
   });
 });

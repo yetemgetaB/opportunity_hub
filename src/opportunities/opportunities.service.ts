@@ -28,6 +28,7 @@ import {
   mapOpportunityForSearch,
 } from './opportunity-response.mapper';
 import { mapApplicantForResponse } from './applicant-response.mapper';
+import { OpportunitySearchCriteria } from './opportunity-search.interface';
 
 @Injectable()
 export class OpportunitiesService {
@@ -438,12 +439,16 @@ return applicants.map(mapApplicantForResponse);
    * the relations required by the matching engine.
    */
   async searchOpportunitiesForMatching(
-    query: SearchOpportunityDto,
-    studentUserId?: string,
-  ): Promise<OpportunityWithRelations[]> {
-    const filters = await this.buildSearchFilters(query, studentUserId);
-    return this.opportunitiesRepository.findMany(filters);
-  }
+  query: SearchOpportunityDto,
+  studentUserId?: string,
+): Promise<OpportunityWithRelations[]> {
+  const filters = await this.buildSearchFilters(
+    query,
+    studentUserId,
+  );
+
+  return this.opportunitiesRepository.findMany(filters);
+}
 
   async getPublishedOpportunity(opportunityId: string) {
     const opportunity =
