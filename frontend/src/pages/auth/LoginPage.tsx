@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import TextField from '../../components/ui/TextField'
 import PasswordField from '../../components/ui/PasswordField'
@@ -26,7 +26,9 @@ const copy = {
 export default function LoginPage() {
   const [role, setRole] = useState<'student' | 'organization'>('student')
   const navigate = useNavigate()
+  const location = useLocation()
   const t = copy[role]
+  const registrationState = location.state as { registrationComplete?: boolean; accountRole?: 'student' | 'organization' } | null
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -44,6 +46,11 @@ export default function LoginPage() {
       />
 
       <div className="mx-auto my-6 w-full max-w-96">
+        {registrationState?.registrationComplete && (
+          <p role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-800">
+            Your {registrationState.accountRole ?? 'user'} account was created. Sign in to continue to profile setup.
+          </p>
+        )}
         <header className="mb-6">
           <h2 className="font-display text-3xl font-bold text-slate-900">Welcome Back</h2>
           <p className="mt-2 text-sm text-gray-500">Please log in to continue to your {role} portal.</p>

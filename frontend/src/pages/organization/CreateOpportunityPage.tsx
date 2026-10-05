@@ -1,50 +1,12 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import TextField from '../../components/ui/TextField'
 import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import OpportunitySkillTags from '../../components/opportunities/OpportunitySkillTags'
+import { OpportunityFormSection, OpportunityTextarea } from '../../components/opportunities/OpportunityFormSection'
 import type { PostOpportunityFormState } from '../../types/organization'
 import { DEFAULT_OPPORTUNITY_FORM, EDUCATION_LEVELS, EXPERIENCE_LEVELS, OPPORTUNITY_TYPES } from '../../utils/organizationData'
-
-type OpportunityTextareaProps = {
-  label: string
-  placeholder: string
-  rows: number
-  required?: boolean
-  value: string
-  onChange: (value: string) => void
-}
-
-function OpportunityTextarea({ label, placeholder, rows, required, value, onChange }: OpportunityTextareaProps) {
-  return (
-    <label className="block">
-      <span className="text-xs font-semibold text-slate-900">
-        {label} {required && <span className="text-red-500">*</span>}
-      </span>
-      <textarea
-        required={required}
-        rows={rows}
-        placeholder={placeholder}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 block w-full resize-y rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-gray-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-      />
-    </label>
-  )
-}
-
-function FormSection({ icon, title, children }: { icon: 'info' | 'check' | 'calendar'; title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-8">
-      <div className="flex items-center gap-2">
-        <Icon name={icon} className="size-4 text-amber-500" />
-        <h2 className="font-display text-lg font-bold text-slate-900">{title}</h2>
-      </div>
-      <div className="mt-6 space-y-5">{children}</div>
-    </section>
-  )
-}
 
 export default function CreateOpportunityPage() {
   const [form, setForm] = useState<PostOpportunityFormState>(DEFAULT_OPPORTUNITY_FORM)
@@ -68,7 +30,7 @@ export default function CreateOpportunityPage() {
       </header>
 
       <div className="space-y-6">
-        <FormSection icon="info" title="Basic Information">
+        <OpportunityFormSection icon="info" title="Basic Information">
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
               label="Opportunity Title"
@@ -111,9 +73,9 @@ export default function CreateOpportunityPage() {
               onChange={(e) => update('field', e.target.value)}
             />
           </div>
-        </FormSection>
+        </OpportunityFormSection>
 
-        <FormSection icon="check" title="Requirements & Matching Settings">
+        <OpportunityFormSection icon="check" title="Requirements & Matching Settings">
           <OpportunitySkillTags
             label="Required Skills"
             items={form.requiredSkills}
@@ -150,9 +112,9 @@ export default function CreateOpportunityPage() {
             value={form.responsibilities}
             onChange={(value) => update('responsibilities', value)}
           />
-        </FormSection>
+        </OpportunityFormSection>
 
-        <FormSection icon="calendar" title="Application & Timeline Settings">
+        <OpportunityFormSection icon="calendar" title="Application & Timeline Settings">
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
               label="Application Deadline"
@@ -170,7 +132,7 @@ export default function CreateOpportunityPage() {
               onChange={(e) => update('maxApplicants', e.target.value)}
             />
           </div>
-        </FormSection>
+        </OpportunityFormSection>
       </div>
 
       <div className="mt-6 flex justify-end pt-2">

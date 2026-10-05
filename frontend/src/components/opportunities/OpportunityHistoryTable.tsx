@@ -1,4 +1,5 @@
 import type { OpportunityHistoryItem, OpportunityStatus } from '../../types/organization'
+import { Link } from 'react-router-dom'
 
 const statusStyles: Record<OpportunityStatus, string> = {
   Active: 'bg-emerald-500/10 text-emerald-600',
@@ -25,6 +26,7 @@ export default function OpportunityHistoryTable({ items }: { items: OpportunityH
             <th className="px-4 py-3.5 font-semibold">Applicants</th>
             <th className="px-4 py-3.5 font-semibold">Posted</th>
             <th className="px-4 py-3.5 font-semibold">Status</th>
+            <th className="px-4 py-3.5 text-right font-semibold">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -36,6 +38,15 @@ export default function OpportunityHistoryTable({ items }: { items: OpportunityH
               <td className="px-4 py-4 text-gray-500">{o.postedDate}</td>
               <td className="px-4 py-4">
                 <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[o.status]}`}>{o.status}</span>
+              </td>
+              <td className="px-4 py-4 text-right">
+                <Link
+                  to={`/organization/opportunities/${encodeURIComponent(o.id)}/edit`}
+                  className="font-semibold text-amber-700 underline-offset-4 hover:underline"
+                  aria-label={`Edit ${o.title}`}
+                >
+                  Edit
+                </Link>
               </td>
             </tr>
           ))}

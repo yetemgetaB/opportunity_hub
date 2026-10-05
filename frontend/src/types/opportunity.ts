@@ -54,6 +54,28 @@ export interface PublicOpportunity {
   publishedAt?: string | null
 }
 
+export interface OrganizationOpportunity extends PublicOpportunity {
+  opportunityType: OpportunityType
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'PUBLISHED' | 'CLOSED' | 'REJECTED'
+  isRemote: boolean
+  eligibleFields: string[]
+}
+
+export interface OpportunityUpdatePayload {
+  title: string
+  description: string
+  opportunityType: OpportunityType
+  location: string | null
+  isRemote: boolean
+  applicationDeadline: string | null
+  eligibleFields: string[]
+  minimumAcademicYear: number | null
+  maximumAcademicYear: number | null
+  minimumGpa: number | null
+  compensation: string | null
+  applicationUrl: string | null
+}
+
 export type OpportunitySort = 'newest' | 'deadline'
 
 export interface OpportunityFilters {

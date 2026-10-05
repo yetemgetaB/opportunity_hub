@@ -10,6 +10,7 @@ import OrganizationLayout from '../layouts/OrganizationLayout'
 import OrganizationDashboardPage from '../pages/organization/DashboardPage'
 import OpportunitiesPage from '../pages/organization/OpportunitiesPage'
 import CreateOpportunityPage from '../pages/organization/CreateOpportunityPage'
+import EditOpportunityPage from '../pages/organization/EditOpportunityPage'
 import ApplicantsPage from '../pages/organization/ApplicantsPage'
 import ApplicantDetailsPage from '../pages/organization/ApplicantDetailsPage'
 import AssessmentListPage from '../pages/organization/AssessmentListPage'
@@ -27,6 +28,7 @@ import StudentSavedPage from '../pages/student/SavedPage'
 import StudentNotificationsPage from '../pages/student/NotificationsPage'
 import StudentReportsPage from '../pages/student/ReportsPage'
 import StudentSettingsPage from '../pages/student/SettingsPage'
+import StudentAssessmentPage from '../pages/student/AssessmentPage'
 
 export default function AppRoutes() {
   return (
@@ -46,6 +48,7 @@ export default function AppRoutes() {
         <Route index element={<OrganizationDashboardPage />} />
         <Route path="opportunities" element={<OpportunitiesPage />} />
         <Route path="opportunities/new" element={<CreateOpportunityPage />} />
+        <Route path="opportunities/:id/edit" element={<EditOpportunityPage />} />
         <Route path="applicants" element={<ApplicantsPage />} />
         <Route path="applicants/:id" element={<ApplicantDetailsPage />} />
         <Route path="applicants/:id/assessment" element={<AssessmentPage />} />
@@ -61,6 +64,7 @@ export default function AppRoutes() {
         <Route path="opportunities" element={<StudentOpportunitiesPage />} />
         <Route path="opportunities/:id" element={<OpportunityDetailPage />} />
         <Route path="applications" element={<StudentApplicationsPage />} />
+        <Route path="assessment/:id" element={<StudentAssessmentPage />} />
         <Route path="saved" element={<StudentSavedPage />} />
         <Route path="notifications" element={<StudentNotificationsPage />} />
         <Route path="reports" element={<StudentReportsPage />} />

@@ -22,6 +22,7 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
       ...init,
       headers: {
         Accept: 'application/json',
+        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
         ...init?.headers,
       },
     })
@@ -32,6 +33,7 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
   if (!response.ok) {
     throw new ApiError('The request failed.', response.status)
   }
+  if (response.status === 204) return undefined as T
 
   let payload: unknown
   try {

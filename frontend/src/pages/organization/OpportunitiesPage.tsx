@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import Icon from '../../components/ui/Icon'
 import CreateOpportunityPrompt from '../../components/opportunities/CreateOpportunityPrompt'
 import OpportunityHistoryTable from '../../components/opportunities/OpportunityHistoryTable'
@@ -8,6 +9,8 @@ type Tab = 'create' | 'history'
 
 export default function OpportunitiesPage() {
   const [tab, setTab] = useState<Tab>('create')
+  const location = useLocation()
+  const notice = (location.state as { notice?: string } | null)?.notice
 
   return (
     <div>
@@ -15,6 +18,11 @@ export default function OpportunitiesPage() {
         <h2 className="font-display text-3xl font-bold text-slate-900">My Opportunities</h2>
         <p className="mt-1.5 text-base text-gray-500">Manage your postings and review your hiring history.</p>
       </header>
+      {notice && (
+        <p role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {notice}
+        </p>
+      )}
 
       <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-neutral-200 bg-white p-1" role="tablist">
         <button

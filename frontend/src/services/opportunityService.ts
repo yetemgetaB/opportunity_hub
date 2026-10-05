@@ -1,5 +1,11 @@
 import { apiRequest } from './api'
-import type { OpportunityFilters, OpportunityListResult, PublicOpportunity } from '../types/opportunity'
+import type {
+  OpportunityFilters,
+  OpportunityListResult,
+  OpportunityUpdatePayload,
+  OrganizationOpportunity,
+  PublicOpportunity,
+} from '../types/opportunity'
 
 type OpportunityListPayload =
   | PublicOpportunity[]
@@ -36,4 +42,27 @@ export async function listOpportunities(
 
 export function getOpportunity(id: string, signal?: AbortSignal) {
   return apiRequest<PublicOpportunity>(`/opportunities/${encodeURIComponent(id)}`, { signal })
+}
+
+export function getOrganizationOpportunity(id: string, signal?: AbortSignal) {
+  return apiRequest<OrganizationOpportunity>(`/opportunities/my/${encodeURIComponent(id)}`, { signal })
+}
+
+export function updateOrganizationOpportunity(id: string, payload: OpportunityUpdatePayload) {
+  return apiRequest<OrganizationOpportunity>(`/opportunities/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function publishOrganizationOpportunity(id: string) {
+  return apiRequest<OrganizationOpportunity>(`/opportunities/${encodeURIComponent(id)}/publish`, {
+    method: 'PATCH',
+  })
+}
+
+export function deleteOrganizationOpportunity(id: string) {
+  return apiRequest<void>(`/opportunities/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
 }
