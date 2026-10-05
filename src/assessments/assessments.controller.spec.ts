@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { AssessmentsController } from './assessments.controller';
 import { AssessmentsService } from './assessments.service';
+import { AssessmentResultFilterDto } from './dto/assessment-result-filter.dto';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 
@@ -17,30 +18,32 @@ describe('AssessmentsController', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AssessmentsController],
-      providers: [
-        {
-          provide: AssessmentsService,
-          useValue: {
-            createAssessment: jest.fn(),
-            prepareApplicantAnalysis: jest.fn(),
-            getAssessmentResultsByOpportunity: jest.fn(),
-            getAssessment: jest.fn(),
-            getAssessmentQuestions: jest.fn(),
+    const module: TestingModule =
+      await Test.createTestingModule({
+        controllers: [AssessmentsController],
+        providers: [
+          {
+            provide: AssessmentsService,
+            useValue: {
+              createAssessment: jest.fn(),
+              prepareApplicantAnalysis: jest.fn(),
+              getAssessmentResultsByOpportunity:
+                jest.fn(),
+              getAssessment: jest.fn(),
+              getAssessmentQuestions: jest.fn(),
+            },
           },
-        },
-      ],
-    })
-      .overrideGuard(SupabaseAuthGuard)
-      .useValue({
-        canActivate: jest.fn(() => true),
+        ],
       })
-      .overrideGuard(RolesGuard)
-      .useValue({
-        canActivate: jest.fn(() => true),
-      })
-      .compile();
+        .overrideGuard(SupabaseAuthGuard)
+        .useValue({
+          canActivate: jest.fn(() => true),
+        })
+        .overrideGuard(RolesGuard)
+        .useValue({
+          canActivate: jest.fn(() => true),
+        })
+        .compile();
 
     controller = module.get<AssessmentsController>(
       AssessmentsController,
@@ -57,15 +60,19 @@ describe('AssessmentsController', () => {
     service.createAssessment.mockResolvedValue({
       id: 'assessment-123',
       opportunityId: 'opp-123',
-      title: 'Software Engineering Internship Assessment',
+      title:
+        'Software Engineering Internship Assessment',
     });
 
-    const result = await controller.createAssessment(
-      'user-123',
-      'opp-123',
-    );
+    const result =
+      await controller.createAssessment(
+        'user-123',
+        'opp-123',
+      );
 
-    expect(service.createAssessment).toHaveBeenCalledWith(
+    expect(
+      service.createAssessment,
+    ).toHaveBeenCalledWith(
       'user-123',
       'opp-123',
     );
@@ -73,7 +80,8 @@ describe('AssessmentsController', () => {
     expect(result).toEqual({
       id: 'assessment-123',
       opportunityId: 'opp-123',
-      title: 'Software Engineering Internship Assessment',
+      title:
+        'Software Engineering Internship Assessment',
     });
   });
 
@@ -84,12 +92,15 @@ describe('AssessmentsController', () => {
       totalEligibleApplicants: 0,
     });
 
-    const result = await controller.analyzeApplicants(
-      'user-123',
-      'opp-123',
-    );
+    const result =
+      await controller.analyzeApplicants(
+        'user-123',
+        'opp-123',
+      );
 
-    expect(service.prepareApplicantAnalysis).toHaveBeenCalledWith(
+    expect(
+      service.prepareApplicantAnalysis,
+    ).toHaveBeenCalledWith(
       'user-123',
       'opp-123',
     );
@@ -102,7 +113,7 @@ describe('AssessmentsController', () => {
   });
 
   it('should get candidate assessment results', async () => {
-    const filters = {
+    const filters: AssessmentResultFilterDto = {
       minScore: 70,
       isFinalApproved: true,
       orderBy: 'finalScore_desc',
@@ -115,11 +126,12 @@ describe('AssessmentsController', () => {
       candidates: [],
     });
 
-    const result = await controller.getCandidateResults(
-      'user-123',
-      'opp-123',
-      filters,
-    );
+    const result =
+      await controller.getCandidateResults(
+        'user-123',
+        'opp-123',
+        filters,
+      );
 
     expect(
       service.getAssessmentResultsByOpportunity,
@@ -139,21 +151,26 @@ describe('AssessmentsController', () => {
     service.getAssessment.mockResolvedValue({
       id: 'assessment-123',
       opportunityId: 'opp-123',
-      title: 'Software Engineering Internship Assessment',
+      title:
+        'Software Engineering Internship Assessment',
     });
 
-    const result = await controller.getAssessment(
-      'assessment-123',
-    );
+    const result =
+      await controller.getAssessment(
+        'assessment-123',
+      );
 
-    expect(service.getAssessment).toHaveBeenCalledWith(
+    expect(
+      service.getAssessment,
+    ).toHaveBeenCalledWith(
       'assessment-123',
     );
 
     expect(result).toEqual({
       id: 'assessment-123',
       opportunityId: 'opp-123',
-      title: 'Software Engineering Internship Assessment',
+      title:
+        'Software Engineering Internship Assessment',
     });
   });
 
@@ -162,16 +179,20 @@ describe('AssessmentsController', () => {
       {
         id: 'question-1',
         assessmentId: 'assessment-123',
-        questionText: 'What is polymorphism?',
+        questionText:
+          'What is polymorphism?',
         questionOrder: 1,
       },
     ]);
 
-    const result = await controller.getAssessmentQuestions(
-      'assessment-123',
-    );
+    const result =
+      await controller.getAssessmentQuestions(
+        'assessment-123',
+      );
 
-    expect(service.getAssessmentQuestions).toHaveBeenCalledWith(
+    expect(
+      service.getAssessmentQuestions,
+    ).toHaveBeenCalledWith(
       'assessment-123',
     );
 
@@ -179,7 +200,8 @@ describe('AssessmentsController', () => {
       {
         id: 'question-1',
         assessmentId: 'assessment-123',
-        questionText: 'What is polymorphism?',
+        questionText:
+          'What is polymorphism?',
         questionOrder: 1,
       },
     ]);

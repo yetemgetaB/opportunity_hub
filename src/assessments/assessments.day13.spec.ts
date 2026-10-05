@@ -16,6 +16,7 @@ import { AssessmentsService } from './assessments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrganizationProfileRepository } from '@/organization-profile/organization-profile.repository';
 import { OpportunitiesRepository } from '@/opportunities/opportunities.repository';
+import { AIQuestionService } from './ai-question.service';
 
 describe('Day 13 Backend 2: Assessments Data Foundation', () => {
   let repository: AssessmentsRepository;
@@ -69,8 +70,10 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
     questionOrder: 1,
     isAiGenerated: false,
     options: null,
-    referenceAnswer: 'B-Tree is default for scalar lookups; GIN is for composite / array / jsonb queries.',
-    evaluationGuidance: 'Check for clarity on B-tree ordering vs GIN inverted index.',
+    referenceAnswer:
+      'B-Tree is default for scalar lookups; GIN is for composite / array / jsonb queries.',
+    evaluationGuidance:
+      'Check for clarity on B-tree ordering vs GIN inverted index.',
     requirementLevel: SkillRequirementLevel.REQUIRED,
     createdAt: mockDate,
     updatedAt: mockDate,
@@ -98,7 +101,8 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
     assessmentAttemptId: attemptId,
     assessmentQuestionId: questionId,
     assessmentId,
-    answerText: 'B-tree is suitable for comparison queries like equality and ranges...',
+    answerText:
+      'B-tree is suitable for comparison queries like equality and ranges...',
     answeredAt: mockDate,
     createdAt: mockDate,
     updatedAt: mockDate,
@@ -114,17 +118,25 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
       technicalKnowledge: 90,
       databaseDesign: 85,
     },
-    aiStrengths: ['Strong database indexing knowledge', 'Clear technical writing'],
+    aiStrengths: [
+      'Strong database indexing knowledge',
+      'Clear technical writing',
+    ],
     aiGaps: ['Could mention partial indexes'],
-    aiSummary: 'Candidate demonstrated deep understanding of relational indexing.',
+    aiSummary:
+      'Candidate demonstrated deep understanding of relational indexing.',
     aiEvaluatedAt: mockDate,
     humanScore: null,
     humanFeedback: null,
     humanEvaluatorId: null,
     humanEvaluatedAt: null,
     finalScore: 88,
-    finalSummary: 'Candidate demonstrated deep understanding of relational indexing.',
-    finalStrengths: ['Strong database indexing knowledge', 'Clear technical writing'],
+    finalSummary:
+      'Candidate demonstrated deep understanding of relational indexing.',
+    finalStrengths: [
+      'Strong database indexing knowledge',
+      'Clear technical writing',
+    ],
     finalGaps: ['Could mention partial indexes'],
     isFinalApproved: false,
     approvedAt: null,
@@ -173,6 +185,10 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
       findByIdAndOrganizationId: jest.fn(),
     };
 
+    const mockAIQuestionService = {
+      generateQuestions: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AssessmentsRepository,
@@ -188,6 +204,10 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
         {
           provide: OpportunitiesRepository,
           useValue: mockOppsRepo,
+        },
+        {
+          provide: AIQuestionService,
+          useValue: mockAIQuestionService,
         },
       ],
     }).compile();
@@ -256,7 +276,7 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
           ...mockApplication,
           opportunityId: otherOpportunityId,
         });
-        mockPrisma.assessment.findUnique.mockResolvedValue(mockAssessment); // belongs to opportunityId
+        mockPrisma.assessment.findUnique.mockResolvedValue(mockAssessment);
 
         await expect(
           repository.createAttempt({
@@ -312,9 +332,12 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
           ...mockAttempt,
           answers: [mockAnswer],
         };
-        mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(attemptWithAnswers);
+        mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(
+          attemptWithAnswers,
+        );
 
-        const result = await repository.findAttemptByIdWithAnswers(attemptId);
+        const result =
+          await repository.findAttemptByIdWithAnswers(attemptId);
         expect(result).toEqual(attemptWithAnswers);
         expect(mockPrisma.assessmentAttempt.findUnique).toHaveBeenCalledWith({
           where: { id: attemptId },
@@ -325,7 +348,8 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
       it('should retrieve attempt by application ID', async () => {
         mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockAttempt);
 
-        const result = await repository.findAttemptByApplicationId(applicationId);
+        const result =
+          await repository.findAttemptByApplicationId(applicationId);
         expect(result).toEqual(mockAttempt);
         expect(mockPrisma.assessmentAttempt.findUnique).toHaveBeenCalledWith({
           where: { applicationId },
@@ -337,7 +361,9 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
     describe('submitAttempt', () => {
       it('should submit an active in-progress attempt and set submittedAt', async () => {
         mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockAttempt);
-        mockPrisma.assessmentAttempt.update.mockResolvedValue(mockSubmittedAttempt);
+        mockPrisma.assessmentAttempt.update.mockResolvedValue(
+          mockSubmittedAttempt,
+        );
 
         const result = await repository.submitAttempt(attemptId);
 
@@ -353,7 +379,9 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
       });
 
       it('should reject submission if attempt is already SUBMITTED', async () => {
-        mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockSubmittedAttempt);
+        mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(
+          mockSubmittedAttempt,
+        );
 
         await expect(repository.submitAttempt(attemptId)).rejects.toThrow(
           ConflictException,
@@ -363,17 +391,20 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
       it('should throw NotFoundException if attempt to submit does not exist', async () => {
         mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(null);
 
-        await expect(repository.submitAttempt('missing-attempt')).rejects.toThrow(
-          NotFoundException,
-        );
+        await expect(
+          repository.submitAttempt('missing-attempt'),
+        ).rejects.toThrow(NotFoundException);
       });
     });
 
     describe('findSubmittedAttemptsByAssessmentId & findSubmittedAttemptsByOpportunityId', () => {
       it('should retrieve strictly submitted attempts for assessment', async () => {
-        mockPrisma.assessmentAttempt.findMany.mockResolvedValue([mockSubmittedAttempt]);
+        mockPrisma.assessmentAttempt.findMany.mockResolvedValue([
+          mockSubmittedAttempt,
+        ]);
 
-        const result = await repository.findSubmittedAttemptsByAssessmentId(assessmentId);
+        const result =
+          await repository.findSubmittedAttemptsByAssessmentId(assessmentId);
 
         expect(result).toEqual([mockSubmittedAttempt]);
         expect(mockPrisma.assessmentAttempt.findMany).toHaveBeenCalledWith({
@@ -387,9 +418,12 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
       });
 
       it('should retrieve strictly submitted attempts for opportunity', async () => {
-        mockPrisma.assessmentAttempt.findMany.mockResolvedValue([mockSubmittedAttempt]);
+        mockPrisma.assessmentAttempt.findMany.mockResolvedValue([
+          mockSubmittedAttempt,
+        ]);
 
-        const result = await repository.findSubmittedAttemptsByOpportunityId(opportunityId);
+        const result =
+          await repository.findSubmittedAttemptsByOpportunityId(opportunityId);
 
         expect(result).toEqual([mockSubmittedAttempt]);
         expect(mockPrisma.assessmentAttempt.findMany).toHaveBeenCalledWith({
@@ -414,7 +448,9 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
     describe('saveAnswer', () => {
       it('should save answer when attempt is IN_PROGRESS and question belongs to attempt assessment', async () => {
         mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockAttempt);
-        mockPrisma.assessmentQuestion.findUnique.mockResolvedValue(mockQuestion);
+        mockPrisma.assessmentQuestion.findUnique.mockResolvedValue(
+          mockQuestion,
+        );
         mockPrisma.assessmentAnswer.upsert.mockResolvedValue(mockAnswer);
 
         const result = await repository.saveAnswer({
@@ -461,7 +497,9 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
       });
 
       it('should reject modifying answers if attempt is already SUBMITTED', async () => {
-        mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockSubmittedAttempt);
+        mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(
+          mockSubmittedAttempt,
+        );
 
         await expect(
           repository.saveAnswer({
@@ -504,7 +542,7 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
         mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockAttempt);
         mockPrisma.assessmentQuestion.findUnique.mockResolvedValue({
           ...mockQuestion,
-          assessmentId: otherAssessmentId, // mismatch!
+          assessmentId: otherAssessmentId,
         });
 
         await expect(
@@ -520,7 +558,9 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
     describe('saveAnswers & findAnswersByAttemptId', () => {
       it('should batch save multiple answers', async () => {
         mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockAttempt);
-        mockPrisma.assessmentQuestion.findUnique.mockResolvedValue(mockQuestion);
+        mockPrisma.assessmentQuestion.findUnique.mockResolvedValue(
+          mockQuestion,
+        );
         mockPrisma.assessmentAnswer.upsert.mockResolvedValue(mockAnswer);
 
         const results = await repository.saveAnswers(attemptId, [
@@ -581,7 +621,9 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
     };
 
     it('should retrieve applicant analysis data for an application', async () => {
-      mockPrisma.application.findUnique.mockResolvedValue(mockFullApplicantData);
+      mockPrisma.application.findUnique.mockResolvedValue(
+        mockFullApplicantData,
+      );
 
       const result = await repository.getApplicantAnalysisData(applicationId);
       expect(result).toEqual(mockFullApplicantData);
@@ -592,9 +634,12 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
     });
 
     it('should retrieve submitted applicant analysis data when attempt is SUBMITTED', async () => {
-      mockPrisma.application.findFirst.mockResolvedValue(mockFullApplicantData);
+      mockPrisma.application.findFirst.mockResolvedValue(
+        mockFullApplicantData,
+      );
 
-      const result = await repository.getSubmittedApplicantAnalysisData(applicationId);
+      const result =
+        await repository.getSubmittedApplicantAnalysisData(applicationId);
       expect(result).toEqual(mockFullApplicantData);
       expect(mockPrisma.application.findFirst).toHaveBeenCalledWith({
         where: {
@@ -610,14 +655,18 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
     it('should return null when submitted applicant analysis data is requested for an unsubmitted attempt', async () => {
       mockPrisma.application.findFirst.mockResolvedValue(null);
 
-      const result = await repository.getSubmittedApplicantAnalysisData(applicationId);
+      const result =
+        await repository.getSubmittedApplicantAnalysisData(applicationId);
       expect(result).toBeNull();
     });
 
     it('should query eligible applicants for analysis strictly filtering for SUBMITTED attempts', async () => {
-      mockPrisma.application.findMany.mockResolvedValue([mockFullApplicantData]);
+      mockPrisma.application.findMany.mockResolvedValue([
+        mockFullApplicantData,
+      ]);
 
-      const results = await repository.findEligibleApplicantsForAnalysis(opportunityId);
+      const results =
+        await repository.findEligibleApplicantsForAnalysis(opportunityId);
 
       expect(results).toEqual([mockFullApplicantData]);
       expect(mockPrisma.application.findMany).toHaveBeenCalledWith({
@@ -644,7 +693,9 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
           ...mockSubmittedAttempt,
           application: mockApplication,
         });
-        mockPrisma.assessmentResult.upsert.mockResolvedValue(mockAssessmentResult);
+        mockPrisma.assessmentResult.upsert.mockResolvedValue(
+          mockAssessmentResult,
+        );
 
         const result = await repository.saveAssessmentResult({
           assessmentAttemptId: attemptId,
@@ -653,7 +704,8 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
           aiSkillAnalysis: { technicalKnowledge: 90 },
           aiStrengths: ['Strong database indexing knowledge'],
           aiGaps: ['Could mention partial indexes'],
-          aiSummary: 'Candidate demonstrated deep understanding of relational indexing.',
+          aiSummary:
+            'Candidate demonstrated deep understanding of relational indexing.',
         });
 
         expect(result).toEqual(mockAssessmentResult);
@@ -665,7 +717,8 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
               aiScore: 88,
               finalScore: 88,
               aiRequirementMatch: 'HIGH',
-              finalSummary: 'Candidate demonstrated deep understanding of relational indexing.',
+              finalSummary:
+                'Candidate demonstrated deep understanding of relational indexing.',
             }),
           }),
         );
@@ -684,7 +737,7 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
 
       it('should reject saving assessment result if attempt is not SUBMITTED (e.g. IN_PROGRESS)', async () => {
         mockPrisma.assessmentAttempt.findUnique.mockResolvedValue({
-          ...mockAttempt, // status: IN_PROGRESS
+          ...mockAttempt,
           application: mockApplication,
         });
 
@@ -699,37 +752,49 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
 
     describe('findAssessmentResultsByOpportunityId & result retrieval', () => {
       it('should retrieve assessment result by result ID', async () => {
-        mockPrisma.assessmentResult.findUnique.mockResolvedValue(mockAssessmentResult);
+        mockPrisma.assessmentResult.findUnique.mockResolvedValue(
+          mockAssessmentResult,
+        );
 
-        const result = await repository.findAssessmentResultById(resultId);
+        const result =
+          await repository.findAssessmentResultById(resultId);
         expect(result).toEqual(mockAssessmentResult);
       });
 
       it('should retrieve assessment result by attempt ID', async () => {
-        mockPrisma.assessmentResult.findUnique.mockResolvedValue(mockAssessmentResult);
+        mockPrisma.assessmentResult.findUnique.mockResolvedValue(
+          mockAssessmentResult,
+        );
 
-        const result = await repository.findAssessmentResultByAttemptId(attemptId);
+        const result =
+          await repository.findAssessmentResultByAttemptId(attemptId);
         expect(result).toEqual(mockAssessmentResult);
       });
 
       it('should retrieve assessment result by application ID', async () => {
-        mockPrisma.assessmentResult.findFirst.mockResolvedValue(mockAssessmentResult);
+        mockPrisma.assessmentResult.findFirst.mockResolvedValue(
+          mockAssessmentResult,
+        );
 
-        const result = await repository.findAssessmentResultByApplicationId(applicationId);
+        const result =
+          await repository.findAssessmentResultByApplicationId(applicationId);
         expect(result).toEqual(mockAssessmentResult);
       });
 
       it('should retrieve results by opportunity with filtering on minScore and sorting by finalScore desc', async () => {
-        mockPrisma.assessmentResult.findMany.mockResolvedValue([mockAssessmentResult]);
+        mockPrisma.assessmentResult.findMany.mockResolvedValue([
+          mockAssessmentResult,
+        ]);
 
-        const results = await repository.findAssessmentResultsByOpportunityId(
-          opportunityId,
-          {
-            minScore: 80,
-            isFinalApproved: false,
-            aiRequirementMatch: 'HIGH',
-          },
-        );
+        const results =
+          await repository.findAssessmentResultsByOpportunityId(
+            opportunityId,
+            {
+              minScore: 80,
+              isFinalApproved: false,
+              aiRequirementMatch: 'HIGH',
+            },
+          );
 
         expect(results).toEqual([mockAssessmentResult]);
         expect(mockPrisma.assessmentResult.findMany).toHaveBeenCalledWith({
@@ -775,7 +840,9 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
 
     it('should delegate submitAttempt to repository', async () => {
       mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockAttempt);
-      mockPrisma.assessmentAttempt.update.mockResolvedValue(mockSubmittedAttempt);
+      mockPrisma.assessmentAttempt.update.mockResolvedValue(
+        mockSubmittedAttempt,
+      );
 
       const result = await service.submitAttempt(attemptId);
       expect(result).toEqual(mockSubmittedAttempt);
@@ -783,7 +850,9 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
 
     it('should delegate saveAnswer to repository', async () => {
       mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockAttempt);
-      mockPrisma.assessmentQuestion.findUnique.mockResolvedValue(mockQuestion);
+      mockPrisma.assessmentQuestion.findUnique.mockResolvedValue(
+        mockQuestion,
+      );
       mockPrisma.assessmentAnswer.upsert.mockResolvedValue(mockAnswer);
 
       const result = await service.saveAnswer({
@@ -791,13 +860,16 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
         assessmentQuestionId: questionId,
         answerText: 'Answer text',
       });
+
       expect(result).toEqual(mockAnswer);
     });
 
     it('should delegate getEligibleApplicantsForAnalysis to repository', async () => {
       mockPrisma.application.findMany.mockResolvedValue([mockSubmittedAttempt]);
 
-      const result = await service.getEligibleApplicantsForAnalysis(opportunityId);
+      const result =
+        await service.getEligibleApplicantsForAnalysis(opportunityId);
+
       expect(result).toEqual([mockSubmittedAttempt]);
     });
 
@@ -806,12 +878,15 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
         ...mockSubmittedAttempt,
         application: mockApplication,
       });
-      mockPrisma.assessmentResult.upsert.mockResolvedValue(mockAssessmentResult);
+      mockPrisma.assessmentResult.upsert.mockResolvedValue(
+        mockAssessmentResult,
+      );
 
       const result = await service.saveAssessmentResult({
         assessmentAttemptId: attemptId,
         aiScore: 88,
       });
+
       expect(result).toEqual(mockAssessmentResult);
     });
   });
