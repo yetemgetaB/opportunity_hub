@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import databaseConfig from './config/database.config';
+import aiConfig from './config/ai.config';
 
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -30,7 +31,7 @@ import { ApplicationsModule } from './applications/applications.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig],
+      load: [databaseConfig, aiConfig],
       envFilePath: ['.env.local', '.env'],
     }),
 
