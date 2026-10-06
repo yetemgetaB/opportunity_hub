@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -32,13 +33,19 @@ export class AssessmentsService {
     }
 
     const opportunity =
-      await this.opportunitiesRepository.findByIdAndOrganizationId(
-        opportunityId,
-        membership.organizationId,
-      );
+      await this.opportunitiesRepository.findById(opportunityId);
 
     if (!opportunity) {
       throw new NotFoundException('Opportunity not found.');
+    }
+
+    if (
+      opportunity.organizationId !==
+      membership.organizationId
+    ) {
+      throw new ForbiddenException(
+        'You are not authorized to create an assessment for this opportunity.',
+      );
     }
 
     // Get the skills explicitly marked as required for the opportunity.

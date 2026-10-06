@@ -18,6 +18,8 @@ import { RolesGuard } from '@/common/guards/roles.guard';
     RecommendationsService,
     RolesGuard,
   ],
+  exports: [
+    RecommendationsService,
+  ],
 })
 export class RecommendationsModule {}
-

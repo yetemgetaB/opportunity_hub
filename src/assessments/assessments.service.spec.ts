@@ -74,7 +74,7 @@ describe('AssessmentsService', () => {
     );
 
     expect(
-      opportunitiesRepository.findByIdAndOrganizationId,
+      opportunitiesRepository.findById,
     ).not.toHaveBeenCalled();
 
     expect(
@@ -94,7 +94,7 @@ describe('AssessmentsService', () => {
       },
     });
 
-    opportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
+    opportunitiesRepository.findById.mockResolvedValue(
       null,
     );
 
@@ -103,8 +103,8 @@ describe('AssessmentsService', () => {
     ).rejects.toThrow('Opportunity not found.');
 
     expect(
-      opportunitiesRepository.findByIdAndOrganizationId,
-    ).toHaveBeenCalledWith('opp-123', 'org-123');
+      opportunitiesRepository.findById,
+    ).toHaveBeenCalledWith('opp-123');
 
     expect(
       aiQuestionService.generateQuestions,
@@ -115,7 +115,7 @@ describe('AssessmentsService', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('should throw NotFoundException when organization does not own the opportunity', async () => {
+  it('should throw ForbiddenException when organization does not own the opportunity', async () => {
     organizationProfileRepository.findByUserId.mockResolvedValue({
       organizationId: 'org-123',
       organization: {
@@ -123,17 +123,21 @@ describe('AssessmentsService', () => {
       },
     });
 
-    opportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
-      null,
-    );
+    opportunitiesRepository.findById.mockResolvedValue({
+      id: 'opp-123',
+      title: 'Software Engineering Internship',
+      organizationId: 'org-456',
+    });
 
     await expect(
       service.createAssessment('user-123', 'opp-123'),
-    ).rejects.toThrow('Opportunity not found.');
+    ).rejects.toThrow(
+      'You are not authorized to create an assessment for this opportunity.',
+    );
 
     expect(
-      opportunitiesRepository.findByIdAndOrganizationId,
-    ).toHaveBeenCalledWith('opp-123', 'org-123');
+      opportunitiesRepository.findById,
+    ).toHaveBeenCalledWith('opp-123');
 
     expect(
       aiQuestionService.generateQuestions,
@@ -152,7 +156,7 @@ describe('AssessmentsService', () => {
       },
     });
 
-    opportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue({
+    opportunitiesRepository.findById.mockResolvedValue({
       id: 'opp-123',
       title: 'Software Engineering Internship',
       description:
@@ -260,8 +264,8 @@ describe('AssessmentsService', () => {
     ).toHaveBeenCalledWith('user-123');
 
     expect(
-      opportunitiesRepository.findByIdAndOrganizationId,
-    ).toHaveBeenCalledWith('opp-123', 'org-123');
+      opportunitiesRepository.findById,
+    ).toHaveBeenCalledWith('opp-123');
 
     expect(
       aiQuestionService.generateQuestions,
