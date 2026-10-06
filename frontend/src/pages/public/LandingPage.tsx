@@ -5,8 +5,6 @@ import CategoryStrip from '../../components/landing/CategoryStrip'
 import HowItWorks from '../../components/landing/HowItWorks'
 import FeaturedOpportunities from '../../components/landing/FeaturedOpportunities'
 import AudienceSplit from '../../components/landing/AudienceSplit'
-import Stats from '../../components/landing/Stats'
-import Testimonials from '../../components/landing/Testimonials'
 import FinalCta from '../../components/landing/FinalCta'
 
 export default function LandingPage() {
@@ -19,8 +17,6 @@ export default function LandingPage() {
         <HowItWorks />
         <FeaturedOpportunities />
         <AudienceSplit />
-        <Stats />
-        <Testimonials />
         <FinalCta />
       </main>
       <Footer />

@@ -2,7 +2,9 @@ import type { OpportunityHistoryItem, OpportunityStatus } from '../../types/orga
 import { Link } from 'react-router-dom'
 
 const statusStyles: Record<OpportunityStatus, string> = {
-  Active: 'bg-emerald-500/10 text-emerald-600',
+  Published: 'bg-emerald-500/10 text-emerald-600',
+  'Pending Approval': 'bg-amber-500/10 text-amber-600',
+  Rejected: 'bg-red-500/10 text-red-600',
   Closed: 'bg-slate-800/5 text-gray-500',
   Draft: 'bg-amber-500/10 text-amber-600',
 }

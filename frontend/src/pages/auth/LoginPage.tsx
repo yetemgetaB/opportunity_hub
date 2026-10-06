@@ -4,7 +4,6 @@ import Button from '../../components/ui/Button'
 import TextField from '../../components/ui/TextField'
 import PasswordField from '../../components/ui/PasswordField'
 import AuthTabs from '../../components/auth/AuthTabs'
-import { getDemoLoginHelp } from '../../services/authService'
 import { useAuthContext } from '../../context/AuthContext'
 
 const copy = {
@@ -36,7 +35,6 @@ export default function LoginPage() {
     from?: { pathname?: string }
   } | null
   const registrationState = locationState
-  const demoAccounts = getDemoLoginHelp()
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -89,7 +87,6 @@ export default function LoginPage() {
             name="password"
             placeholder="Enter your password"
             required
-            action={<span className="cursor-pointer text-xs font-semibold text-brand">Forgot Password?</span>}
           />
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
           <Button type="submit" disabled={submitting} className="min-h-14 w-full rounded-lg py-3.5 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60">
@@ -97,17 +94,6 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-4 rounded-lg border border-neutral-200 bg-slate-50 p-3">
-          <p className="text-xs font-semibold text-navy">Demo accounts</p>
-          <div className="mt-2 space-y-2 text-[11px] leading-4 text-slate-600">
-            {demoAccounts.map((account) => (
-              <p key={account.email}>
-                {account.role === 'STUDENT' ? 'Student' : 'Organization'}: <code>{account.email}</code>
-                <br />Password: <code>{account.password}</code>
-              </p>
-            ))}
-          </div>
-        </div>
       </div>
 
       <p className="text-center text-sm text-gray-500">

@@ -1,91 +1,109 @@
-import type { MockAccount, MockUser, RegisterInput } from '../types/auth'
-import { readMockStorage, removeMockStorage, writeMockStorage } from '../mock/storage'
+import type { AuthResponse, AuthSession, AuthUser, BackendUser, RegisterInput } from '../types/auth'
+import { apiRequest, setApiAccessToken } from './api'
 
-export const MOCK_SESSION_STORAGE_KEY = 'opportunity_hub_session'
-const MOCK_ACCOUNTS_STORAGE_KEY = 'opportunity_hub_demo_accounts'
+const AUTH_STORAGE_KEY = 'opportunity_hub_auth_session'
 
-const seededAccounts: MockAccount[] = [
-  {
-    id: 'demo-student-1',
-    email: 'demo.student@opportunityhub.test',
-    firstName: 'Demo',
-    lastName: 'Student',
-    role: 'STUDENT',
-    demoPassword: 'StudentDemo2026!',
-  },
-  {
-    id: 'demo-organization-1',
-    email: 'demo.organization@opportunityhub.test',
-    firstName: 'Demo',
-    lastName: 'Recruiter',
-    role: 'ORGANIZATION',
-    organizationId: 'demo-org-1',
-    organizationName: 'Addis Tech Labs',
-    demoPassword: 'OrganizationDemo2026!',
-  },
-]
+interface StoredSession {
+  accessToken: string
+  userId: string
+  email: string
+  expiresAt?: number
+}
 
-function getAccounts() {
-  const stored = readMockStorage<MockAccount[] | null>(MOCK_ACCOUNTS_STORAGE_KEY, null)
-  if (!stored) {
-    writeMockStorage(MOCK_ACCOUNTS_STORAGE_KEY, seededAccounts)
-    return seededAccounts
+function normalizeUser(user: BackendUser, email: string): AuthUser {
+  if (!user.id || !['STUDENT', 'ORGANIZATION', 'ADMIN'].includes(user.role)) {
+    throw new Error('The server returned an invalid user identity.')
   }
-  return stored
-}
-
-function publicUser(account: MockAccount): MockUser {
-  const { demoPassword: _demoPassword, ...user } = account
-  return user
-}
-
-export function getCurrentMockUser(): MockUser | null {
-  const user = readMockStorage<MockUser | null>(MOCK_SESSION_STORAGE_KEY, null)
-  if (!user || typeof user.id !== 'string' || typeof user.email !== 'string') return null
-  if (!['STUDENT', 'ORGANIZATION', 'ADMIN'].includes(user.role)) return null
-  return user
-}
-
-export async function registerAccount(input: RegisterInput): Promise<MockUser> {
-  const accounts = getAccounts()
-  const email = input.email.trim().toLowerCase()
-  if (accounts.some((account) => account.email.toLowerCase() === email)) {
-    throw new Error('An account with this email already exists.')
+  return {
+    id: user.id,
+    email: user.email ?? email,
+    firstName: user.firstName,
+    middleName: user.middleName,
+    lastName: user.lastName,
+    role: user.role,
+    isActive: user.isActive,
+    organizationName: user.organization?.name,
   }
-  const id = `demo-${input.role.toLowerCase()}-${crypto.randomUUID()}`
-  const account: MockAccount = {
-    id,
+}
+
+function saveSession(session: AuthSession, user: BackendUser, email: string) {
+  const stored: StoredSession = {
+    accessToken: session.access_token,
+    userId: user.id,
     email,
-    firstName: input.firstName.trim(),
-    ...(input.middleName?.trim() ? { middleName: input.middleName.trim() } : {}),
-    lastName: input.lastName.trim(),
-    role: input.role,
-    ...(input.role === 'ORGANIZATION'
-      ? { organizationId: id, organizationName: `${input.firstName.trim()} ${input.lastName.trim()}'s Organization` }
-      : {}),
-    demoPassword: input.password,
+    expiresAt: session.expires_at,
   }
-  writeMockStorage(MOCK_ACCOUNTS_STORAGE_KEY, [...accounts, account])
-  return publicUser(account)
+  sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(stored))
+  setApiAccessToken(session.access_token)
 }
 
-export async function loginAccount(email: string, password: string): Promise<MockUser> {
-  const account = getAccounts().find(
-    (candidate) => candidate.email.toLowerCase() === email.trim().toLowerCase() && candidate.demoPassword === password,
-  )
-  if (!account) throw new Error('The email or password is incorrect.')
-  const user = publicUser(account)
-  writeMockStorage(MOCK_SESSION_STORAGE_KEY, user)
-  return user
+export function readStoredSession(): StoredSession | null {
+  try {
+    const raw = sessionStorage.getItem(AUTH_STORAGE_KEY)
+    if (!raw) return null
+    const value: unknown = JSON.parse(raw)
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      !('accessToken' in value) ||
+      typeof value.accessToken !== 'string' ||
+      !('userId' in value) ||
+      typeof value.userId !== 'string' ||
+      !('email' in value) ||
+      typeof value.email !== 'string'
+    ) {
+      clearSession()
+      return null
+    }
+    const stored = value as StoredSession
+    if (stored.expiresAt && stored.expiresAt * 1000 <= Date.now()) {
+      clearSession()
+      return null
+    }
+    setApiAccessToken(stored.accessToken)
+    return stored
+  } catch {
+    clearSession()
+    return null
+  }
+}
+
+export function clearSession() {
+  sessionStorage.removeItem(AUTH_STORAGE_KEY)
+  setApiAccessToken(null)
+}
+
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const session = readStoredSession()
+  if (!session) return null
+  const user = await apiRequest<BackendUser>(`/users/${encodeURIComponent(session.userId)}`)
+  return normalizeUser(user, session.email)
+}
+
+export async function registerAccount(input: RegisterInput): Promise<AuthResponse> {
+  const { organizationName, ...base } = input
+  const body = {
+    ...base,
+    ...(input.role === 'ORGANIZATION' ? { organizationName: organizationName?.trim() } : {}),
+  }
+  return apiRequest<AuthResponse>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function loginAccount(email: string, password: string): Promise<AuthUser> {
+  const response = await apiRequest<AuthResponse>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  })
+  if (!response.session?.access_token) {
+    throw new Error('The server did not return an authenticated session.')
+  }
+  saveSession(response.session, response.user, email)
+  return normalizeUser(response.user, email)
 }
 
 export function logoutAccount() {
-  removeMockStorage(MOCK_SESSION_STORAGE_KEY)
-}
-
-export function getDemoLoginHelp() {
-  return [
-    { email: 'demo.student@opportunityhub.test', password: 'StudentDemo2026!', role: 'STUDENT' as const },
-    { email: 'demo.organization@opportunityhub.test', password: 'OrganizationDemo2026!', role: 'ORGANIZATION' as const },
-  ]
+  clearSession()
 }

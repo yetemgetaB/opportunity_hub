@@ -1,11 +1,12 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from 'react'
 import ApplicationPipeline from '../../components/applications/ApplicationPipeline'
 import ApplicationTabs, { type ApplicationFilter } from '../../components/applications/ApplicationTabs'
 import ApplicationsTable from '../../components/applications/ApplicationsTable'
 import ApplicationDetailsModal from '../../components/applications/ApplicationDetailsModal'
-import { isPrevious } from '../../utils/applicationData'
+import { applicationDateLabel, applicationOrganizationName, isPrevious } from '../../utils/applicationData'
 import type { ApplicationItem } from '../../types/application'
-import { opportunityService } from '../../services/opportunityService'
+import { applicationService } from '../../services/applicationService'
 import { useAuthContext } from '../../context/AuthContext'
 
 export default function ApplicationsPage() {
@@ -14,19 +15,29 @@ export default function ApplicationsPage() {
   const [selected, setSelected] = useState<ApplicationItem | null>(null)
   const [items, setItems] = useState<ApplicationItem[]>([])
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (user?.role !== 'STUDENT') {
       setItems([])
+      setLoading(false)
       return
     }
-    try {
-      setItems(opportunityService.getApplications(user.id))
-      setError('')
-    } catch {
-      setError('Unable to load your applications.')
-    }
-  }, [user])
+    let active = true
+    setLoading(true)
+    applicationService.getMyApplications()
+      .then((result) => {
+        if (active) {
+          setItems(result)
+          setError('')
+        }
+      })
+      .catch((cause: unknown) => {
+        if (active) setError(cause instanceof Error ? cause.message : 'Unable to load your applications.')
+      })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [user?.id, user?.role])
 
   const counts = useMemo(() => ({
     all: items.length,
@@ -35,14 +46,12 @@ export default function ApplicationsPage() {
   }), [items])
 
   function exportApplications() {
-    const headers = ['Company', 'Position', 'Location', 'Date Applied', 'Status', 'AI Match']
+    const headers = ['Organization', 'Position', 'Date Applied', 'Status']
     const rows = items.map((item) => [
-      item.company,
-      item.title,
-      item.location,
-      item.appliedDate,
+      applicationOrganizationName(item),
+      item.opportunity?.title ?? 'Opportunity',
+      applicationDateLabel(item.appliedAt),
       item.status,
-      `${item.matchScore}%`,
     ])
     const csv = [headers, ...rows]
       .map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(','))
@@ -64,7 +73,9 @@ export default function ApplicationsPage() {
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <ApplicationTabs active={filter} onChange={setFilter} counts={counts} onExport={exportApplications} />
         </div>
-        {items.length ? (
+        {loading ? (
+          <p className="py-12 text-center text-sm text-slate-500">Loading applications…</p>
+        ) : items.length ? (
           <ApplicationsTable items={items} filter={filter} onView={setSelected} />
         ) : (
           <div className="py-12 text-center">

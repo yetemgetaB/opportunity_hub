@@ -1,42 +1,64 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import TextField from '../../components/ui/TextField'
-import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
-import Icon from '../../components/ui/Icon'
-import OpportunitySkillTags from '../../components/opportunities/OpportunitySkillTags'
-import { OpportunityFormSection, OpportunityTextarea } from '../../components/opportunities/OpportunityFormSection'
-import type { PostOpportunityFormState } from '../../types/organization'
-import { DEFAULT_OPPORTUNITY_FORM, EDUCATION_LEVELS, EXPERIENCE_LEVELS, OPPORTUNITY_TYPES } from '../../utils/organizationData'
-import { opportunityService } from '../../services/opportunityService'
-import { useAuthContext } from '../../context/AuthContext'
+import { opportunityService, type OpportunityCreatePayload } from '../../services/opportunityService'
+import type { OpportunityType } from '../../types/opportunity'
+
+const types: { value: OpportunityType; label: string }[] = [
+  { value: 'INTERNSHIP', label: 'Internship' },
+  { value: 'JOB', label: 'Job' },
+  { value: 'SCHOLARSHIP', label: 'Scholarship' },
+  { value: 'HACKATHON', label: 'Hackathon' },
+  { value: 'COMPETITION', label: 'Competition' },
+  { value: 'TRAINING', label: 'Training' },
+  { value: 'VOLUNTEER', label: 'Volunteer' },
+  { value: 'FELLOWSHIP', label: 'Fellowship' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+const fieldClass = 'mt-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20'
 
 export default function CreateOpportunityPage() {
   const navigate = useNavigate()
-  const { user } = useAuthContext()
-  const [form, setForm] = useState<PostOpportunityFormState>(DEFAULT_OPPORTUNITY_FORM)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  function update<K extends keyof PostOpportunityFormState>(key: K, value: PostOpportunityFormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!form.title.trim() || !form.type || !form.description.trim()) {
-      setError('Add a title, opportunity type, and description before publishing.')
+    const form = new FormData(event.currentTarget)
+    const typeValue = String(form.get('opportunityType') ?? '')
+    const selectedType = types.find((type) => type.value === typeValue)
+    if (!selectedType) {
+      setError('Choose a valid opportunity type.')
       return
+    }
+    const minYear = String(form.get('minimumAcademicYear') ?? '')
+    const maxYear = String(form.get('maximumAcademicYear') ?? '')
+    const minGpa = String(form.get('minimumGpa') ?? '')
+    const deadline = String(form.get('applicationDeadline') ?? '')
+    const payload: OpportunityCreatePayload = {
+      title: String(form.get('title') ?? '').trim(),
+      description: String(form.get('description') ?? '').trim(),
+      opportunityType: selectedType.value,
+      location: String(form.get('location') ?? '').trim() || null,
+      isRemote: form.get('isRemote') === 'on',
+      applicationDeadline: deadline ? `${deadline}T23:59:59.999Z` : null,
+      eligibleFields: String(form.get('eligibleFields') ?? '').split(',').map((field) => field.trim()).filter(Boolean),
+      minimumAcademicYear: minYear ? Number(minYear) : null,
+      maximumAcademicYear: maxYear ? Number(maxYear) : null,
+      minimumGpa: minGpa ? Number(minGpa) : null,
+      compensation: String(form.get('compensation') ?? '').trim() || null,
+      applicationUrl: String(form.get('applicationUrl') ?? '').trim() || null,
     }
     setSubmitting(true)
     setError('')
     try {
-      await opportunityService.createOpportunity(form, user?.id)
+      await opportunityService.createOpportunity(payload)
       navigate('/organization/opportunities', {
         replace: true,
-        state: { notice: 'Opportunity created successfully.', tab: 'history' },
+        state: { notice: 'Draft created. Review it in your opportunity history and publish it when ready.', tab: 'history' },
       })
-    } catch (cause) {
+    } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Unable to create the opportunity.')
     } finally {
       setSubmitting(false)
@@ -44,128 +66,74 @@ export default function CreateOpportunityPage() {
   }
 
   return (
-    <div>
-      <header className="mb-8">
-        <h2 className="font-display text-3xl font-bold text-slate-900">Create a New Opportunity</h2>
-        <p className="mt-1.5 text-base text-gray-500">
-          Post an internship, job, fellowship, or event. Opportunity Hub will match qualified applicants.
+    <div className="mx-auto w-full max-w-4xl">
+      <header className="mb-7">
+        <h1 className="font-display text-3xl font-bold text-slate-900">Create an Opportunity</h1>
+        <p className="mt-1.5 text-sm leading-6 text-slate-500">
+          Create a draft using fields supported by the current API. Skills require backend skill IDs and are omitted because no skill catalog endpoint is available.
         </p>
       </header>
-
-      <form id="create-opportunity-form" onSubmit={handleSubmit} className="space-y-6">
-        <OpportunityFormSection icon="info" title="Basic Information">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label="Opportunity Title"
-              required
-              placeholder="e.g. AI Research Associate Intern"
-              value={form.title}
-              className="!h-[46px] !rounded-lg !px-4 !py-3"
-              onChange={(e) => update('title', e.target.value)}
-            />
-            <Select
-              label="Type"
-              required
-              options={OPPORTUNITY_TYPES}
-              value={form.type}
-              className="!h-[46px] !rounded-lg !bg-white !px-4 !py-3"
-              onChange={(e) => update('type', e.target.value)}
-            />
-          </div>
-          <OpportunityTextarea
-            label="Description"
-            required
-            placeholder="Describe the role, expectations, and unique learning possibilities offered by this opportunity..."
-            rows={4}
-            value={form.description}
-            onChange={(value) => update('description', value)}
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label="Location"
-              placeholder="e.g. Stanford, CA (Hybrid)"
-              value={form.location}
-              className="!h-[46px] !rounded-lg !px-4 !py-3"
-              onChange={(e) => update('location', e.target.value)}
-            />
-            <TextField
-              label="Field / Discipline"
-              placeholder="e.g. Computer Science / AI"
-              value={form.field}
-              className="!h-[46px] !rounded-lg !px-4 !py-3"
-              onChange={(e) => update('field', e.target.value)}
-            />
-          </div>
-        </OpportunityFormSection>
-
-        <OpportunityFormSection icon="check" title="Requirements & Matching Settings">
-          <OpportunitySkillTags
-            label="Required Skills"
-            items={form.requiredSkills}
-            required
-            onAdd={(v) => update('requiredSkills', [...form.requiredSkills, v])}
-            onRemove={(i) => update('requiredSkills', form.requiredSkills.filter((_, idx) => idx !== i))}
-          />
-          <OpportunitySkillTags
-            label="Preferred Skills"
-            items={form.preferredSkills}
-            onAdd={(v) => update('preferredSkills', [...form.preferredSkills, v])}
-            onRemove={(i) => update('preferredSkills', form.preferredSkills.filter((_, idx) => idx !== i))}
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Select
-              label="Minimum Education Level"
-              options={EDUCATION_LEVELS}
-              value={form.educationLevel}
-              className="!h-[46px] !rounded-lg !bg-white !px-4 !py-3"
-              onChange={(e) => update('educationLevel', e.target.value)}
-            />
-            <Select
-              label="Experience Level"
-              options={EXPERIENCE_LEVELS}
-              value={form.experienceLevel}
-              className="!h-[46px] !rounded-lg !bg-white !px-4 !py-3"
-              onChange={(e) => update('experienceLevel', e.target.value)}
-            />
-          </div>
-          <OpportunityTextarea
-            label="Responsibilities (Bulleted List)"
-            placeholder={'- Design and implement neural networks under faculty mentor direction...'}
-            rows={3}
-            value={form.responsibilities}
-            onChange={(value) => update('responsibilities', value)}
-          />
-        </OpportunityFormSection>
-
-        <OpportunityFormSection icon="calendar" title="Application & Timeline Settings">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label="Application Deadline"
-              type="date"
-              value={form.applicationDeadline}
-              className="!h-[46px] !rounded-lg !px-4 !py-3"
-              onChange={(e) => update('applicationDeadline', e.target.value)}
-            />
-            <TextField
-              label="Max Applicant Limit"
-              type="number"
-              placeholder="e.g. 50"
-              value={form.maxApplicants}
-              className="!h-[46px] !rounded-lg !px-4 !py-3"
-              onChange={(e) => update('maxApplicants', e.target.value)}
-            />
-          </div>
-        </OpportunityFormSection>
+      <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border border-neutral-200 bg-white p-5 sm:p-7">
+        <div>
+          <label htmlFor="opportunity-title" className="text-sm font-semibold text-slate-800">Opportunity title</label>
+          <input id="opportunity-title" name="title" className={fieldClass} maxLength={180} required />
+        </div>
+        <div>
+          <label htmlFor="opportunity-type" className="text-sm font-semibold text-slate-800">Type</label>
+          <select id="opportunity-type" name="opportunityType" className={fieldClass} required defaultValue="">
+            <option value="" disabled>Select type</option>
+            {types.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="opportunity-description" className="text-sm font-semibold text-slate-800">Description</label>
+          <textarea id="opportunity-description" name="description" className={fieldClass} rows={6} required />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-slate-800">
+            Location
+            <input name="location" className={fieldClass} />
+          </label>
+          <label className="text-sm font-semibold text-slate-800">
+            Application deadline
+            <input name="applicationDeadline" type="date" className={fieldClass} />
+          </label>
+          <label className="text-sm font-semibold text-slate-800 sm:col-span-2">
+            Eligible fields <span className="font-normal text-slate-500">(comma separated)</span>
+            <input name="eligibleFields" className={fieldClass} />
+          </label>
+          <label className="text-sm font-semibold text-slate-800">
+            Minimum academic year
+            <input name="minimumAcademicYear" type="number" min="1" className={fieldClass} />
+          </label>
+          <label className="text-sm font-semibold text-slate-800">
+            Maximum academic year
+            <input name="maximumAcademicYear" type="number" min="1" className={fieldClass} />
+          </label>
+          <label className="text-sm font-semibold text-slate-800">
+            Minimum GPA
+            <input name="minimumGpa" type="number" min="0" max="9.99" step="0.01" className={fieldClass} />
+          </label>
+          <label className="text-sm font-semibold text-slate-800">
+            Compensation
+            <input name="compensation" className={fieldClass} />
+          </label>
+          <label className="text-sm font-semibold text-slate-800 sm:col-span-2">
+            Application URL <span className="font-normal text-slate-500">(optional)</span>
+            <input name="applicationUrl" type="url" className={fieldClass} />
+          </label>
+          <label className="flex items-center gap-3 text-sm text-slate-700 sm:col-span-2">
+            <input name="isRemote" type="checkbox" className="size-4 accent-brand" />
+            This opportunity is remote
+          </label>
+        </div>
+        {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        <div className="flex justify-end border-t border-slate-100 pt-5">
+          <Button type="submit" disabled={submitting} className="w-full rounded-lg px-6 py-3 font-bold disabled:opacity-60 sm:w-auto">
+            {submitting ? 'Saving draft…' : 'Save Draft'}
+          </Button>
+        </div>
       </form>
-
-      {error && <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>}
-      <div className="mt-6 flex justify-end pt-2">
-        <Button form="create-opportunity-form" type="submit" disabled={submitting} className="h-12 rounded-full px-8 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60">
-          <span className="flex items-center gap-2">
-            {submitting ? 'Publishing…' : 'Publish Opportunity'} <Icon name="arrowRight" className="size-4" />
-          </span>
-        </Button>
-      </div>
     </div>
   )
 }

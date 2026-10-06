@@ -25,7 +25,7 @@ const copy = {
   },
 }
 
-type FieldName = 'firstName' | 'middleName' | 'lastName' | 'email' | 'password' | 'confirm'
+type FieldName = 'firstName' | 'middleName' | 'lastName' | 'organizationName' | 'email' | 'password' | 'confirm'
 type FieldErrors = Partial<Record<FieldName, string>>
 
 const passwordRules = [
@@ -46,8 +46,9 @@ function validateName(value: string, required: boolean) {
 }
 
 function registrationErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message === 'An account with this email already exists.') return error.message
-  return 'We could not create your account right now. Please try again later.'
+  return error instanceof Error
+    ? error.message
+    : 'We could not create your account right now. Please try again later.'
 }
 
 export default function RegisterForm({ role }: { role: 'student' | 'organization' }) {
@@ -66,6 +67,7 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
     const firstName = String(data.get('firstName') ?? '')
     const middleName = String(data.get('middleName') ?? '')
     const lastName = String(data.get('lastName') ?? '')
+    const organizationName = String(data.get('organizationName') ?? '').trim()
     const email = String(data.get('email') ?? '').trim()
     const submittedPassword = String(data.get('password') ?? '')
     const confirmation = String(data.get('confirm') ?? '')
@@ -77,6 +79,7 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
     if (firstNameError) nextErrors.firstName = firstNameError
     if (middleNameError) nextErrors.middleName = middleNameError
     if (lastNameError) nextErrors.lastName = lastNameError
+    if (!isStudent && !organizationName) nextErrors.organizationName = 'Organization name is required.'
     if (!email) nextErrors.email = 'Email address is required.'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = 'Enter a valid email address.'
     if (passwordRules.some((rule) => !rule.test(submittedPassword))) {
@@ -98,6 +101,7 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
         ...(middleName.trim() ? { middleName: middleName.trim() } : {}),
         lastName: lastName.trim(),
         role: isStudent ? 'STUDENT' : 'ORGANIZATION',
+        ...(!isStudent ? { organizationName } : {}),
       })
       navigate('/login', {
         replace: true,
@@ -131,6 +135,22 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
       <p className="mt-2 text-sm text-gray-500">{t.description}</p>
 
       <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-3">
+        {!isStudent && (
+          <div>
+            <TextField
+              label="Organization Name"
+              name="organizationName"
+              autoComplete="organization"
+              placeholder="Acme, Inc."
+              required
+              aria-invalid={Boolean(errors.organizationName)}
+              aria-describedby={errors.organizationName ? 'organizationName-error' : undefined}
+              className="bg-gray-50 !py-2.5"
+              onChange={() => setErrors((current) => ({ ...current, organizationName: undefined }))}
+            />
+            {fieldError('organizationName')}
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <TextField

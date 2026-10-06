@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -5,7 +6,8 @@ import Footer from '../../components/layout/Footer'
 import Navbar from '../../components/layout/Navbar'
 import Icon from '../../components/ui/Icon'
 import { ApiError } from '../../services/api'
-import { getOpportunity, opportunityService } from '../../services/opportunityService'
+import { getOpportunity } from '../../services/opportunityService'
+import { applicationService } from '../../services/applicationService'
 import type { PublicOpportunity } from '../../types/opportunity'
 import { useAuthContext } from '../../context/AuthContext'
 import { useSaved } from '../../context/SavedContext'
@@ -65,8 +67,9 @@ export default function OpportunityDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState(false)
-  const [reportMessage, setReportMessage] = useState('')
   const [actionMessage, setActionMessage] = useState('')
+  const [alreadyApplied, setAlreadyApplied] = useState(false)
+  const [applicationCheckError, setApplicationCheckError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
@@ -96,8 +99,24 @@ export default function OpportunityDetailsPage() {
     return () => controller.abort()
   }, [id, reloadKey])
 
+  useEffect(() => {
+    if (user?.role !== 'STUDENT' || !opportunity) {
+      setAlreadyApplied(false)
+      setApplicationCheckError('')
+      return
+    }
+    let active = true
+    applicationService.getMyApplications()
+      .then((items) => {
+        if (active) setAlreadyApplied(items.some((item) => item.opportunityId === opportunity.id))
+      })
+      .catch((cause: unknown) => {
+        if (active) setApplicationCheckError(cause instanceof Error ? cause.message : 'Unable to verify application status.')
+      })
+    return () => { active = false }
+  }, [opportunity, user?.role])
+
   const expired = opportunity ? isExpired(opportunity.applicationDeadline) : false
-  const alreadyApplied = user?.role === 'STUDENT' && Boolean(opportunity && opportunityService.getApplications(user.id).some((item) => item.opportunityId === opportunity.id))
   const skills = opportunity ? skillNames(opportunity) : undefined
 
   function continueToLogin(action: 'apply' | 'save') {
@@ -116,7 +135,8 @@ export default function OpportunityDetailsPage() {
       return
     }
     try {
-      await opportunityService.applyToOpportunity(opportunity.id, user.id)
+      await applicationService.apply(opportunity.id)
+      setAlreadyApplied(true)
       setActionMessage('Application submitted. Track it from your student dashboard.')
     } catch (cause) {
       setActionMessage(cause instanceof Error ? cause.message : 'Unable to submit your application.')
@@ -133,7 +153,6 @@ export default function OpportunityDetailsPage() {
       return
     }
     toggleSaved(opportunity.id)
-    setActionMessage(isSaved(opportunity.id) ? 'Removed from saved opportunities.' : 'Saved to your opportunities.')
   }
 
   let content: ReactNode
@@ -292,10 +311,10 @@ export default function OpportunityDetailsPage() {
                 <button
                   type="button"
                   onClick={applyToOpportunity}
-                  disabled={alreadyApplied}
+                  disabled={alreadyApplied || Boolean(applicationCheckError)}
                   className="mt-5 w-full rounded-lg bg-brand px-4 py-3 text-sm font-bold text-navy transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
-                  {alreadyApplied ? 'Already applied' : user?.role === 'STUDENT' ? 'Apply now' : 'Sign in to apply'}
+                  {alreadyApplied ? 'Already applied' : applicationCheckError ? 'Unable to verify status' : user?.role === 'STUDENT' ? 'Apply now' : 'Sign in to apply'}
                 </button>
               )}
               <button
@@ -306,18 +325,11 @@ export default function OpportunityDetailsPage() {
                 <Icon name="bookmark" className="size-4" /> {user?.role === 'STUDENT' && opportunity && isSaved(opportunity.id) ? 'Remove saved opportunity' : 'Save opportunity'}
               </button>
               {actionMessage && <p role="status" className="mt-3 text-xs leading-5 text-slate-600">{actionMessage}</p>}
+              {applicationCheckError && <p role="alert" className="mt-3 text-xs leading-5 text-red-600">Application status could not be verified: {applicationCheckError}</p>}
             </section>
             <section className="rounded-xl border border-neutral-200 bg-white p-5">
               <h2 className="text-sm font-semibold text-navy">Something not right?</h2>
-              <p className="mt-1 text-xs leading-5 text-slate-600">Reporting will be available once this service is connected.</p>
-              <button
-                type="button"
-                onClick={() => setReportMessage('Reporting is not available yet.')}
-                className="mt-3 text-sm font-semibold text-slate-600 underline underline-offset-4 hover:text-navy"
-              >
-                Report this opportunity
-              </button>
-              {reportMessage && <p className="mt-2 text-xs text-slate-500" role="status">{reportMessage}</p>}
+              <p className="mt-1 text-xs leading-5 text-slate-600">Reporting is not available because the backend does not expose a report endpoint.</p>
             </section>
           </aside>
         </div>

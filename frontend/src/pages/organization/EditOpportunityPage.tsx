@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { OpportunityFormSection } from '../../components/opportunities/OpportunityFormSection'
@@ -114,8 +115,8 @@ function validate(form: OpportunityForm): FormErrors {
   ) {
     errors.maximumAcademicYear = 'Maximum year must be at least the minimum year.'
   }
-  if (form.minimumGpa && (!Number.isFinite(Number(form.minimumGpa)) || Number(form.minimumGpa) < 0 || Number(form.minimumGpa) > 9.99)) {
-    errors.minimumGpa = 'Enter a GPA between 0 and 9.99.'
+  if (form.minimumGpa && (!Number.isFinite(Number(form.minimumGpa)) || Number(form.minimumGpa) < 0 || Number(form.minimumGpa) > 4)) {
+    errors.minimumGpa = 'Enter a GPA between 0 and 4.'
   }
   if (form.applicationUrl) {
     try {
@@ -410,6 +411,7 @@ export default function EditOpportunityPage() {
                     label="Minimum GPA"
                     type="number"
                     min={0}
+                    max={4}
                     step="0.01"
                     value={form.minimumGpa}
                     onChange={(event) => update('minimumGpa', event.target.value)}

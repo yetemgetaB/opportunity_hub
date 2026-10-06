@@ -6,8 +6,8 @@ export default function UpcomingDeadlines({ deadlines }: { deadlines: Deadline[]
     <section>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="font-display text-lg font-bold text-black">Upcoming Deadlines</h2>
-        <Link to="/student/applications" className="shrink-0 text-sm font-semibold text-brand hover:underline">
-          View all deadlines
+        <Link to="/student/opportunities" className="shrink-0 text-sm font-semibold text-brand hover:underline">
+          Browse opportunities
         </Link>
       </div>
       {deadlines.length === 0 ? (

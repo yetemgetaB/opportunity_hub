@@ -1,34 +1,45 @@
 import Button from '../ui/Button'
 import BookmarkButton from '../ui/BookmarkButton'
-import type { Opportunity } from '../../types/student'
+import type { OpportunityRecommendation } from '../../services/recommendationService'
 
-export default function RecommendedCard({ r }: { r: Opportunity }) {
+export default function RecommendedCard({ r }: { r: OpportunityRecommendation }) {
+  const opportunity = r.opportunity
+  const company = typeof opportunity.organization === 'string'
+    ? opportunity.organization
+    : opportunity.organization?.name ?? 'Organization'
+  const skills = r.matchedSkills.length
+    ? r.matchedSkills
+    : (opportunity.skills ?? []).map((skill) => skill.skill?.name ?? skill.name).filter((name): name is string => Boolean(name))
+
   return (
     <article className="flex flex-col gap-5 rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-navy text-sm font-bold text-white">
-          {r.company[0]}
+          {company[0]}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-sm font-bold text-black">{r.company}</p>
-          <p className="truncate text-xs text-gray-500">{r.location}</p>
+          <p className="truncate font-display text-sm font-bold text-black">{company}</p>
+          <p className="truncate text-xs text-gray-500">
+            {opportunity.location ?? (opportunity.isRemote ? 'Remote' : 'Location not specified')}
+          </p>
         </div>
-        <span className="rounded-md bg-brand/10 px-2 py-1 text-xs font-bold text-brand">{r.fit}% Fit</span>
-        <BookmarkButton opportunityId={r.id} className="ml-1 mt-1" />
+        <BookmarkButton opportunityId={opportunity.id} className="ml-1 mt-1" />
       </div>
 
       <div className="flex flex-col gap-3">
-        <h3 className="font-display text-base font-bold text-black">{r.title}</h3>
+        <h3 className="font-display text-base font-bold text-black">{opportunity.title}</h3>
         <div className="flex flex-wrap gap-1.5">
-          {r.tags.map((t) => (
+          {skills.slice(0, 4).map((t) => (
             <span key={t} className="rounded-md px-2.5 py-1.5 text-xs font-medium text-navy">{t}</span>
           ))}
         </div>
       </div>
 
       <div className="mt-auto flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold text-brand">{r.type}</span>
-        <Button to={`/student/opportunities/${r.id}`} className="px-4 py-2 text-xs">Apply Now</Button>
+        <span className="text-xs font-semibold text-brand">
+          {opportunity.opportunityType ?? 'Opportunity'} · {Math.round(r.score)}% match
+        </span>
+        <Button to={`/student/opportunities/${opportunity.id}`} className="px-4 py-2 text-xs">View</Button>
       </div>
     </article>
   )

@@ -1,18 +1,32 @@
 export type UserRole = 'STUDENT' | 'ORGANIZATION' | 'ADMIN'
 
-export interface MockUser {
+export interface AuthUser {
   id: string
   email: string
   firstName: string
-  middleName?: string
+  middleName?: string | null
   lastName: string
   role: UserRole
-  organizationId?: string
+  isActive?: boolean
   organizationName?: string
 }
 
-export interface MockAccount extends MockUser {
-  demoPassword: string
+export interface BackendUser extends Omit<AuthUser, 'email' | 'organizationName'> {
+  email?: string
+  organization?: { name?: string } | null
+}
+
+export interface AuthSession {
+  access_token: string
+  refresh_token?: string
+  expires_at?: number
+  expires_in?: number
+  token_type?: string
+}
+
+export interface AuthResponse {
+  user: BackendUser
+  session: AuthSession | null
 }
 
 export interface RegisterInput {
@@ -22,13 +36,14 @@ export interface RegisterInput {
   middleName?: string
   lastName: string
   role: Exclude<UserRole, 'ADMIN'>
+  organizationName?: string
 }
 
 export interface AuthContextValue {
-  user: MockUser | null
+  user: AuthUser | null
   isAuthenticated: boolean
   isLoading: boolean
-  register: (input: RegisterInput) => Promise<MockUser>
-  login: (email: string, password: string) => Promise<MockUser>
+  register: (input: RegisterInput) => Promise<AuthResponse>
+  login: (email: string, password: string) => Promise<AuthUser>
   logout: () => void
 }

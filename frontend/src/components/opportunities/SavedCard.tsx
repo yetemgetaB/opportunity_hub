@@ -1,9 +1,8 @@
 import Button from '../ui/Button'
 import BookmarkButton from '../ui/BookmarkButton'
-import { timeAgo } from '../../utils/timeAgo'
 import type { Opportunity } from '../../types/student'
 
-export default function SavedCard({ o, savedAt }: { o: Opportunity; savedAt: number }) {
+export default function SavedCard({ o }: { o: Opportunity }) {
   return (
     <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-3">
@@ -14,7 +13,6 @@ export default function SavedCard({ o, savedAt }: { o: Opportunity; savedAt: num
           <p className="truncate text-sm font-semibold text-navy">{o.company}</p>
           <p className="truncate text-xs text-slate-500">{o.location}</p>
         </div>
-        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">{o.fit}% Fit</span>
         <BookmarkButton opportunityId={o.id} />
       </div>
 
@@ -28,9 +26,7 @@ export default function SavedCard({ o, savedAt }: { o: Opportunity; savedAt: num
       <div className="mt-5 flex items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold text-brand">{o.type}</p>
-          <p className="mt-1 text-xs text-slate-400">
-            Saved {timeAgo(savedAt)} · Closes {o.deadline}
-          </p>
+          <p className="mt-1 text-xs text-slate-400">{o.deadline ? `Closes ${o.deadline}` : 'Saved this session'}</p>
         </div>
         <Button to={`/student/opportunities/${o.id}`} className="shrink-0 px-4 py-2 text-xs">Apply Now</Button>
       </div>

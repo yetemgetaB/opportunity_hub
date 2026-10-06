@@ -1,12 +1,14 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import BookmarkIcon from '../../components/ui/BookmarkIcon'
-import MatchBreakdownChart from '../../components/opportunities/MatchBreakdownChart'
 import { useSaved } from '../../context/SavedContext'
 import type { Opportunity } from '../../types/student'
 import { opportunityService } from '../../services/opportunityService'
+import { applicationService } from '../../services/applicationService'
+import { toStudentOpportunity } from '../../utils/opportunityPresentation'
 import { useAuthContext } from '../../context/AuthContext'
 
 export default function OpportunityDetailPage() {
@@ -18,17 +20,41 @@ export default function OpportunityDetailPage() {
   const [applyMessage, setApplyMessage] = useState('')
   const [o, setOpportunity] = useState<Opportunity>()
   const [loading, setLoading] = useState(true)
+  const [alreadyApplied, setAlreadyApplied] = useState(false)
+  const [applicationCheckError, setApplicationCheckError] = useState('')
 
   useEffect(() => {
     if (!id) return
     let active = true
     setLoading(true)
-    opportunityService.getOpportunityById(id)
-      .then((item) => { if (active) setOpportunity(item) })
-      .catch(() => { if (active) setOpportunity(undefined) })
+    opportunityService.getOpportunity(id)
+      .then((item) => { if (active) setOpportunity(toStudentOpportunity(item)) })
+      .catch((cause: unknown) => {
+        if (active) {
+          setOpportunity(undefined)
+          setApplyMessage(cause instanceof Error ? cause.message : 'Unable to load this opportunity.')
+        }
+      })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [id])
+
+  useEffect(() => {
+    if (user?.role !== 'STUDENT' || !id) {
+      setAlreadyApplied(false)
+      setApplicationCheckError('')
+      return
+    }
+    let active = true
+    applicationService.getMyApplications()
+      .then((items) => {
+        if (active) setAlreadyApplied(items.some((item) => item.opportunityId === id))
+      })
+      .catch((cause: unknown) => {
+        if (active) setApplicationCheckError(cause instanceof Error ? cause.message : 'Unable to verify application status.')
+      })
+    return () => { active = false }
+  }, [id, user?.role])
 
   if (loading) {
     return <div className="h-80 animate-pulse rounded-xl border border-neutral-200 bg-white" aria-label="Loading opportunity" />
@@ -37,7 +63,7 @@ export default function OpportunityDetailPage() {
   if (!o) {
     return (
       <div className="rounded-xl border border-neutral-200 bg-white p-8 text-center">
-        <p className="text-sm text-gray-500">We couldn't find that opportunity.</p>
+        <p role="alert" className="text-sm text-gray-500">{applyMessage || "We couldn't find that opportunity."}</p>
         <Link to="/student/opportunities" className="mt-3 inline-block text-sm font-semibold text-brand">
           Back to Browse Opportunities
         </Link>
@@ -49,8 +75,7 @@ export default function OpportunityDetailPage() {
   const saved = isSaved(o.id)
   const deadlineDate = o.deadline ? new Date(o.deadline) : undefined
   if (deadlineDate && !Number.isNaN(deadlineDate.getTime())) deadlineDate.setHours(23, 59, 59, 999)
-  const expired = Boolean(deadlineDate && !Number.isNaN(deadlineDate.getTime()) && deadlineDate.getTime() < Date.now())
-  const alreadyApplied = user?.role === 'STUDENT' && opportunityService.getApplications(user.id).some((application) => application.opportunityId === o.id)
+  const expired = Boolean(deadlineDate && !Number.isNaN(deadlineDate.getTime()) && deadlineDate.getTime() < new Date().getTime())
 
   async function shareOpportunity() {
     const url = window.location.href
@@ -77,7 +102,8 @@ export default function OpportunityDetailPage() {
       return
     }
     try {
-      await opportunityService.applyToOpportunity(opportunity.id, user.id)
+      await applicationService.apply(opportunity.id)
+      setAlreadyApplied(true)
       setApplyMessage('Application submitted. You can track it in Applications.')
     } catch (cause) {
       setApplyMessage(cause instanceof Error ? cause.message : 'Unable to apply right now.')
@@ -114,7 +140,9 @@ export default function OpportunityDetailPage() {
         </div>
         <div className="sm:text-right">
           <p className="text-xs text-gray-500">Application Deadline</p>
-          <p className="mt-1 text-sm font-bold text-black">{o.deadline}</p>
+          <p className="mt-1 text-sm font-bold text-black">
+            {o.deadline ? new Date(o.deadline).toLocaleDateString() : 'Not specified'}
+          </p>
         </div>
       </div>
 
@@ -125,7 +153,7 @@ export default function OpportunityDetailPage() {
             <p className="mt-3 text-sm leading-6 text-gray-500 sm:text-base">{o.overview}</p>
           </section>
 
-          <section>
+          {o.requirements.length > 0 && <section>
             <h3 className="font-display text-lg font-bold text-black">Key Requirements</h3>
             <ul className="mt-3 space-y-2.5">
               {o.requirements.map((requirement) => (
@@ -135,27 +163,17 @@ export default function OpportunityDetailPage() {
                 </li>
               ))}
             </ul>
-          </section>
+          </section>}
 
-          <section>
-            <h3 className="font-display text-lg font-bold text-black">Benefits</h3>
-            <ul className="mt-3 space-y-2.5">
-              {o.benefits.map((benefit) => (
-                <li key={benefit} className="flex gap-3 text-sm leading-5 text-gray-500">
-                  <span className="shrink-0 text-brand" aria-hidden="true">•</span>
-                  {benefit}
-                </li>
-              ))}
-            </ul>
-          </section>
         </article>
 
         <aside className="space-y-5">
           <section className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
-            <Button type="button" onClick={apply} disabled={expired || alreadyApplied} className="w-full rounded-lg py-3.5 disabled:cursor-not-allowed disabled:opacity-60">
+            <Button type="button" onClick={apply} disabled={expired || alreadyApplied || Boolean(applicationCheckError)} className="w-full rounded-lg py-3.5 disabled:cursor-not-allowed disabled:opacity-60">
               {expired ? 'Application closed' : alreadyApplied ? 'Already Applied' : 'Apply Now'}
             </Button>
             {expired && <p className="mt-2 text-center text-xs text-red-600">The application deadline has passed.</p>}
+            {applicationCheckError && <p className="mt-2 text-center text-xs text-red-600">Application status could not be verified. Reload this page before applying.</p>}
             {applyMessage && <p role="status" className="mt-3 text-center text-xs text-slate-600">{applyMessage}</p>}
             <div className="mt-3 flex gap-3">
               <button
@@ -179,7 +197,11 @@ export default function OpportunityDetailPage() {
             {shareMessage && <p role="status" className="mt-3 text-center text-xs text-gray-500">{shareMessage}</p>}
           </section>
 
-          <MatchBreakdownChart overall={o.fit} items={o.matchBreakdown} />
+          {applicationCheckError && (
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              Could not verify whether you have already applied: {applicationCheckError}
+            </p>
+          )}
         </aside>
       </div>
     </div>

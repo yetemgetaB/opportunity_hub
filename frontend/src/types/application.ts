@@ -1,28 +1,25 @@
-export {}
 export type ApplicationStatus =
-  | 'Under Review'
-  | 'Interview'
-  | 'Shortlisted'
-  | 'Accepted'
-  | 'Rejected'
-  | 'Withdrawn'
   | 'SUBMITTED'
   | 'UNDER_REVIEW'
   | 'SHORTLISTED'
+  | 'INTERVIEW'
   | 'REJECTED'
   | 'ACCEPTED'
   | 'WITHDRAWN'
 
-export interface ApplicationItem {
+export interface ApplicationOpportunitySummary {
   id: string
   title: string
-  company: string
-  location: string
-  appliedDate: string
-  matchScore: number
+  opportunityType?: string
+  location?: string | null
+  organization?: { id?: string; name?: string } | string | null
+}
+
+export interface ApplicationItem {
+  id: string
+  opportunityId: string
+  studentProfileId?: string
   status: ApplicationStatus
-  opportunityId?: string // set when a matching posting exists in the browse list
-  studentId?: string
-  organizationId?: string
   appliedAt?: string
+  opportunity?: ApplicationOpportunitySummary
 }

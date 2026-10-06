@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import Icon from '../../components/ui/Icon'
@@ -5,6 +6,7 @@ import CreateOpportunityPrompt from '../../components/opportunities/CreateOpport
 import OpportunityHistoryTable from '../../components/opportunities/OpportunityHistoryTable'
 import type { OpportunityHistoryItem } from '../../types/organization'
 import { opportunityService } from '../../services/opportunityService'
+import { applicationService } from '../../services/applicationService'
 import { useAuthContext } from '../../context/AuthContext'
 
 type Tab = 'create' | 'history'
@@ -23,17 +25,21 @@ export default function OpportunitiesPage() {
       return
     }
     try {
-      const opportunities = await opportunityService.getMyOpportunities(user.id)
-      const mapped = opportunities.map((item): OpportunityHistoryItem => ({
+      const opportunities = await opportunityService.getMyOpportunities()
+      const mapped = await Promise.all(opportunities.map(async (item): Promise<OpportunityHistoryItem> => ({
         id: item.id,
         title: item.title,
-        type: item.type,
-        applicants: opportunityService.getApplicants(user.id, item.id).length,
+        type: item.opportunityType,
+        applicants: (await applicationService.getApplicants(item.id)).length,
         postedDate: item.createdAt
           ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(item.createdAt))
           : '—',
-        status: item.status === 'DRAFT' ? 'Draft' : item.status === 'CLOSED' ? 'Closed' : 'Active',
-      }))
+        status: item.status === 'DRAFT' ? 'Draft'
+          : item.status === 'PUBLISHED' ? 'Published'
+            : item.status === 'PENDING_APPROVAL' ? 'Pending Approval'
+              : item.status === 'REJECTED' ? 'Rejected'
+                : 'Closed',
+      })))
       setItems(mapped)
       setError('')
     } catch (cause) {
@@ -51,7 +57,7 @@ export default function OpportunitiesPage() {
 
   async function publish(id: string) {
     try {
-      await opportunityService.publishOpportunity(id, user?.id)
+      await opportunityService.publishOpportunity(id)
       await refresh()
       setNotice('Opportunity published successfully.')
     } catch (cause) {
@@ -60,9 +66,9 @@ export default function OpportunitiesPage() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm('Delete this opportunity and its demo applications?')) return
+    if (!window.confirm('Delete this opportunity?')) return
     try {
-      await opportunityService.deleteOpportunity(id, user?.id)
+      await opportunityService.deleteOpportunity(id)
       await refresh()
       setNotice('Opportunity deleted.')
     } catch (cause) {

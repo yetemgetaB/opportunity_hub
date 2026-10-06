@@ -1,11 +1,16 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import FiltersPanel from '../../components/opportunities/FiltersPanel'
 import OpportunityListCard from '../../components/opportunities/OpportunityListCard'
 import type { Opportunity } from '../../types/student'
+import type { OpportunityType } from '../../types/opportunity'
 import { opportunityService } from '../../services/opportunityService'
+import { toStudentOpportunitySearch } from '../../utils/opportunityPresentation'
 
-type SortOrder = 'match' | 'deadline'
+const OPPORTUNITY_TYPES: readonly OpportunityType[] = [
+  'INTERNSHIP', 'JOB', 'SCHOLARSHIP', 'HACKATHON', 'COMPETITION', 'TRAINING', 'VOLUNTEER', 'FELLOWSHIP', 'OTHER',
+]
 
 export default function OpportunitiesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -16,7 +21,6 @@ export default function OpportunitiesPage() {
   const [remoteOnly, setRemoteOnly] = useState(false)
   const [academicYear, setAcademicYear] = useState('')
   const [skill, setSkill] = useState('')
-  const [sortBy, setSortBy] = useState<SortOrder>('match')
   const [reloadKey, setReloadKey] = useState(0)
   const [items, setItems] = useState<Opportunity[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,36 +40,32 @@ export default function OpportunitiesPage() {
     let active = true
     setLoading(true)
     setError('')
-    opportunityService.getOpportunities({
+    opportunityService.listOpportunities({
       search: query.trim(),
       location,
       remote: remoteOnly ? 'remote' : undefined,
       field: selectedFields.length === 1 ? selectedFields[0] : undefined,
+      type: selectedTypes.length === 1
+        ? OPPORTUNITY_TYPES.find((type) => type === selectedTypes[0])
+        : undefined,
       academicYear: academicYear ? Number(academicYear) : undefined,
       skills: skill.trim(),
-      sort: sortBy,
     }).then((result) => {
-      if (active) setItems(result)
+      if (active) setItems(result.map(toStudentOpportunitySearch))
     }).catch(() => {
       if (active) setError('Unable to load opportunities. Please try again.')
     }).finally(() => {
       if (active) setLoading(false)
     })
     return () => { active = false }
-  }, [academicYear, location, query, remoteOnly, selectedFields, skill, sortBy, reloadKey])
+  }, [academicYear, location, query, remoteOnly, selectedFields, selectedTypes, skill, reloadKey])
 
-  const opportunities = useMemo(() => {
-    return items.filter((opportunity) => {
+  const opportunities = useMemo(() => items.filter((opportunity) => {
       const matchesType = selectedTypes.length === 0 || selectedTypes.includes(opportunity.type)
-      const matchesFields = selectedFields.length <= 1 ||
+      const matchesFields = selectedFields.length === 0 ||
         selectedFields.some((field) => opportunity.fieldsOfStudy?.includes(field))
       return matchesType && matchesFields
-    }).sort((a, b) =>
-      sortBy === 'match'
-        ? b.fit - a.fit
-        : new Date(a.deadline).getTime() - new Date(b.deadline).getTime(),
-    )
-  }, [items, selectedFields, selectedTypes, sortBy])
+    }), [items, selectedFields, selectedTypes])
 
   function updateSelection(values: string[], value: string, checked: boolean) {
     return checked ? [...values, value] : values.filter((entry) => entry !== value)
@@ -115,17 +115,6 @@ export default function OpportunitiesPage() {
           <p className="text-sm text-gray-500" aria-live="polite">
             {loading ? 'Loading opportunities…' : <>Showing <span className="font-bold text-black">{opportunities.length} {opportunities.length === 1 ? 'result' : 'results'}</span> matching your search</>}
           </p>
-          <label className="flex items-center gap-2 text-sm text-gray-500">
-            <span>Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={(event) => setSortBy(event.currentTarget.value === 'deadline' ? 'deadline' : 'match')}
-              className="max-w-44 bg-transparent font-semibold text-black outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <option value="match">Best Match Score</option>
-              <option value="deadline">Closing Soon</option>
-            </select>
-          </label>
         </div>
 
         {error ? (

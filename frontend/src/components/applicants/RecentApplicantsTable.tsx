@@ -1,18 +1,22 @@
 import { Link } from 'react-router-dom'
 import type { ApplicantStatus, RecentApplicant } from '../../types/organization'
+import { applicationStatusLabel } from '../../utils/applicantData'
 
 const statusStyles: Record<ApplicantStatus, string> = {
-  'Under Review': 'bg-amber-100 text-amber-600',
-  Interview: 'bg-blue-100 text-blue-600',
-  Shortlisted: 'bg-emerald-100 text-emerald-600',
-  Accepted: 'bg-emerald-100 text-emerald-700',
+  SUBMITTED: 'bg-slate-100 text-slate-600',
+  UNDER_REVIEW: 'bg-amber-100 text-amber-600',
+  INTERVIEW: 'bg-blue-100 text-blue-600',
+  SHORTLISTED: 'bg-emerald-100 text-emerald-600',
+  ACCEPTED: 'bg-emerald-100 text-emerald-700',
+  REJECTED: 'bg-red-100 text-red-600',
+  WITHDRAWN: 'bg-slate-100 text-slate-600',
 }
 
 export default function RecentApplicantsTable({ applicants }: { applicants: RecentApplicant[] }) {
   return (
     <section>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-bold text-navy">Recent Opportunities</h2>
+        <h2 className="text-base font-bold text-navy">Recent Applicants</h2>
         <Link to="/organization/applicants" className="text-xs font-semibold text-brand hover:underline">
           View all
         </Link>
@@ -23,7 +27,6 @@ export default function RecentApplicantsTable({ applicants }: { applicants: Rece
             <tr className="border-b border-slate-100 text-xs font-medium text-slate-500">
               <th className="px-4 py-3 font-medium">Applicant</th>
               <th className="px-4 py-3 font-medium">Position</th>
-              <th className="px-4 py-3 font-medium">AI Match</th>
               <th className="px-4 py-3 font-medium">Status</th>
             </tr>
           </thead>
@@ -35,13 +38,12 @@ export default function RecentApplicantsTable({ applicants }: { applicants: Rece
                     <span className="grid h-9 w-9 place-items-center rounded-full bg-navy text-[11px] font-bold text-white">
                       {a.initials}
                     </span>
-                    <span className="font-semibold text-navy">{a.name}</span>
+                    <Link to={`/organization/applicants/${a.id}`} className="font-semibold text-navy hover:underline">{a.name}</Link>
                   </div>
                 </td>
                 <td className="px-4 py-5 text-slate-600">{a.position}</td>
-                <td className="px-4 py-5 font-semibold text-brand">{a.match}% Match</td>
                 <td className="px-4 py-5">
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[a.status]}`}>{a.status}</span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[a.status]}`}>{applicationStatusLabel(a.status)}</span>
                 </td>
               </tr>
             ))}

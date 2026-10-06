@@ -16,7 +16,17 @@ type Props = {
   onReset: () => void
 }
 
-const JOB_TYPE_OPTIONS = ['Internship', 'Full-time', 'Part-time', 'Scholarship', 'Hackathon', 'Competition', 'Training', 'Volunteer', 'Fellowship']
+const JOB_TYPE_OPTIONS = [
+  { label: 'Internship', value: 'INTERNSHIP' },
+  { label: 'Job', value: 'JOB' },
+  { label: 'Scholarship', value: 'SCHOLARSHIP' },
+  { label: 'Hackathon', value: 'HACKATHON' },
+  { label: 'Competition', value: 'COMPETITION' },
+  { label: 'Training', value: 'TRAINING' },
+  { label: 'Volunteer', value: 'VOLUNTEER' },
+  { label: 'Fellowship', value: 'FELLOWSHIP' },
+  { label: 'Other', value: 'OTHER' },
+]
 
 export default function FiltersPanel({
   selectedTypes,
@@ -45,15 +55,15 @@ export default function FiltersPanel({
       <div className="mt-5 border-b border-neutral-200 pb-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Opportunity Type</p>
         <div className="mt-3 space-y-3">
-          {JOB_TYPE_OPTIONS.map((type) => (
-            <label key={type} className="flex cursor-pointer items-center gap-2.5 text-sm text-black">
+          {JOB_TYPE_OPTIONS.map(({ label, value }) => (
+            <label key={value} className="flex cursor-pointer items-center gap-2.5 text-sm text-black">
               <input
                 type="checkbox"
-                checked={selectedTypes.includes(type)}
-                onChange={(event) => onTypeChange(type, event.target.checked)}
+                checked={selectedTypes.includes(value)}
+                onChange={(event) => onTypeChange(value, event.target.checked)}
                 className="size-4 accent-brand"
               />
-              {type}
+              {label}
             </label>
           ))}
         </div>

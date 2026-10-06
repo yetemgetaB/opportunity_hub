@@ -3,9 +3,9 @@ import type { ApplicantListItem } from '../../types/organization'
 export default function ApplicantStatsRow({ applicants }: { applicants: ApplicantListItem[] }) {
   const stats = [
     { label: 'Total Applicants', value: applicants.length, color: 'text-navy' },
-    { label: 'Shortlisted', value: applicants.filter((item) => item.status === 'Shortlisted').length, color: 'text-emerald-500' },
-    { label: 'In Assessment', value: applicants.filter((item) => item.status === 'Interview').length, color: 'text-amber-500' },
-    { label: 'Accepted', value: applicants.filter((item) => item.status === 'Accepted').length, color: 'text-blue-500' },
+    { label: 'Shortlisted', value: applicants.filter((item) => item.status === 'SHORTLISTED').length, color: 'text-emerald-500' },
+    { label: 'Interviews', value: applicants.filter((item) => item.status === 'INTERVIEW').length, color: 'text-amber-500' },
+    { label: 'Accepted', value: applicants.filter((item) => item.status === 'ACCEPTED').length, color: 'text-blue-500' },
   ]
 
   return (

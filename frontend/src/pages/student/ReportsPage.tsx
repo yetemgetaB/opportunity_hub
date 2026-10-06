@@ -1,34 +1,15 @@
-import ReportStatsRow from '../../components/reports/ReportStatsRow'
-import ApplicationsBarChart from '../../components/reports/ApplicationsBarChart'
-import StatusFunnelCard from '../../components/reports/StatusFunnelCard'
-import SkillMatchesCard from '../../components/reports/SkillMatchesCard'
-import { MONTHLY_APPLICATIONS, REPORT_STATS, SKILL_MATCHES, STATUS_FUNNEL } from '../../utils/studentData'
-
 export default function ReportsPage() {
   return (
-    <div className="mx-auto w-full max-w-[1440px]">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-display text-2xl font-bold text-black">Your Application Report</h2>
-          <p className="mt-1 text-sm text-slate-500">A summary of your job search activity and performance.</p>
-        </div>
-        {/* TODO: wire this up to a real date range selector */}
-        <span className="text-xs text-slate-500">
-          Range: <span className="font-semibold text-navy">Last 90 days</span>
-        </span>
-      </div>
-
-      <div className="mt-6">
-        <ReportStatsRow stats={REPORT_STATS} />
-      </div>
-
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <ApplicationsBarChart data={MONTHLY_APPLICATIONS} />
-        <StatusFunnelCard steps={STATUS_FUNNEL} />
-      </div>
-
-      <div className="mt-6">
-        <SkillMatchesCard skills={SKILL_MATCHES} />
+    <div className="mx-auto w-full max-w-3xl">
+      <header>
+        <h1 className="font-display text-2xl font-bold text-navy">Application Reports</h1>
+        <p className="mt-1 text-sm text-slate-500">Review your application activity and outcomes.</p>
+      </header>
+      <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 sm:p-8">
+        <h2 className="text-sm font-semibold text-slate-800">Reports are not available yet</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          The backend currently has no reporting endpoints. Dashboard totals are based only on your live opportunities and applications.
+        </p>
       </div>
     </div>
   )

@@ -1,12 +1,15 @@
 import { Link } from 'react-router-dom'
-import MatchScoreBar from './MatchScoreBar'
 import type { ApplicantListItem, ApplicantStatus } from '../../types/organization'
+import { applicationStatusLabel } from '../../utils/applicantData'
 
 const statusStyles: Record<ApplicantStatus, string> = {
-  'Under Review': 'bg-amber-100 text-amber-600',
-  Interview: 'bg-blue-100 text-blue-600',
-  Shortlisted: 'bg-emerald-100 text-emerald-600',
-  Accepted: 'bg-navy/10 text-navy',
+  SUBMITTED: 'bg-slate-100 text-slate-600',
+  UNDER_REVIEW: 'bg-amber-100 text-amber-600',
+  INTERVIEW: 'bg-blue-100 text-blue-600',
+  SHORTLISTED: 'bg-emerald-100 text-emerald-600',
+  ACCEPTED: 'bg-navy/10 text-navy',
+  REJECTED: 'bg-red-100 text-red-600',
+  WITHDRAWN: 'bg-slate-100 text-slate-600',
 }
 
 interface ApplicantsTableProps {
@@ -26,7 +29,7 @@ export default function ApplicantsTable({
 }: ApplicantsTableProps) {
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200">
-      <table className="w-full min-w-[860px] text-left text-sm">
+      <table className="w-full min-w-[700px] text-left text-sm">
         <thead className="bg-slate-50">
           <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500">
             <th className="w-12 px-4 py-3">
@@ -39,8 +42,8 @@ export default function ApplicantsTable({
               />
             </th>
             <th className="px-4 py-3">Applicant Name</th>
-            <th className="px-4 py-3">AI Match Score</th>
-            <th className="px-4 py-3">Skills Match</th>
+            <th className="px-4 py-3">Opportunity</th>
+            <th className="px-4 py-3">University</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">Date Applied</th>
             <th className="px-4 py-3 text-right">Actions</th>
@@ -66,12 +69,10 @@ export default function ApplicantsTable({
                   <span className="font-semibold text-navy">{a.name}</span>
                 </div>
               </td>
+              <td className="px-4 py-4 text-slate-600">{a.position}</td>
+              <td className="px-4 py-4 text-slate-600">{a.university}</td>
               <td className="px-4 py-4">
-                <MatchScoreBar score={a.matchScore} tier={a.matchTier} />
-              </td>
-              <td className="px-4 py-4 font-medium text-slate-700">{a.skillsMatch}%</td>
-              <td className="px-4 py-4">
-                <span className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[a.status]}`}>{a.status}</span>
+                <span className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[a.status]}`}>{applicationStatusLabel(a.status)}</span>
               </td>
               <td className="whitespace-nowrap px-4 py-4 text-slate-500">{a.dateApplied}</td>
               <td className="px-4 py-4 text-right">

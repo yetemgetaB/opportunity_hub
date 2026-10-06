@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import Footer from '../../components/layout/Footer'
@@ -5,7 +6,7 @@ import Navbar from '../../components/layout/Navbar'
 import OpportunityCard from '../../components/opportunities/OpportunityCard'
 import Icon from '../../components/ui/Icon'
 import { useSearchParams } from 'react-router-dom'
-import type { OpportunityFilters, OpportunityType, PublicOpportunity } from '../../types/opportunity'
+import type { OpportunityFilters, OpportunitySearchResult, OpportunityType } from '../../types/opportunity'
 import { listOpportunities } from '../../services/opportunityService'
 
 const opportunityTypes: OpportunityType[] = [
@@ -20,7 +21,7 @@ const opportunityTypes: OpportunityType[] = [
   'OTHER',
 ]
 
-const emptyFilters: OpportunityFilters = { sort: 'newest' }
+const emptyFilters: OpportunityFilters = {}
 
 type FilterPanelProps = {
   filters: OpportunityFilters
@@ -135,7 +136,7 @@ export default function OpportunitiesPage() {
   const [filters, setFilters] = useState<OpportunityFilters>(emptyFilters)
   const [searchInput, setSearchInput] = useState(initialSearch)
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch.trim())
-  const [opportunities, setOpportunities] = useState<PublicOpportunity[]>([])
+  const [opportunities, setOpportunities] = useState<OpportunitySearchResult[]>([])
   const [total, setTotal] = useState<number>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -162,8 +163,8 @@ export default function OpportunitiesPage() {
 
     listOpportunities({ ...filters, search: debouncedSearch || undefined }, controller.signal)
       .then((result) => {
-        setOpportunities(result.items)
-        setTotal(result.total)
+        setOpportunities(result)
+        setTotal(result.length)
       })
       .catch(() => {
         if (controller.signal.aborted) return
@@ -237,17 +238,6 @@ export default function OpportunitiesPage() {
                 {loading ? 'Loading opportunities…' : `${total ?? opportunities.length} opportunities`}
               </p>
             </div>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <span>Sort by</span>
-              <select
-                value={filters.sort ?? 'newest'}
-                onChange={(event) => setFilters({ ...filters, sort: event.target.value as OpportunityFilters['sort'] })}
-                className="rounded-lg border border-neutral-200 bg-white px-3 py-2.5 font-medium text-navy outline-none focus:border-amber-500"
-              >
-                <option value="newest">Newest</option>
-                <option value="deadline">Application deadline</option>
-              </select>
-            </label>
           </div>
 
           <div className="mt-5 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">

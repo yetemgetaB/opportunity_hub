@@ -9,15 +9,6 @@ export type OpportunityType =
   | 'FELLOWSHIP'
   | 'OTHER'
 
-export interface Opportunity {
-  id: string
-  title: string
-  organization: string
-  type: string
-  location: string
-  deadline: string
-}
-
 export interface OpportunitySkill {
   name?: string
   requirementLevel?: string
@@ -38,7 +29,6 @@ export interface PublicOpportunity {
   title: string
   description?: string | null
   opportunityType?: OpportunityType
-  status?: string
   organization?: OpportunityOrganization | string | null
   location?: string | null
   isRemote?: boolean
@@ -50,8 +40,6 @@ export interface PublicOpportunity {
   compensation?: string | null
   applicationUrl?: string | null
   skills?: OpportunitySkill[] | null
-  createdAt?: string
-  publishedAt?: string | null
 }
 
 export interface OrganizationOpportunity extends PublicOpportunity {
@@ -59,6 +47,18 @@ export interface OrganizationOpportunity extends PublicOpportunity {
   status: 'DRAFT' | 'PENDING_APPROVAL' | 'PUBLISHED' | 'CLOSED' | 'REJECTED'
   isRemote: boolean
   eligibleFields: string[]
+  createdAt?: string
+  publishedAt?: string | null
+}
+
+export interface OpportunitySearchResult {
+  id: string
+  title: string
+  skills: string[]
+  eligibleFields: string[]
+  location: string | null
+  opportunityType: OpportunityType
+  isRemote: boolean
 }
 
 export interface OpportunityUpdatePayload {
@@ -76,8 +76,6 @@ export interface OpportunityUpdatePayload {
   applicationUrl: string | null
 }
 
-export type OpportunitySort = 'newest' | 'deadline'
-
 export interface OpportunityFilters {
   search?: string
   type?: OpportunityType
@@ -86,10 +84,4 @@ export interface OpportunityFilters {
   field?: string
   academicYear?: number
   skills?: string
-  sort?: OpportunitySort
-}
-
-export interface OpportunityListResult {
-  items: PublicOpportunity[]
-  total?: number
 }

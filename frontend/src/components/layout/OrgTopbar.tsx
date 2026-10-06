@@ -1,9 +1,11 @@
 import { useLocation } from 'react-router-dom'
 import Icon from '../ui/Icon'
-import { ORG_NAME, ORG_NAV, ORG_ROLE } from '../../utils/organizationData'
+import { ORG_NAV } from '../../utils/organizationData'
+import { useAuthContext } from '../../context/AuthContext'
 
 export default function OrgTopbar({ onMenu }: { onMenu: () => void }) {
   const { pathname } = useLocation()
+  const { user } = useAuthContext()
   const isNewOpportunity = pathname === '/organization/opportunities/new'
   const isApplicantProfile = /^\/organization\/applicants\/[^/]+$/.test(pathname)
   const isAssessment = /^\/organization\/applicants\/.+\/assessment$/.test(pathname)
@@ -15,10 +17,6 @@ export default function OrgTopbar({ onMenu }: { onMenu: () => void }) {
       : isApplicantProfile
         ? 'Applicant Profile'
         : current?.title ?? 'Overview'
-  const searchPlaceholder =
-    isApplicantProfile || isAssessment || pathname === '/organization/assessment'
-      ? 'Search candidates, assessments...'
-      : 'Search opportunities, applicants...'
 
   return (
     <header className="flex min-h-20 items-center gap-4 border-b border-neutral-200 bg-white px-5 py-4 sm:px-6 lg:px-8">
@@ -28,23 +26,13 @@ export default function OrgTopbar({ onMenu }: { onMenu: () => void }) {
       <h1 className="font-display text-xl font-bold text-black sm:text-2xl">{title}</h1>
 
       <div className="ml-auto flex items-center gap-5">
-        <label className="relative hidden md:block">
-          <span className="sr-only">Search</span>
-          <Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          {/* TODO: wire up to a real search */}
-          <input
-            type="search"
-            placeholder={searchPlaceholder}
-            className="w-72 rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-navy outline-none placeholder:text-slate-400 focus:border-brand"
-          />
-        </label>
         <div className="flex items-center gap-3 md:border-l md:border-neutral-200 md:pl-5">
           <span className="grid h-10 w-10 place-items-center rounded-full bg-navy text-white">
             <Icon name="building" className="h-4 w-4" />
           </span>
           <div className="hidden leading-tight sm:block">
-            <p className="text-sm font-semibold text-navy">{ORG_NAME}</p>
-            <p className="text-xs text-slate-500">{ORG_ROLE}</p>
+            <p className="text-sm font-semibold text-navy">{user?.organizationName || 'Organization'}</p>
+            <p className="text-xs text-slate-500">{user?.email ?? ''}</p>
           </div>
         </div>
       </div>

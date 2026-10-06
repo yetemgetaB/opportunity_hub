@@ -1,87 +1,101 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ApplicantStatsRow from '../../components/applicants/ApplicantStatsRow'
 import ApplicantsTable from '../../components/applicants/ApplicantsTable'
 import Icon from '../../components/ui/Icon'
 import type { ApplicantListItem, ApplicantStatus } from '../../types/organization'
-import type { Opportunity } from '../../types/student'
+import type { OrganizationOpportunity } from '../../types/opportunity'
+import { applicationService } from '../../services/applicationService'
 import { opportunityService } from '../../services/opportunityService'
 import { useAuthContext } from '../../context/AuthContext'
+import { toApplicantListItem, applicationStatusLabel } from '../../utils/applicantData'
 
-type StatusFilter = 'All' | ApplicantStatus
-type SortOption = 'Match Score' | 'Date Applied' | 'Applicant Name'
-
-const statuses: StatusFilter[] = ['All', 'Under Review', 'Interview', 'Shortlisted', 'Accepted']
+type StatusFilter = 'ALL' | ApplicantStatus
+type SortOption = 'Date Applied' | 'Applicant Name'
+const statuses: StatusFilter[] = ['ALL', 'SUBMITTED', 'UNDER_REVIEW', 'SHORTLISTED', 'INTERVIEW', 'ACCEPTED', 'REJECTED', 'WITHDRAWN']
 
 export default function ApplicantsPage() {
   const navigate = useNavigate()
   const { user } = useAuthContext()
   const [applicants, setApplicants] = useState<ApplicantListItem[]>([])
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [opportunities, setOpportunities] = useState<OrganizationOpportunity[]>([])
   const [opportunityId, setOpportunityId] = useState('all')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
-  const [sortBy, setSortBy] = useState<SortOption>('Match Score')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [sortBy, setSortBy] = useState<SortOption>('Date Applied')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [updating, setUpdating] = useState(false)
 
   const refresh = useCallback(async () => {
     if (user?.role !== 'ORGANIZATION') return
+    setLoading(true)
     try {
-      const [items] = await Promise.all([opportunityService.getMyOpportunities(user.id)])
-      setOpportunities(items)
-      setApplicants(opportunityService.getApplicants(user.id, opportunityId === 'all' ? undefined : opportunityId))
+      const allOpportunities = await opportunityService.getMyOpportunities()
+      const selectedOpportunities = opportunityId === 'all'
+        ? allOpportunities
+        : allOpportunities.filter((item) => item.id === opportunityId)
+      const applicantGroups = await Promise.all(selectedOpportunities.map(async (opportunity) => {
+        const records = await applicationService.getApplicants(opportunity.id)
+        return records.map((record) => toApplicantListItem(record, opportunity.id, opportunity.title))
+      }))
+      setOpportunities(allOpportunities)
+      setApplicants(applicantGroups.flat())
       setSelectedIds([])
       setError('')
-    } catch (cause) {
+    } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Unable to load applicants.')
+    } finally {
+      setLoading(false)
     }
-  }, [opportunityId, user])
+  }, [opportunityId, user?.role])
 
   useEffect(() => { void refresh() }, [refresh])
 
   const visibleApplicants = useMemo(() => {
-    const filtered = applicants.filter((applicant) => statusFilter === 'All' || applicant.status === statusFilter)
-    return [...filtered].sort((a, b) => {
-      if (sortBy === 'Applicant Name') return a.name.localeCompare(b.name)
-      if (sortBy === 'Date Applied') return new Date(b.dateApplied).getTime() - new Date(a.dateApplied).getTime()
-      return b.matchScore - a.matchScore
-    })
+    const filtered = applicants.filter((applicant) => statusFilter === 'ALL' || applicant.status === statusFilter)
+    return [...filtered].sort((a, b) => sortBy === 'Applicant Name'
+      ? a.name.localeCompare(b.name)
+      : new Date(b.dateApplied).getTime() - new Date(a.dateApplied).getTime())
   }, [applicants, sortBy, statusFilter])
 
   const visibleIds = visibleApplicants.map((applicant) => applicant.id)
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id))
 
-  const toggleApplicant = (id: string) => {
+  function toggleApplicant(id: string) {
     setSelectedIds((current) => current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id])
   }
 
-  const toggleAllVisible = () => {
+  function toggleAllVisible() {
     setSelectedIds((current) => allVisibleSelected
       ? current.filter((id) => !visibleIds.includes(id))
       : [...new Set([...current, ...visibleIds])])
   }
 
-  const shortlistSelected = async () => {
+  async function shortlistSelected() {
+    const selected = applicants.filter((applicant) => selectedIds.includes(applicant.id))
+    setUpdating(true)
+    setError('')
     try {
-      selectedIds.forEach((id) => opportunityService.updateApplicantStatus(id, 'Shortlisted', user?.id))
+      await Promise.all(selected.map((applicant) =>
+        applicationService.updateStatus(applicant.opportunityId, applicant.id, 'SHORTLISTED')))
       await refresh()
-    } catch (cause) {
+    } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Unable to shortlist applicants.')
+    } finally {
+      setUpdating(false)
     }
   }
 
-  const sendAssessment = () => {
-    if (selectedIds.length > 0) navigate(`/organization/applicants/${selectedIds[0]}/assessment`)
-  }
-
-  const exportApplicants = () => {
+  function exportApplicants() {
     const csv = [
-      ['Applicant Name', 'AI Match Score', 'Skills Match', 'Status', 'Date Applied'],
+      ['Applicant Name', 'Opportunity', 'University', 'Status', 'Date Applied'],
       ...visibleApplicants.map((applicant) => [
         applicant.name,
-        `${applicant.matchScore}%`,
-        `${applicant.skillsMatch}%`,
-        applicant.status,
+        applicant.position,
+        applicant.university,
+        applicationStatusLabel(applicant.status),
         applicant.dateApplied,
       ]),
     ].map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\r\n')
@@ -109,7 +123,7 @@ export default function ApplicantsPage() {
               value={opportunityId}
               onChange={(event) => setOpportunityId(event.target.value)}
               aria-label="Opportunity"
-              className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-lg font-bold text-navy disabled:cursor-default disabled:opacity-100 sm:w-auto"
+              className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-lg font-bold text-navy sm:w-auto"
             >
               <option value="all">All opportunities</option>
               {opportunities.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
@@ -120,10 +134,10 @@ export default function ApplicantsPage() {
         <button
           type="button"
           onClick={exportApplicants}
-          className="inline-flex items-center justify-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-navy transition hover:bg-slate-50 sm:self-auto"
+          disabled={!visibleApplicants.length}
+          className="inline-flex items-center justify-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-navy transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
         >
-          <Icon name="download" className="h-4 w-4" />
-          Export Data
+          <Icon name="download" className="h-4 w-4" />Export Data
         </button>
       </section>
 
@@ -135,66 +149,42 @@ export default function ApplicantsPage() {
           <div className="flex flex-wrap gap-3">
             <label className="relative">
               <span className="sr-only">Filter applicants by status</span>
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                className="appearance-none rounded-md border border-slate-200 bg-white py-2 pl-3 pr-9 text-xs font-semibold text-slate-600 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
-              >
-                {statuses.map((status) => <option key={status} value={status}>Status: {status}</option>)}
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="rounded-md border border-slate-200 bg-white py-2 pl-3 pr-4 text-xs font-semibold text-slate-600">
+                {statuses.map((status) => <option key={status} value={status}>{status === 'ALL' ? 'Status: All' : `Status: ${applicationStatusLabel(status)}`}</option>)}
               </select>
-              <Icon name="chevronDown" className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
             </label>
             <label className="relative">
               <span className="sr-only">Sort applicants</span>
-              <select
-                value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as SortOption)}
-                className="appearance-none rounded-md border border-slate-200 bg-white py-2 pl-3 pr-9 text-xs font-semibold text-slate-600 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
-              >
-                {(['Match Score', 'Date Applied', 'Applicant Name'] as SortOption[]).map((option) => (
-                  <option key={option} value={option}>Sort: {option}</option>
-                ))}
+              <select value={sortBy} onChange={(event) => setSortBy(event.target.value === 'Applicant Name' ? 'Applicant Name' : 'Date Applied')} className="rounded-md border border-slate-200 bg-white py-2 pl-3 pr-4 text-xs font-semibold text-slate-600">
+                {(['Date Applied', 'Applicant Name'] as SortOption[]).map((option) => <option key={option} value={option}>Sort: {option}</option>)}
               </select>
-              <Icon name="chevronDown" className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
             </label>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <label className="inline-flex items-center gap-2 pr-2 text-xs font-semibold text-slate-500">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={toggleAllVisible}
-                disabled={visibleIds.length === 0}
-                className="h-4 w-4 rounded border-slate-300 accent-brand"
-              />
+              <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} disabled={!visibleIds.length} className="h-4 w-4 rounded border-slate-300 accent-brand" />
               Select all
             </label>
-            <button
-              type="button"
-              onClick={shortlistSelected}
-              disabled={selectedIds.length === 0}
-              className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-600 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Shortlist Selected{selectedIds.length ? ` (${selectedIds.length})` : ''}
+            <button type="button" onClick={shortlistSelected} disabled={!selectedIds.length || updating} className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50">
+              {updating ? 'Updating…' : `Shortlist Selected${selectedIds.length ? ` (${selectedIds.length})` : ''}`}
             </button>
             <button
               type="button"
-              onClick={sendAssessment}
-              disabled={selectedIds.length === 0}
-              className="rounded-md bg-navy px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => {
+                const first = applicants.find((applicant) => selectedIds.includes(applicant.id))
+                if (first) navigate(`/organization/assessment?opportunityId=${encodeURIComponent(first.opportunityId)}`)
+              }}
+              disabled={!selectedIds.length}
+              className="rounded-md bg-navy px-3.5 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Send Assessment{selectedIds.length ? ` (${selectedIds.length})` : ''}
+              View AI Results
             </button>
           </div>
         </div>
         <div className="mt-4">
-          <ApplicantsTable
-            applicants={visibleApplicants}
-            selectedIds={selectedIds}
-            onToggleApplicant={toggleApplicant}
-            allSelected={allVisibleSelected}
-            onToggleAll={toggleAllVisible}
-          />
+          {loading ? <p className="py-12 text-center text-sm text-slate-500">Loading applicants…</p> : (
+            <ApplicantsTable applicants={visibleApplicants} selectedIds={selectedIds} onToggleApplicant={toggleApplicant} allSelected={allVisibleSelected} onToggleAll={toggleAllVisible} />
+          )}
         </div>
       </section>
     </div>

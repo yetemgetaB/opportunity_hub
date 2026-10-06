@@ -2,6 +2,7 @@ import ApplicationStatusBadge from './ApplicationStatusBadge'
 import type { ApplicationFilter } from './ApplicationTabs'
 import { isPrevious } from '../../utils/applicationData'
 import type { ApplicationItem } from '../../types/application'
+import { applicationDateLabel, applicationOrganizationName } from '../../utils/applicationData'
 
 type Props = {
   items: ApplicationItem[]
@@ -42,15 +43,15 @@ export default function ApplicationsTable({ items, filter, onView }: Props) {
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-3">
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-slate-800 text-sm font-bold text-white">
-                      {application.company[0]}
+                      {applicationOrganizationName(application)[0]}
                     </span>
-                    <span className="font-semibold text-slate-900">{application.company}</span>
+                    <span className="font-semibold text-slate-900">{applicationOrganizationName(application)}</span>
                   </div>
                 </td>
                 <td className="max-w-56 px-4 py-4 font-medium text-slate-900">
-                  <span className="block truncate">{application.title}</span>
+                  <span className="block truncate">{application.opportunity?.title ?? 'Opportunity'}</span>
                 </td>
-                <td className="whitespace-nowrap px-4 py-4 text-slate-500">{application.appliedDate}</td>
+                <td className="whitespace-nowrap px-4 py-4 text-slate-500">{applicationDateLabel(application.appliedAt)}</td>
                 <td className="px-4 py-4">
                   <ApplicationStatusBadge status={application.status} />
                 </td>

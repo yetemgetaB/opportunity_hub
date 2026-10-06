@@ -5,7 +5,7 @@ export default function ApplicationStatsRow({ items }: { items: ApplicationItem[
   const stats = [
     { label: 'Total Applied', value: items.length, color: 'text-navy' },
     { label: 'Active', value: items.filter((a) => !isPrevious(a.status)).length, color: 'text-amber-500' },
-    { label: 'Interviews', value: items.filter((a) => a.status === 'Interview').length, color: 'text-blue-500' },
+    { label: 'Interviews', value: items.filter((a) => a.status === 'INTERVIEW').length, color: 'text-blue-500' },
     { label: 'Previous', value: items.filter((a) => isPrevious(a.status)).length, color: 'text-slate-500' },
   ]
 
