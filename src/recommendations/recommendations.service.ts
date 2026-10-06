@@ -3,6 +3,7 @@ import { SkillRequirementLevel } from '@prisma/client';
 
 import { StudentProfileRepository } from '@/student-profile/student-profile.repository';
 import { OpportunitiesService } from '@/opportunities/opportunities.service';
+import { OpportunitySearchCriteria } from '@/opportunities/opportunity-search.interface';
 import { SearchOpportunityDto } from '@/opportunities/dto/search-opportunity.dto';
 import { OpportunityWithRelations } from '@/opportunities/opportunities.interface';
 
@@ -22,7 +23,7 @@ export class RecommendationsService {
 
   async getRecommendations(
     userId: string,
-    query?: SearchOpportunityDto,
+    query?: SearchOpportunityDto | OpportunitySearchCriteria,
   ): Promise<RecommendationResult[]> {
     const student =
       await this.studentProfileRepository.findByUserId(userId);
@@ -31,9 +32,22 @@ export class RecommendationsService {
       return [];
     }
 
+    const searchQuery: SearchOpportunityDto = {
+      ...(query || {}),
+    };
+
+    if (
+      searchQuery.academicYear === undefined &&
+      query &&
+      'minimumAcademicYear' in query &&
+      query.minimumAcademicYear !== undefined
+    ) {
+      searchQuery.academicYear = query.minimumAcademicYear;
+    }
+
     const opportunities =
       await this.opportunitiesService.searchOpportunitiesForMatching(
-        query ?? {},
+        searchQuery,
       );
 
     return opportunities

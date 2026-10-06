@@ -211,7 +211,7 @@ describe('Day 11 Assessment Authorization E2E', () => {
     );
   });
 
-  it('should return 404 when another organization attempts to create an assessment for an opportunity it does not own', async () => {
+  it('should return 403 when another organization attempts to create an assessment for an opportunity it does not own', async () => {
     const response = await request(
       app.getHttpServer(),
     )
@@ -220,7 +220,7 @@ describe('Day 11 Assessment Authorization E2E', () => {
       )
       .set('x-test-user', 'organization-b');
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
   });
 
   it('should return 404 for an invalid opportunity id', async () => {
