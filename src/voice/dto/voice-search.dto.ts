@@ -12,10 +12,27 @@ import {
 import { OpportunityType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 
-export class SearchOpportunityDto {
+export class VoiceSearchDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @IsOptional()
+  @IsEnum(OpportunityType)
+  type?: OpportunityType;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  @IsBoolean()
+  isRemote?: boolean;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
 
   @IsOptional()
   @IsString()
@@ -36,12 +53,25 @@ export class SearchOpportunityDto {
   fields?: string[];
 
   @IsOptional()
-  @IsString()
-  location?: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  academicYear?: number;
 
   @IsOptional()
-  @IsUUID()
-  skills?: string;
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+    }
+    return value;
+  })
+  @IsArray()
+  @IsString({ each: true })
+  skills?: string[];
 
   @IsOptional()
   @Transform(({ value }) => {
@@ -56,38 +86,4 @@ export class SearchOpportunityDto {
   @IsArray()
   @IsUUID('all', { each: true })
   skillIds?: string[];
-
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value
-        .split(',')
-        .map((s: string) => s.trim())
-        .filter(Boolean);
-    }
-    return value;
-  })
-  @IsArray()
-  @IsString({ each: true })
-  skillNames?: string[];
-
-  @IsOptional()
-  @IsEnum(OpportunityType)
-  type?: OpportunityType;
-
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true' || value === true) return true;
-    if (value === 'false' || value === false) return false;
-    return value;
-  })
-  @IsBoolean()
-  isRemote?: boolean;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(7)
-  academicYear?: number;
 }

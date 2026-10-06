@@ -343,17 +343,88 @@ return applicants.map(mapApplicantForResponse);
     return updated;
   }
 
-  async searchOpportunities(query: SearchOpportunityDto) {
+  private async buildSearchFilters(
+    query: SearchOpportunityDto,
+    studentUserId?: string,
+  ): Promise<OpportunityFilterOptions> {
+    let academicYear = query.academicYear;
+    let field = query.field;
+    const fields = query.fields ? [...query.fields] : [];
+
+    // Optional student profile context enrichment for voice or personalized queries
+    if (
+      studentUserId &&
+      (academicYear === undefined || (!field && fields.length === 0))
+    ) {
+      const profile = await this.prisma.studentProfile.findUnique({
+        where: { userId: studentUserId },
+        select: { academicYear: true, fieldOfStudy: true },
+      });
+
+      if (profile) {
+        if (academicYear === undefined && profile.academicYear) {
+          academicYear = profile.academicYear;
+        }
+        if (!field && fields.length === 0 && profile.fieldOfStudy) {
+          field = profile.fieldOfStudy;
+        }
+      }
+    }
+
+    if (field && !fields.includes(field)) {
+      fields.push(field);
+    }
+
+    const eligibleFields =
+      fields.length > 0
+        ? Array.from(
+            new Set(
+              fields.flatMap((f) => [
+                f.trim(),
+                f.trim().toLowerCase(),
+                f.trim().replace(/\b\w/g, (c) => c.toUpperCase()),
+              ]),
+            ),
+          )
+        : undefined;
+
+    const skillIds = query.skillIds?.length
+      ? query.skillIds
+      : query.skills
+        ? [query.skills]
+        : undefined;
+
     const filters: OpportunityFilterOptions = {
       keyword: query.keyword,
       status: OpportunityStatus.PUBLISHED,
       opportunityType: query.type,
       location: query.location,
-      skillIds: query.skills ? [query.skills] : undefined,
-      eligibleFields: query.field ? [query.field] : undefined,
+      skillIds,
+      eligibleFields,
       hasActiveDeadline: true,
     };
 
+    if (query.skillNames && query.skillNames.length > 0) {
+      filters.skillNames = query.skillNames;
+    }
+
+    if (query.isRemote !== undefined) {
+      filters.isRemote = query.isRemote;
+    }
+
+    if (academicYear !== undefined) {
+      filters.minimumAcademicYear = academicYear;
+      filters.maximumAcademicYear = academicYear;
+    }
+
+    return filters;
+  }
+
+  async searchOpportunities(
+    query: SearchOpportunityDto,
+    studentUserId?: string,
+  ) {
+    const filters = await this.buildSearchFilters(query, studentUserId);
     const opportunities =
       await this.opportunitiesRepository.findMany(filters);
 
@@ -368,17 +439,9 @@ return applicants.map(mapApplicantForResponse);
    */
   async searchOpportunitiesForMatching(
     query: SearchOpportunityDto,
+    studentUserId?: string,
   ): Promise<OpportunityWithRelations[]> {
-    const filters: OpportunityFilterOptions = {
-      keyword: query.keyword,
-      status: OpportunityStatus.PUBLISHED,
-      opportunityType: query.type,
-      location: query.location,
-      skillIds: query.skills ? [query.skills] : undefined,
-      eligibleFields: query.field ? [query.field] : undefined,
-      hasActiveDeadline: true,
-    };
-
+    const filters = await this.buildSearchFilters(query, studentUserId);
     return this.opportunitiesRepository.findMany(filters);
   }
 

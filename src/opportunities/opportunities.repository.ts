@@ -644,11 +644,47 @@ async updateApplicationStatus(
       };
     }
 
-    if (filters.skillIds && filters.skillIds.length > 0) {
+    const hasSkillIds = Boolean(filters.skillIds && filters.skillIds.length > 0);
+    const hasSkillNames = Boolean(
+      filters.skillNames && filters.skillNames.length > 0,
+    );
+
+    if (hasSkillIds && hasSkillNames) {
+      where.skills = {
+        some: {
+          OR: [
+            {
+              skillId: {
+                in: filters.skillIds,
+              },
+            },
+            {
+              skill: {
+                name: {
+                  in: filters.skillNames,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          ],
+        },
+      };
+    } else if (hasSkillIds) {
       where.skills = {
         some: {
           skillId: {
             in: filters.skillIds,
+          },
+        },
+      };
+    } else if (hasSkillNames) {
+      where.skills = {
+        some: {
+          skill: {
+            name: {
+              in: filters.skillNames,
+              mode: 'insensitive',
+            },
           },
         },
       };
