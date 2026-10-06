@@ -1,3 +1,5 @@
+import { Prisma } from '@prisma/client';
+
 export interface ApplicantAnalysisInput {
   applicantId: string;
   applicationId: string;
@@ -48,7 +50,6 @@ export interface ApplicantAnalysisInput {
     opportunityType: string;
     location: string | null;
     isRemote: boolean;
-
     minimumAcademicYear: number | null;
     maximumAcademicYear: number | null;
     minimumGpa: number | null;
@@ -86,14 +87,10 @@ export interface ApplicantAnalysisOutput {
   applicantId: string;
   applicationId: string;
   opportunityId: string;
-
   overallScore: number | null;
   requirementMatch: string | null;
-
-  skillAnalysis: unknown;
-
+  skillAnalysis: Prisma.InputJsonValue | null;
   strengths: string[];
   gaps: string[];
-
   summary: string | null;
 }
