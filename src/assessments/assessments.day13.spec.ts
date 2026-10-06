@@ -17,6 +17,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OrganizationProfileRepository } from '@/organization-profile/organization-profile.repository';
 import { OpportunitiesRepository } from '@/opportunities/opportunities.repository';
 import { AIQuestionService } from './ai-question.service';
+import { AIApplicantAnalysisService } from './ai-applicant-analysis.service';
 
 describe('Day 13 Backend 2: Assessments Data Foundation', () => {
   let repository: AssessmentsRepository;
@@ -208,6 +209,12 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
         {
           provide: AIQuestionService,
           useValue: mockAIQuestionService,
+        },
+        {
+          provide: AIApplicantAnalysisService,
+          useValue: {
+            analyzeApplicant: jest.fn(),
+          },
         },
       ],
     }).compile();
