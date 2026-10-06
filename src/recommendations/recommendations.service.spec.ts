@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { OpportunityType } from '@prisma/client';
 
 import { RecommendationsService } from './recommendations.service';
 import { StudentProfileRepository } from '@/student-profile/student-profile.repository';
@@ -201,6 +202,58 @@ describe('RecommendationsService', () => {
     expect(
       results[0].opportunity.id,
     ).toBe('opportunity-1');
+  });
+
+  it('should pass academicYear and skills from query to opportunity search', async () => {
+    studentProfileRepository.findByUserId.mockResolvedValue({
+      academicYear: 3,
+      fieldOfStudy: 'Computer Science',
+      location: 'Addis Ababa',
+      interests: [],
+      skills: [],
+    });
+
+    opportunitiesService.searchOpportunitiesForMatching.mockResolvedValue([]);
+
+    const searchQuery = {
+      keyword: 'TypeScript',
+      skills: 'skill-ts',
+      academicYear: 3,
+    };
+
+    await service.getRecommendations('student-1', searchQuery);
+
+    expect(
+      opportunitiesService.searchOpportunitiesForMatching,
+    ).toHaveBeenCalledWith(searchQuery);
+  });
+
+  it('should map voice search minimumAcademicYear to academicYear for opportunity search', async () => {
+    studentProfileRepository.findByUserId.mockResolvedValue({
+      academicYear: 3,
+      fieldOfStudy: 'Computer Science',
+      location: 'Addis Ababa',
+      interests: [],
+      skills: [],
+    });
+
+    opportunitiesService.searchOpportunitiesForMatching.mockResolvedValue([]);
+
+    const voiceCriteria = {
+      keyword: 'AI',
+      type: OpportunityType.INTERNSHIP,
+      isRemote: true,
+      minimumAcademicYear: 4,
+    };
+
+    await service.getRecommendations('student-1', voiceCriteria);
+
+    expect(
+      opportunitiesService.searchOpportunitiesForMatching,
+    ).toHaveBeenCalledWith({
+      ...voiceCriteria,
+      academicYear: 4,
+    });
   });
 
   it('should return a lower score when skills, field, year, and location do not match', async () => {

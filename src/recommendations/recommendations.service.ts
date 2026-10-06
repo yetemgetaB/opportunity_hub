@@ -21,38 +21,41 @@ export class RecommendationsService {
     private readonly opportunitiesService: OpportunitiesService,
   ) {}
 
-async getRecommendations(
-  userId: string,
-  query?: OpportunitySearchCriteria,
-): Promise<RecommendationResult[]> {
-  const student =
-    await this.studentProfileRepository.findByUserId(userId);
+  async getRecommendations(
+    userId: string,
+    query?: SearchOpportunityDto | OpportunitySearchCriteria,
+  ): Promise<RecommendationResult[]> {
+    const student =
+      await this.studentProfileRepository.findByUserId(userId);
 
-  if (!student) {
-    return [];
+    if (!student) {
+      return [];
+    }
+
+    const searchQuery: SearchOpportunityDto = {
+      ...(query || {}),
+    };
+
+    if (
+      searchQuery.academicYear === undefined &&
+      query &&
+      'minimumAcademicYear' in query &&
+      query.minimumAcademicYear !== undefined
+    ) {
+      searchQuery.academicYear = query.minimumAcademicYear;
+    }
+
+    const opportunities =
+      await this.opportunitiesService.searchOpportunitiesForMatching(
+        searchQuery,
+      );
+
+    return opportunities
+      .map((opportunity) =>
+        this.calculateMatch(student, opportunity),
+      )
+      .sort((a, b) => b.score - a.score);
   }
-
-  const searchQuery: SearchOpportunityDto = {
-    keyword: query?.keyword,
-    field: query?.field,
-    location: query?.location,
-    type: query?.type,
-    isRemote: query?.isRemote,
-    academicYear: query?.minimumAcademicYear,
-  };
-
-  const opportunities =
-    await this.opportunitiesService.searchOpportunitiesForMatching(
-      searchQuery,
-      userId,
-    );
-
-  return opportunities
-    .map((opportunity) =>
-      this.calculateMatch(student, opportunity),
-    )
-    .sort((a, b) => b.score - a.score);
-}
 
   private calculateMatch(
     student: any,
