@@ -4,10 +4,11 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 
 import {
   CreateUserData,
+  UpdateUserData,
   UserLookupResult,
   UserRoleResult,
 } from './users.interface';
@@ -182,6 +183,32 @@ export class UsersRepository {
         deletedAt: new Date(),
         isActive: false,
       },
+    });
+  }
+
+  async update(id: string, data: UpdateUserData): Promise<User> {
+    const updatePayload: Prisma.UserUpdateInput = {};
+
+    if (data.firstName !== undefined) {
+      updatePayload.firstName = data.firstName.trim();
+    }
+    if (data.middleName !== undefined) {
+      updatePayload.middleName = data.middleName
+        ? data.middleName.trim()
+        : null;
+    }
+    if (data.lastName !== undefined) {
+      updatePayload.lastName = data.lastName.trim();
+    }
+    if (data.avatarUrl !== undefined) {
+      updatePayload.avatarUrl = data.avatarUrl
+        ? data.avatarUrl.trim()
+        : null;
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: updatePayload,
     });
   }
 }
