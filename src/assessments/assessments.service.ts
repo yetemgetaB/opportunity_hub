@@ -13,6 +13,7 @@ import { AIApplicantAnalysisService } from './ai-applicant-analysis.service';
 import { mapApplicantAnalysisData } from './assessment-analysis.mapper';
 import { AssessmentResultFilterDto } from './dto/assessment-result-filter.dto';
 import { SaveAssessmentResultData } from './assessments.interface';
+import { CvsService } from '@/student-profile/cvs.service';
 
 @Injectable()
 export class AssessmentsService {
@@ -22,6 +23,7 @@ export class AssessmentsService {
     private readonly opportunitiesRepository: OpportunitiesRepository,
     private readonly aiQuestionService: AIQuestionService,
     private readonly aiApplicantAnalysisService: AIApplicantAnalysisService,
+    private readonly cvsService: CvsService,
   ) {}
 
   async createAssessment(userId: string, opportunityId: string) {
@@ -39,10 +41,7 @@ export class AssessmentsService {
       throw new NotFoundException('Opportunity not found.');
     }
 
-    if (
-      opportunity.organizationId !==
-      membership.organizationId
-    ) {
+    if (opportunity.organizationId !== membership.organizationId) {
       throw new ForbiddenException(
         'You are not authorized to create an assessment for this opportunity.',
       );
@@ -172,7 +171,11 @@ export class AssessmentsService {
       );
     }
 
-    return mapApplicantAnalysisData(data);
+    const cvText = await this.cvsService.getCvTextForStudent(
+      data.studentProfile.userId,
+    );
+
+    return mapApplicantAnalysisData(data, cvText);
   }
 
   async getEligibleApplicantsForAnalysis(opportunityId: string) {
@@ -269,7 +272,11 @@ export class AssessmentsService {
       );
     }
 
-    const analysisInput = mapApplicantAnalysisData(data);
+    const cvText = await this.cvsService.getCvTextForStudent(
+      data.studentProfile.userId,
+    );
+
+    const analysisInput = mapApplicantAnalysisData(data, cvText);
 
     const analysis =
       await this.aiApplicantAnalysisService.analyzeApplicant(
