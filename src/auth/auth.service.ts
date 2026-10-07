@@ -5,19 +5,30 @@ import {
   UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import {
+  createClient,
+  SupabaseClient,
+} from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from '@prisma/client';
 
-import { RegisterDto, PublicRegisterRole } from './dto/register.dto';
+import {
+  RegisterDto,
+  PublicRegisterRole,
+} from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
+  private readonly logger = new Logger(
+    AuthService.name,
+  );
+
   private supabaseClient: SupabaseClient | null = null;
-  private supabaseAdminClient: SupabaseClient | null = null;
+
+  private supabaseAdminClient: SupabaseClient | null =
+    null;
 
   constructor(
     private readonly configService: ConfigService,
@@ -30,10 +41,14 @@ export class AuthService {
     }
 
     const supabaseUrl =
-      this.configService.get<string>('database.supabaseUrl');
+      this.configService.get<string>(
+        'database.supabaseUrl',
+      );
 
     const supabaseAnonKey =
-      this.configService.get<string>('database.supabaseAnonKey');
+      this.configService.get<string>(
+        'database.supabaseAnonKey',
+      );
 
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new BadRequestException(
@@ -41,39 +56,55 @@ export class AuthService {
       );
     }
 
-    this.supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
+    this.supabaseClient = createClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
       },
-    });
+    );
 
     return this.supabaseClient;
   }
 
-  private getSupabaseAdminClient(): SupabaseClient | null {
+  private getSupabaseAdminClient():
+    | SupabaseClient
+    | null {
     if (this.supabaseAdminClient) {
       return this.supabaseAdminClient;
     }
 
     const supabaseUrl =
-      this.configService.get<string>('database.supabaseUrl');
+      this.configService.get<string>(
+        'database.supabaseUrl',
+      );
+
     const serviceRoleKey =
-      this.configService.get<string>('database.supabaseServiceRoleKey');
+      this.configService.get<string>(
+        'database.supabaseServiceRoleKey',
+      );
 
     if (!supabaseUrl || !serviceRoleKey) {
       this.logger.warn(
         'SUPABASE_SERVICE_ROLE_KEY is not configured; compensating rollback on registration failure will be skipped.',
       );
+
       return null;
     }
 
-    this.supabaseAdminClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
+    this.supabaseAdminClient = createClient(
+      supabaseUrl,
+      serviceRoleKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
       },
-    });
+    );
 
     return this.supabaseAdminClient;
   }
@@ -81,23 +112,31 @@ export class AuthService {
   async register(data: RegisterDto) {
     const supabase = this.getSupabaseClient();
 
-    const { data: authData, error } =
-      await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-      });
+    const {
+      data: authData,
+      error,
+    } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+    });
 
     if (error) {
       if (
-        error.message.toLowerCase().includes('already registered') ||
-        error.message.toLowerCase().includes('already exists')
+        error.message
+          .toLowerCase()
+          .includes('already registered') ||
+        error.message
+          .toLowerCase()
+          .includes('already exists')
       ) {
         throw new ConflictException(
           'An account with this email already exists.',
         );
       }
 
-      throw new BadRequestException(error.message);
+      throw new BadRequestException(
+        error.message,
+      );
     }
 
     if (!authData.user) {
@@ -113,13 +152,24 @@ export class AuthService {
 
     try {
       const user =
-        await this.usersService.createApplicationUser({
-          id: authData.user.id,
-          firstName: data.firstName,
-          middleName: data.middleName,
-          lastName: data.lastName,
-          role: applicationRole,
-        });
+        applicationRole === UserRole.ORGANIZATION
+          ? await this.usersService.createOrganizationAccount(
+              {
+                id: authData.user.id,
+                firstName: data.firstName,
+                middleName: data.middleName,
+                lastName: data.lastName,
+                role: applicationRole,
+              },
+              data.organizationName!,
+            )
+          : await this.usersService.createApplicationUser({
+              id: authData.user.id,
+              firstName: data.firstName,
+              middleName: data.middleName,
+              lastName: data.lastName,
+              role: applicationRole,
+            });
 
       return {
         user,
@@ -127,14 +177,20 @@ export class AuthService {
       };
     } catch (appUserError: any) {
       this.logger.error(
-        `Failed to create application user for Auth ID: ${authData.user.id}. Initiating compensating rollback. Error: ${appUserError.message}`,
+        `Failed to create application account for Auth ID: ${authData.user.id}. Initiating compensating rollback. Error: ${appUserError.message}`,
       );
 
-      const adminClient = this.getSupabaseAdminClient();
+      const adminClient =
+        this.getSupabaseAdminClient();
+
       if (adminClient) {
         try {
-          const { error: deleteError } =
-            await adminClient.auth.admin.deleteUser(authData.user.id);
+          const {
+            error: deleteError,
+          } =
+            await adminClient.auth.admin.deleteUser(
+              authData.user.id,
+            );
 
           if (deleteError) {
             this.logger.error(
@@ -159,7 +215,10 @@ export class AuthService {
   async login(data: LoginDto) {
     const supabase = this.getSupabaseClient();
 
-    const { data: authData, error } =
+    const {
+      data: authData,
+      error,
+    } =
       await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
@@ -171,14 +230,19 @@ export class AuthService {
       );
     }
 
-    if (!authData.user || !authData.session) {
+    if (
+      !authData.user ||
+      !authData.session
+    ) {
       throw new UnauthorizedException(
         'Authentication failed. No session was returned.',
       );
     }
 
     const user =
-      await this.usersService.getUserById(authData.user.id);
+      await this.usersService.getUserById(
+        authData.user.id,
+      );
 
     return {
       user,

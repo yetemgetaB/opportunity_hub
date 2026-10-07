@@ -14,6 +14,13 @@ export interface CreateUserData {
   isActive?: boolean;
 }
 
+export interface UpdateUserData {
+  firstName?: string;
+  middleName?: string | null;
+  lastName?: string;
+  avatarUrl?: string | null;
+}
+
 export interface UserLookupResult {
   id: string;
   firstName: string;

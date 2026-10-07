@@ -6,19 +6,46 @@ export class StudentProfileRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findByUserId(userId: string) {
-  return this.prisma.studentProfile.findUnique({
-    where: {
-      userId,
-    },
-    include: {
-      skills: {
-        include: {
-          skill: true,
+    return this.prisma.studentProfile.findUnique({
+      where: {
+        userId,
+      },
+      include: {
+        skills: {
+          include: {
+            skill: true,
+          },
         },
       },
-    },
-  });
-}
+    });
+  }
+
+  /**
+   * Retrieve full student profile, skills with proficiency, experiences, and CVs for AI matching.
+   * Single consolidated query to avoid N+1 queries.
+   */
+  async getStudentMatchingProfile(userId: string) {
+    return this.prisma.studentProfile.findUnique({
+      where: {
+        userId,
+      },
+      include: {
+        skills: {
+          include: {
+            skill: true,
+          },
+        },
+        experiences: {
+          orderBy: {
+            startDate: 'desc',
+          },
+        },
+        cvs: {
+          orderBy: [{ isDefault: 'desc' }, { uploadedAt: 'desc' }],
+        },
+      },
+    });
+  }
 
   async create(
     userId: string,

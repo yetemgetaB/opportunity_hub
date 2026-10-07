@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import databaseConfig from './config/database.config';
+import aiConfig from './config/ai.config';
 
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -24,12 +25,14 @@ import { AdminModule } from './admin/admin.module';
 import { OpportunitiesModule } from './opportunities/opportunities.module';
 
 import { OrganizationProfileModule } from './organization-profile/organization-profile.module';
+import { ApplicationsModule } from './applications/applications.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig],
+      load: [databaseConfig, aiConfig],
       envFilePath: ['.env.local', '.env'],
     }),
 
@@ -53,6 +56,8 @@ import { OrganizationProfileModule } from './organization-profile/organization-p
 
     StudentProfileModule,
     OrganizationProfileModule,
+    ApplicationsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

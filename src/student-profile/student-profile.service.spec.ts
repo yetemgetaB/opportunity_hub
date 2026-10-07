@@ -9,6 +9,7 @@ describe('StudentProfileService', () => {
 
   const mockRepository = {
     findByUserId: jest.fn(),
+    getStudentMatchingProfile: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   };
@@ -45,6 +46,33 @@ describe('StudentProfileService', () => {
       mockRepository.findByUserId.mockResolvedValue(null);
 
       await expect(service.getMyProfile(userId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getStudentMatchingProfile', () => {
+    it('should return matching profile when found', async () => {
+      const userId = '11111111-1111-1111-1111-111111111111';
+      const matchingProfile = {
+        userId,
+        university: 'AAU',
+        fieldOfStudy: 'CS',
+        academicYear: 3,
+        skills: [],
+        experiences: [],
+        cvs: [],
+      };
+      mockRepository.getStudentMatchingProfile.mockResolvedValue(matchingProfile);
+
+      const result = await service.getStudentMatchingProfile(userId);
+      expect(repository.getStudentMatchingProfile).toHaveBeenCalledWith(userId);
+      expect(result).toEqual(matchingProfile);
+    });
+
+    it('should throw NotFoundException when matching profile does not exist', async () => {
+      const userId = 'non-existent-user';
+      mockRepository.getStudentMatchingProfile.mockResolvedValue(null);
+
+      await expect(service.getStudentMatchingProfile(userId)).rejects.toThrow(NotFoundException);
     });
   });
 

@@ -1,25 +1,26 @@
-import { Injectable, Logger, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
+
 import {
   CreateUserData,
+  UpdateUserData,
   UserLookupResult,
   UserRoleResult,
 } from './users.interface';
 
 @Injectable()
 export class UsersRepository {
-  private readonly logger = new Logger(UsersRepository.name);
+  private readonly logger = new Logger(
+    UsersRepository.name,
+  );
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Look up an application user by their primary identifier.
-   * In this architecture, public.users.id is identical to Supabase auth.users.id.
-   *
-   * @param id The user UUID (auth.users.id == public.users.id)
-   * @param includeDeleted Whether to include soft-deleted accounts (default: false)
-   */
   async findById(
     id: string,
     includeDeleted: boolean = false,
@@ -39,13 +40,9 @@ export class UsersRepository {
     return user;
   }
 
-  /**
-   * Primary entry point for Backend 1 to retrieve an authenticated user's role and status.
-   * "Which application user is this authenticated Supabase user, and what is their role?"
-   *
-   * @param authUserId The UUID from Supabase Auth (JWT sub / auth.uid())
-   */
-  async findRoleByAuthId(authUserId: string): Promise<UserRoleResult | null> {
+  async findRoleByAuthId(
+    authUserId: string,
+  ): Promise<UserRoleResult | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: authUserId },
       select: {
@@ -68,32 +65,30 @@ export class UsersRepository {
     };
   }
 
-  /**
-   * Creates the public.users record corresponding to a freshly registered Supabase Auth user.
-   * Ensures:
-   * - ID maps 1:1 to auth.users.id
-   * - Role is strictly typed to domain ENUM ('STUDENT', 'ORGANIZATION', 'ADMIN')
-   * - No password / credentials ever stored in application DB
-   *
-   * @param data User creation payload
-   */
   async create(data: CreateUserData): Promise<User> {
     try {
-      const newUser = await this.prisma.user.create({
-        data: {
-          id: data.id,
-          firstName: data.firstName.trim(),
-          middleName: data.middleName ? data.middleName.trim() : null,
-          lastName: data.lastName.trim(),
-          role: data.role,
-          avatarUrl: data.avatarUrl || null,
-          isActive: data.isActive !== undefined ? data.isActive : true,
-        },
-      });
+      const newUser =
+        await this.prisma.user.create({
+          data: {
+            id: data.id,
+            firstName: data.firstName.trim(),
+            middleName: data.middleName
+              ? data.middleName.trim()
+              : null,
+            lastName: data.lastName.trim(),
+            role: data.role,
+            avatarUrl: data.avatarUrl || null,
+            isActive:
+              data.isActive !== undefined
+                ? data.isActive
+                : true,
+          },
+        });
 
       this.logger.log(
         `Created application user record for ID: ${newUser.id} with role: ${newUser.role}`,
       );
+
       return newUser;
     } catch (error: any) {
       if (error.code === 'P2002') {
@@ -101,30 +96,86 @@ export class UsersRepository {
           `Application user record already exists for ID: ${data.id}`,
         );
       }
+
       throw error;
     }
   }
 
-  /**
-   * Checks whether an application user exists and is active.
-   */
-  async existsAndActive(id: string): Promise<boolean> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id,
-        isActive: true,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
+  async createOrganizationAccount(
+    data: CreateUserData,
+    organizationName: string,
+  ): Promise<User> {
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const newUser =
+            await tx.user.create({
+              data: {
+                id: data.id,
+                firstName: data.firstName.trim(),
+                middleName: data.middleName
+                  ? data.middleName.trim()
+                  : null,
+                lastName: data.lastName.trim(),
+                role: data.role,
+                avatarUrl: data.avatarUrl || null,
+                isActive:
+                  data.isActive !== undefined
+                    ? data.isActive
+                    : true,
+              },
+            });
+
+          const organization =
+            await tx.organization.create({
+              data: {
+                name: organizationName.trim(),
+              },
+            });
+
+          await tx.organizationMember.create({
+            data: {
+              organizationId: organization.id,
+              userId: newUser.id,
+            },
+          });
+
+          this.logger.log(
+            `Created organization account for user ${newUser.id} with organization ${organization.id}`,
+          );
+
+          return newUser;
+        },
+      );
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        throw new ConflictException(
+          'An application user or organization with the same unique value already exists.',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  async existsAndActive(
+    id: string,
+  ): Promise<boolean> {
+    const user =
+      await this.prisma.user.findFirst({
+        where: {
+          id,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      });
 
     return !!user;
   }
 
-  /**
-   * Soft-deletes a user account by setting deleted_at timestamp.
-   * Preserves historical relational data in line with ADR-005.
-   */
   async softDelete(id: string): Promise<User> {
     return this.prisma.user.update({
       where: { id },
@@ -132,6 +183,32 @@ export class UsersRepository {
         deletedAt: new Date(),
         isActive: false,
       },
+    });
+  }
+
+  async update(id: string, data: UpdateUserData): Promise<User> {
+    const updatePayload: Prisma.UserUpdateInput = {};
+
+    if (data.firstName !== undefined) {
+      updatePayload.firstName = data.firstName.trim();
+    }
+    if (data.middleName !== undefined) {
+      updatePayload.middleName = data.middleName
+        ? data.middleName.trim()
+        : null;
+    }
+    if (data.lastName !== undefined) {
+      updatePayload.lastName = data.lastName.trim();
+    }
+    if (data.avatarUrl !== undefined) {
+      updatePayload.avatarUrl = data.avatarUrl
+        ? data.avatarUrl.trim()
+        : null;
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: updatePayload,
     });
   }
 }

@@ -5,7 +5,9 @@ import {
   IsString,
   Matches,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
+
 export enum PublicRegisterRole {
   STUDENT = 'STUDENT',
   ORGANIZATION = 'ORGANIZATION',
@@ -34,7 +36,9 @@ export class RegisterDto {
   password: string;
 
   @IsString()
-  @MinLength(1, { message: 'First name is required.' })
+  @MinLength(1, {
+    message: 'First name is required.',
+  })
   firstName: string;
 
   @IsOptional()
@@ -42,11 +46,22 @@ export class RegisterDto {
   middleName?: string;
 
   @IsString()
-  @MinLength(1, { message: 'Last name is required.' })
+  @MinLength(1, {
+    message: 'Last name is required.',
+  })
   lastName: string;
 
   @IsEnum(PublicRegisterRole, {
     message: 'Role must be either STUDENT or ORGANIZATION.',
   })
   role: PublicRegisterRole;
+
+  @ValidateIf(
+    (data) => data.role === PublicRegisterRole.ORGANIZATION,
+  )
+  @IsString()
+  @MinLength(1, {
+    message: 'Organization name is required for organization accounts.',
+  })
+  organizationName?: string;
 }
