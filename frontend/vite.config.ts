@@ -6,11 +6,12 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    host: true,
     // Proxy API requests to the backend during local development to avoid CORS
     // Adjust target port if the backend runs on a different port (default here: 3000)
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         secure: false,
         // keep path as-is; if backend expects no /api prefix, use rewrite: (path) => path.replace(/^\/api/, '')

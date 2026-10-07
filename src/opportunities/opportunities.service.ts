@@ -439,16 +439,20 @@ return applicants.map(mapApplicantForResponse);
    * the relations required by the matching engine.
    */
   async searchOpportunitiesForMatching(
-  query: SearchOpportunityDto,
-  studentUserId?: string,
-): Promise<OpportunityWithRelations[]> {
-  const filters = await this.buildSearchFilters(
-    query,
-    studentUserId,
-  );
+    query: SearchOpportunityDto,
+    studentUserId?: string,
+  ): Promise<OpportunityWithRelations[]> {
+    const filters = await this.buildSearchFilters(
+      query,
+      studentUserId,
+    );
 
-  return this.opportunitiesRepository.findMany(filters);
-}
+    if (filters.take === undefined) {
+      filters.take = 25;
+    }
+
+    return this.opportunitiesRepository.findMany(filters);
+  }
 
   async getPublishedOpportunity(opportunityId: string) {
     const opportunity =
