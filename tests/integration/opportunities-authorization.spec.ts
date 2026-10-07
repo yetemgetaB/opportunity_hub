@@ -9,6 +9,9 @@ import { AppModule } from '@/app.module';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { PrismaService } from '@/prisma/prisma.service';
 
+import { AIQuestionService } from '@/assessments/ai-question.service';
+import { AIApplicantAnalysisService } from '@/assessments/ai-applicant-analysis.service';
+
 jest.setTimeout(30000);
 
 describe('Opportunity Authorization E2E', () => {
@@ -66,6 +69,14 @@ describe('Opportunity Authorization E2E', () => {
 
             return false;
           },
+        })
+         .overrideProvider(AIQuestionService)
+        .useValue({
+          generateQuestions: jest.fn(),
+        })
+        .overrideProvider(AIApplicantAnalysisService)
+        .useValue({
+          analyzeApplicant: jest.fn(),
         })
         .compile();
 

@@ -41,13 +41,16 @@ export class AssessmentsService {
       throw new NotFoundException('Opportunity not found.');
     }
 
-    if (opportunity.organizationId !== membership.organizationId) {
+    if (
+      opportunity.organizationId !==
+      membership.organizationId
+    ) {
       throw new ForbiddenException(
         'You are not authorized to create an assessment for this opportunity.',
       );
     }
 
-    // Get the skills explicitly marked as required for the opportunity.
+// Get the skills explicitly marked as required for the opportunity.
     const requiredSkills = opportunity.skills
       .filter((item) => item.requirementLevel === 'REQUIRED')
       .map((item) => item.skill.name);

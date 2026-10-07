@@ -9,6 +9,7 @@ import { AppModule } from '@/app.module';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AIQuestionService } from '@/assessments/ai-question.service';
+import { AIApplicantAnalysisService } from '@/assessments/ai-applicant-analysis.service';
 
 jest.setTimeout(30000);
 
@@ -99,6 +100,10 @@ describe('Day 11 Assessment Authorization E2E', () => {
               },
             ],
           }),
+        })
+        .overrideProvider(AIApplicantAnalysisService)
+        .useValue({
+          analyzeApplicant: jest.fn(),
         })
         .compile();
 

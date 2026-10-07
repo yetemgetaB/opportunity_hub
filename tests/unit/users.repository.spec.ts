@@ -137,4 +137,78 @@ describe('UsersRepository', () => {
       ).rejects.toThrow(ConflictException);
     });
   });
+
+  describe('update', () => {
+    it('should update user profile fields and trim string values', async () => {
+      const userId = '123e4567-e89b-12d3-a456-426614174000';
+      const updateData = {
+        firstName: '  Jane  ',
+        middleName: '  M  ',
+        lastName: '  Doe  ',
+        avatarUrl: 'https://example.com/avatar.png',
+      };
+
+      const updatedUser = {
+        id: userId,
+        firstName: 'Jane',
+        middleName: 'M',
+        lastName: 'Doe',
+        role: UserRole.ADMIN,
+        avatarUrl: 'https://example.com/avatar.png',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      };
+
+      mockPrisma.user.update.mockResolvedValue(updatedUser);
+
+      const result = await repository.update(userId, updateData);
+
+      expect(result).toEqual(updatedUser);
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: {
+          firstName: 'Jane',
+          middleName: 'M',
+          lastName: 'Doe',
+          avatarUrl: 'https://example.com/avatar.png',
+        },
+      });
+    });
+
+    it('should correctly set null for empty middleName or avatarUrl when passed as empty/null', async () => {
+      const userId = '123e4567-e89b-12d3-a456-426614174000';
+      const updateData = {
+        middleName: null,
+        avatarUrl: '',
+      };
+
+      const updatedUser = {
+        id: userId,
+        firstName: 'Jane',
+        middleName: null,
+        lastName: 'Doe',
+        role: UserRole.ADMIN,
+        avatarUrl: null,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      };
+
+      mockPrisma.user.update.mockResolvedValue(updatedUser);
+
+      const result = await repository.update(userId, updateData);
+
+      expect(result).toEqual(updatedUser);
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: {
+          middleName: null,
+          avatarUrl: null,
+        },
+      });
+    });
+  });
 });

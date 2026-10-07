@@ -26,6 +26,7 @@ import { OpportunitiesModule } from './opportunities/opportunities.module';
 
 import { OrganizationProfileModule } from './organization-profile/organization-profile.module';
 import { ApplicationsModule } from './applications/applications.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ApplicationsModule } from './applications/applications.module';
     StudentProfileModule,
     OrganizationProfileModule,
     ApplicationsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

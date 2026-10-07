@@ -2,6 +2,9 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../../src/app.module';
 
+import { AIQuestionService } from '../../src/assessments/ai-question.service';
+import { AIApplicantAnalysisService } from '../../src/assessments/ai-applicant-analysis.service';
+
 const request = require('supertest');
 
 jest.setTimeout(30000);
@@ -12,8 +15,17 @@ let app: INestApplication;
 beforeAll(async () => {
 const moduleFixture: TestingModule =
 await Test.createTestingModule({
-imports: [AppModule],
-}).compile();
+  imports: [AppModule],
+})
+  .overrideProvider(AIQuestionService)
+  .useValue({
+    generateQuestions: jest.fn(),
+  })
+  .overrideProvider(AIApplicantAnalysisService)
+  .useValue({
+    analyzeApplicant: jest.fn(),
+  })
+  .compile();
 
 
 app = moduleFixture.createNestApplication();
