@@ -1,13 +1,10 @@
-import {
-  ApplicantAnalysisData,
-} from './assessments.interface';
+import { ApplicantAnalysisData } from './assessments.interface';
 
-import {
-  ApplicantAnalysisInput,
-} from './assessment-analysis.interface';
+import { ApplicantAnalysisInput } from './assessment-analysis.interface';
 
 export function mapApplicantAnalysisData(
   data: ApplicantAnalysisData,
+  cvText: string | null = null,
 ): ApplicantAnalysisInput {
   const studentProfile = data.studentProfile;
   const opportunity = data.opportunity;
@@ -55,10 +52,9 @@ export function mapApplicantAnalysisData(
         fileType: cv.fileType,
         isDefault: cv.isDefault,
         uploadedAt: cv.uploadedAt,
-    })),
+      })),
 
-      // CV text extraction is not currently implemented.
-      cvText: null,
+      cvText,
     },
 
     opportunity: {
@@ -88,22 +84,22 @@ export function mapApplicantAnalysisData(
     assessment: {
       questions:
         assessmentAttempt?.assessment.questions.map((question) => ({
-            id: question.id,
-            questionText: question.questionText,
-            questionType: question.questionType,
-            questionOrder: question.questionOrder,
-            options: question.options,
-            referenceAnswer: question.referenceAnswer,
-            evaluationGuidance: question.evaluationGuidance,
-            requirementLevel: question.requirementLevel,
-    })) ?? [],
+          id: question.id,
+          questionText: question.questionText,
+          questionType: question.questionType,
+          questionOrder: question.questionOrder,
+          options: question.options,
+          referenceAnswer: question.referenceAnswer,
+          evaluationGuidance: question.evaluationGuidance,
+          requirementLevel: question.requirementLevel,
+        })) ?? [],
 
       answers:
         assessmentAttempt?.answers.map((answer) => ({
-            questionId: answer.assessmentQuestionId,
-            questionText: answer.question.questionText,
-            answerText: answer.answerText,
-            questionOrder: answer.question.questionOrder,
+          questionId: answer.assessmentQuestionId,
+          questionText: answer.question.questionText,
+          answerText: answer.answerText,
+          questionOrder: answer.question.questionOrder,
         })) ?? [],
     },
   };
