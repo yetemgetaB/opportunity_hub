@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
@@ -7,38 +7,99 @@
   --color-navy: #0b1437;
   --color-navy-light: #16224f;
   --color-brand: #f5a623;
-  --font-sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-display: 'Playfair Display', Georgia, serif;
+  --color-background: #ffffff;
+  --color-foreground: #172033;
+  --color-primary: #f5a623;
+  --color-primary-foreground: #172033;
+  --color-card: #ffffff;
+  --color-card-foreground: #172033;
+  --color-muted-foreground: #596579;
+  --color-border: #dce2ea;
+  --color-input: #ffffff;
+  --color-destructive: #b42318;
+  --color-success: #15803d;
+  --color-warning: #a15c07;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'DM Mono', ui-monospace, monospace;
 }
 
-html { scroll-behavior: smooth; }
-body { @apply bg-white text-slate-900 font-sans; }
-button, input { font: inherit; }
-a { color: inherit; text-decoration: none; }
+html {
+  scroll-behavior: smooth;
+  color-scheme: light;
+}
 
-.dark { color-scheme: dark; }
-.dark body { background-color: #0b1220; }
+body {
+  @apply bg-background text-foreground font-sans;
+}
 
-.dark .bg-white { background-color: #141c30 !important; }
-.dark .bg-slate-50 { background-color: #101a30 !important; }
-.dark .bg-slate-100 { background-color: #1b2540 !important; }
+button, input, textarea, select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-background: #111821;
+  --color-foreground: #edf2f7;
+  --color-primary-foreground: #172033;
+  --color-card: #1a2430;
+  --color-card-foreground: #edf2f7;
+  --color-muted-foreground: #b1bdca;
+  --color-border: #33404e;
+  --color-input: #202b38;
+  --color-destructive: #fca5a5;
+  --color-success: #86efac;
+  --color-warning: #fcd34d;
+}
+
+.dark body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.dark .bg-white { background-color: var(--color-card) !important; }
+.dark .bg-slate-50, .dark .bg-gray-50, .dark .bg-neutral-50 { background-color: #151e28 !important; }
+.dark .bg-slate-100, .dark .bg-gray-100, .dark .bg-neutral-100 { background-color: #202b38 !important; }
 .dark .bg-amber-50 { background-color: rgba(245, 166, 35, 0.12) !important; }
 .dark .bg-amber-100 { background-color: rgba(245, 166, 35, 0.18) !important; }
-.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.18) !important; }
+.dark .bg-emerald-50, .dark .bg-green-50 { background-color: rgba(16, 185, 129, 0.12) !important; }
+.dark .bg-emerald-100, .dark .bg-green-100 { background-color: rgba(16, 185, 129, 0.18) !important; }
+.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.12) !important; }
 .dark .bg-blue-100 { background-color: rgba(59, 130, 246, 0.18) !important; }
+.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.12) !important; }
 .dark .bg-red-100 { background-color: rgba(239, 68, 68, 0.18) !important; }
+.dark .hover\:bg-slate-50:hover, .dark .hover\:bg-gray-50:hover, .dark .hover\:bg-neutral-50:hover { background-color: #202b38 !important; }
+.dark .hover\:bg-slate-100:hover, .dark .hover\:bg-gray-100:hover, .dark .hover\:bg-neutral-100:hover { background-color: #293542 !important; }
+.dark .hover\:bg-white:hover { background-color: #293542 !important; }
 
-.dark .border-slate-200 { border-color: #232f4a !important; }
-.dark .border-slate-100 { border-color: #1b2540 !important; }
-.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1b2540 !important; }
+.dark .border-slate-200, .dark .border-neutral-200, .dark .border-gray-200 { border-color: var(--color-border) !important; }
+.dark .border-slate-100, .dark .border-neutral-100, .dark .border-gray-100 { border-color: #293542 !important; }
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #293542 !important; }
 
-.dark .text-navy { color: #f1f5f9 !important; }
-.dark .text-slate-900 { color: #f1f5f9 !important; }
-.dark .text-slate-600 { color: #b7c0d8 !important; }
-.dark .text-slate-500 { color: #96a1bd !important; }
-.dark .text-slate-400 { color: #7c87a5 !important; }
-.dark .placeholder\:text-slate-400::placeholder { color: #5c6784 !important; }
+.dark .text-navy, .dark .text-slate-900, .dark .text-slate-800, .dark .text-slate-700,
+.dark .text-gray-900, .dark .text-gray-800, .dark .text-gray-700, .dark .text-neutral-900,
+.dark .text-neutral-800, .dark .text-neutral-700 { color: var(--color-foreground) !important; }
+.dark .text-slate-600, .dark .text-gray-600, .dark .text-neutral-600 { color: #c0cad5 !important; }
+.dark .text-slate-500, .dark .text-gray-500, .dark .text-neutral-500 { color: #b1bdca !important; }
+.dark .text-slate-400, .dark .text-gray-400, .dark .text-neutral-400 { color: #9eacbb !important; }
+.dark .text-amber-700, .dark .text-amber-800 { color: #fcd789 !important; }
+.dark .text-emerald-700, .dark .text-emerald-800, .dark .text-green-700, .dark .text-green-800 { color: #86efac !important; }
+.dark .text-blue-700, .dark .text-blue-800 { color: #93c5fd !important; }
+.dark .text-red-700, .dark .text-red-800 { color: #fca5a5 !important; }
+.dark .bg-brand.text-navy { color: var(--color-primary-foreground) !important; }
 
-.dark .shadow-sm { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important; }
-.dark ::-webkit-scrollbar-thumb { background-color: #2a3555; }
+.dark .placeholder\:text-slate-400::placeholder { color: #9eacbb !important; }
+.dark .placeholder\:text-gray-500::placeholder { color: #b1bdca !important; }
+
+.dark .shadow-sm { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important; }
+.dark ::-webkit-scrollbar-thumb { background-color: #3b4958; }
+
+.text-slate-400, .text-gray-400, .text-neutral-400 { color: #64748b; }
+.text-slate-500, .text-gray-500, .text-neutral-500 { color: #586579; }
+.placeholder\:text-slate-400::placeholder { color: #64748b; }
+.placeholder\:text-gray-500::placeholder { color: #586579; }
