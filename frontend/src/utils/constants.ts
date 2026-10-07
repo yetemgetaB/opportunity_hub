@@ -1,0 +1,33 @@
+export const NAV_LINKS = ['Opportunities', 'How it works', 'For students', 'For organizations']
+
+export const CATEGORIES: [string, string][] = [
+  ['💻', 'Technology'], ['🎨', 'Design'], ['📊', 'Business'], ['🩺', 'Health'],
+  ['🎓', 'Education'], ['🔬', 'Science'], ['🌍', 'Community'],
+]
+
+export const STEPS = [
+  { n: '01', title: 'Discover', text: 'Browse and filter opportunities tailored to your skills, interests, and academic goals with clean precision.' },
+  { n: '02', title: 'Connect', text: 'Apply directly and let your profile reach organizations looking for your skills.' },
+  { n: '03', title: 'Succeed', text: 'Track your applications, receive updates, and land the opportunity that advances your career.' },
+]
+
+export const STUDENT_PERKS = [
+  'Smart opportunity matching based on your profile',
+  'One unified profile for your applications',
+  'Real-time updates on your application status',
+  'Connect directly with program directors',
+]
+
+export const ORG_PERKS = [
+  'Direct access to verified student talent',
+  'Smart candidate filtering and matching',
+  'Post internships and fellowship positions',
+  'Insights on applicants and engagement',
+]
+
+export const FOOTER_COLUMNS = [
+  { title: 'Product', links: ['Opportunities', 'How it works', 'Assessments'] },
+  { title: 'Company', links: ['About', 'Careers', 'Contact'] },
+  { title: 'Resources', links: ['Help center', 'Guides', 'Blog'] },
+  { title: 'Legal', links: ['Privacy', 'Terms', 'Cookies'] },
+]
