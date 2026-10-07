@@ -11,6 +11,7 @@ import { OpportunitiesRepository } from './opportunities.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOpportunityDto } from './dto/create-opportunity.dto';
 import { UpdateOpportunityDto } from './dto/update-opportunity.dto';
+import { NotificationsService } from '@/notifications/notifications.service';
 
 describe('OpportunitiesService', () => {
   let service: OpportunitiesService;
@@ -55,25 +56,31 @@ describe('OpportunitiesService', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        OpportunitiesService,
-        {
-          provide: OpportunitiesRepository,
-          useValue: mockRepository,
+  const module: TestingModule = await Test.createTestingModule({
+    providers: [
+      OpportunitiesService,
+      {
+        provide: OpportunitiesRepository,
+        useValue: mockRepository,
+      },
+      {
+        provide: PrismaService,
+        useValue: mockPrisma,
+      },
+      {
+        provide: NotificationsService,
+        useValue: {
+          create: jest.fn(),
         },
-        {
-          provide: PrismaService,
-          useValue: mockPrisma,
-        },
-      ],
-    }).compile();
+      },
+    ],
+  }).compile();
 
-    service = module.get<OpportunitiesService>(OpportunitiesService);
-    repository = module.get<OpportunitiesRepository>(OpportunitiesRepository);
-    prisma = module.get<PrismaService>(PrismaService);
-    jest.clearAllMocks();
-  });
+  service = module.get<OpportunitiesService>(OpportunitiesService);
+  repository = module.get<OpportunitiesRepository>(OpportunitiesRepository);
+  prisma = module.get<PrismaService>(PrismaService);
+  jest.clearAllMocks();
+});
 
   describe('createOpportunity', () => {
     it('should create an opportunity successfully for an organization member', async () => {

@@ -37,6 +37,19 @@ export class AssessmentsController {
 
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZATION)
+  @Post('opportunities/:id/assessment/start')
+  startAssessment(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) opportunityId: string,
+  ) {
+    return this.assessmentsService.startAssessment(
+      userId,
+      opportunityId,
+    );
+  }
+
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
   @Post('opportunities/:id/analyze-applicants')
   analyzeApplicants(
     @CurrentUser('id') userId: string,

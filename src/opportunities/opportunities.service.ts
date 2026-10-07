@@ -29,12 +29,14 @@ import {
 } from './opportunity-response.mapper';
 import { mapApplicantForResponse } from './applicant-response.mapper';
 import { OpportunitySearchCriteria } from './opportunity-search.interface';
+import { NotificationsService } from '@/notifications/notifications.service';
 
 @Injectable()
 export class OpportunitiesService {
   constructor(
     private readonly opportunitiesRepository: OpportunitiesRepository,
     private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createOpportunity(
@@ -665,12 +667,19 @@ return applicants.map(mapApplicantForResponse);
     }
 
     const application =
-      await this.prisma.application.findFirst({
-        where: {
-          id: applicationId,
-          opportunityId,
+  await this.prisma.application.findFirst({
+    where: {
+      id: applicationId,
+      opportunityId,
+    },
+    include: {
+      studentProfile: {
+        include: {
+          user: true,
         },
-      });
+      },
+    },
+  });
 
     if (!application) {
       throw new NotFoundException(
@@ -679,17 +688,23 @@ return applicants.map(mapApplicantForResponse);
     }
 
     const result =
-      await this.opportunitiesRepository.updateApplicationStatus(
-        applicationId,
-        opportunityId,
-        status,
-      );
+  await this.opportunitiesRepository.updateApplicationStatus(
+    applicationId,
+    opportunityId,
+    status,
+  );
 
     if (result.count === 0) {
       throw new NotFoundException(
         'Application not found.',
       );
     }
+
+    await this.notificationsService.create({
+      userId: application.studentProfile.user.id,
+      title: 'Application status updated',
+      content: `Your application status has been updated to ${status}.`,
+    });
 
     return this.prisma.application.findUnique({
       where: {

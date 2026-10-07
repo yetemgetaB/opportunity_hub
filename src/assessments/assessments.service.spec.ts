@@ -1,11 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AssessmentQuestionType } from '@prisma/client';
-
+import {
+  AssessmentQuestionType,
+  AssessmentStatus,
+} from '@prisma/client';
 import { AssessmentsService } from './assessments.service';
 import { AssessmentsRepository } from './assessments.repository';
 import { OrganizationProfileRepository } from '@/organization-profile/organization-profile.repository';
 import { OpportunitiesRepository } from '@/opportunities/opportunities.repository';
 import { AIQuestionService } from './ai-question.service';
+import { AIApplicantAnalysisService } from './ai-applicant-analysis.service';
 
 describe('AssessmentsService', () => {
   let service: AssessmentsService;
@@ -14,6 +17,7 @@ describe('AssessmentsService', () => {
     create: jest.fn(),
     getAssessment: jest.fn(),
     getAssessmentQuestions: jest.fn(),
+    update: jest.fn(),
   };
 
   const organizationProfileRepository = {
@@ -51,6 +55,10 @@ describe('AssessmentsService', () => {
           {
             provide: AIQuestionService,
             useValue: aiQuestionService,
+          },
+          {
+            provide: AIApplicantAnalysisService,
+            useValue: {},
           },
         ],
       }).compile();
@@ -413,5 +421,93 @@ describe('AssessmentsService', () => {
         questionOrder: 1,
       },
     ]);
+  });
+
+    it('should prevent starting an assessment before the application deadline', async () => {
+    organizationProfileRepository.findByUserId.mockResolvedValue({
+      organizationId: 'org-123',
+      organization: {
+        deletedAt: null,
+      },
+    });
+
+    const futureDeadline = new Date(
+      Date.now() + 60 * 60 * 1000,
+    );
+
+    opportunitiesRepository.findById.mockResolvedValue({
+      id: 'opp-123',
+      organizationId: 'org-123',
+      applicationDeadline: futureDeadline,
+    });
+
+    await expect(
+      service.startAssessment('user-123', 'opp-123'),
+    ).rejects.toThrow(
+      'The application deadline has not passed yet.',
+    );
+
+    expect(
+      assessmentsRepository.getAssessment,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      assessmentsRepository.update,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should start a draft assessment after the application deadline', async () => {
+    organizationProfileRepository.findByUserId.mockResolvedValue({
+      organizationId: 'org-123',
+      organization: {
+        deletedAt: null,
+      },
+    });
+
+    const pastDeadline = new Date(
+      Date.now() - 60 * 60 * 1000,
+    );
+
+    opportunitiesRepository.findById.mockResolvedValue({
+      id: 'opp-123',
+      organizationId: 'org-123',
+      applicationDeadline: pastDeadline,
+    });
+
+    assessmentsRepository.getAssessment.mockResolvedValue({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      status: AssessmentStatus.DRAFT,
+    });
+
+    assessmentsRepository.update.mockResolvedValue({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      status: AssessmentStatus.ACTIVE,
+    });
+
+    const result = await service.startAssessment(
+      'user-123',
+      'opp-123',
+    );
+
+    expect(
+      assessmentsRepository.getAssessment,
+    ).toHaveBeenCalledWith('opp-123');
+
+    expect(
+      assessmentsRepository.update,
+    ).toHaveBeenCalledWith(
+      'assessment-123',
+      {
+        status: AssessmentStatus.ACTIVE,
+      },
+    );
+
+    expect(result).toEqual({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      status: AssessmentStatus.ACTIVE,
+    });
   });
 });

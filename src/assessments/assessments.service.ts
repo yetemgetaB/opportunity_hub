@@ -1,10 +1,15 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AssessmentQuestionType } from '@prisma/client';
 
+import {
+  AssessmentQuestionType,
+  AssessmentStatus,
+  AssessmentAttemptStatus,
+} from '@prisma/client';
 import { AssessmentsRepository } from './assessments.repository';
 import { OrganizationProfileRepository } from '@/organization-profile/organization-profile.repository';
 import { OpportunitiesRepository } from '@/opportunities/opportunities.repository';
@@ -13,6 +18,7 @@ import { AIApplicantAnalysisService } from './ai-applicant-analysis.service';
 import { mapApplicantAnalysisData } from './assessment-analysis.mapper';
 import { AssessmentResultFilterDto } from './dto/assessment-result-filter.dto';
 import { SaveAssessmentResultData } from './assessments.interface';
+
 
 @Injectable()
 export class AssessmentsService {
@@ -39,16 +45,16 @@ export class AssessmentsService {
       throw new NotFoundException('Opportunity not found.');
     }
 
-  if (
-    opportunity.organizationId !==
-    membership.organizationId
-  ) {
-    throw new ForbiddenException(
-      'You are not authorized to create an assessment for this opportunity.',
-    );
-  }
+    if (
+      opportunity.organizationId !==
+      membership.organizationId
+    ) {
+      throw new ForbiddenException(
+        'You are not authorized to create an assessment for this opportunity.',
+      );
+    }
 
-// Get the skills explicitly marked as required for the opportunity.
+  // Get the skills explicitly marked as required for the opportunity.
     const requiredSkills = opportunity.skills
       .filter((item) => item.requirementLevel === 'REQUIRED')
       .map((item) => item.skill.name);
@@ -84,6 +90,67 @@ export class AssessmentsService {
       questions,
     });
   }
+
+  async startAssessment(userId: string, opportunityId: string) {
+  const membership =
+    await this.organizationProfileRepository.findByUserId(userId);
+
+  if (!membership || membership.organization.deletedAt) {
+    throw new NotFoundException('Organization membership not found.');
+  }
+
+  const opportunity =
+    await this.opportunitiesRepository.findById(opportunityId);
+
+  if (!opportunity) {
+    throw new NotFoundException('Opportunity not found.');
+  }
+
+  if (
+    opportunity.organizationId !==
+    membership.organizationId
+  ) {
+    throw new ForbiddenException(
+      'You are not authorized to start an assessment for this opportunity.',
+    );
+  }
+
+  if (!opportunity.applicationDeadline) {
+    throw new BadRequestException(
+      'This opportunity does not have an application deadline.',
+    );
+  }
+
+  if (new Date() <= opportunity.applicationDeadline) {
+    throw new BadRequestException(
+      'The application deadline has not passed yet.',
+    );
+  }
+
+  const assessment =
+    await this.assessmentsRepository.getAssessment(
+      opportunityId,
+    );
+
+  if (!assessment) {
+    throw new NotFoundException(
+      'Assessment not found for this opportunity.',
+    );
+  }
+
+  if (assessment.status !== AssessmentStatus.DRAFT) {
+    throw new BadRequestException(
+      `Assessment cannot be started from ${assessment.status} status.`,
+    );
+  }
+
+  return this.assessmentsRepository.update(
+    assessment.id,
+    {
+      status: AssessmentStatus.ACTIVE,
+    },
+  );
+}
 
   getAssessment(assessmentId: string) {
     return this.assessmentsRepository.getAssessment(assessmentId);
