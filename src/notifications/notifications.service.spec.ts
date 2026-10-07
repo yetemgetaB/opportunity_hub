@@ -22,6 +22,7 @@ describe('NotificationsService', () => {
     mockRepository = {
       create: jest.fn(),
       findById: jest.fn(),
+      findByIdempotencyKey: jest.fn(),
       findByUserId: jest.fn(),
       countUnread: jest.fn(),
       markAsRead: jest.fn(),
@@ -48,6 +49,30 @@ describe('NotificationsService', () => {
         userId: mockUserId,
         title: 'Assessment Submitted',
         content: 'Your assessment answers have been received.',
+        idempotencyKey: undefined,
+      });
+    });
+
+    it('should delegate to repository.create with idempotencyKey', async () => {
+      const idempotentNotif = {
+        ...mockNotification,
+        idempotencyKey: 'assessment_invitation:app-456',
+      };
+      mockRepository.create.mockResolvedValue(idempotentNotif);
+
+      const result = await service.sendNotification(
+        mockUserId,
+        'Assessment Invitation',
+        'You are invited to take an assessment.',
+        'assessment_invitation:app-456',
+      );
+
+      expect(result).toEqual(idempotentNotif);
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        userId: mockUserId,
+        title: 'Assessment Invitation',
+        content: 'You are invited to take an assessment.',
+        idempotencyKey: 'assessment_invitation:app-456',
       });
     });
 
@@ -55,6 +80,26 @@ describe('NotificationsService', () => {
       await expect(
         service.sendNotification('', 'Title', 'Content'),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getNotificationByIdempotencyKey', () => {
+    it('should delegate to repository.findByIdempotencyKey', async () => {
+      mockRepository.findByIdempotencyKey.mockResolvedValue(mockNotification);
+
+      const result = await service.getNotificationByIdempotencyKey(
+        'assessment_invitation:app-456',
+      );
+      expect(result).toEqual(mockNotification);
+      expect(mockRepository.findByIdempotencyKey).toHaveBeenCalledWith(
+        'assessment_invitation:app-456',
+      );
+    });
+
+    it('should return null if key is empty without calling repository', async () => {
+      const result = await service.getNotificationByIdempotencyKey('');
+      expect(result).toBeNull();
+      expect(mockRepository.findByIdempotencyKey).not.toHaveBeenCalled();
     });
   });
 

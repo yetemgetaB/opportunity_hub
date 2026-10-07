@@ -4,6 +4,7 @@ export interface CreateNotificationData {
   userId: string;
   title: string;
   content: string;
+  idempotencyKey?: string;
 }
 
 export interface NotificationFilterOptions {

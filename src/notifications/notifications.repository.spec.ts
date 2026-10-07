@@ -67,7 +67,62 @@ describe('NotificationsRepository', () => {
           content:
             'Your application for Frontend Intern has been shortlisted.',
           isRead: false,
+          idempotencyKey: undefined,
         },
+      });
+    });
+
+    it('should create a notification with an idempotencyKey', async () => {
+      const idempotentNotif = {
+        ...mockNotification1,
+        idempotencyKey: 'assessment_invitation:app-123',
+      };
+      mockPrisma.notification.create.mockResolvedValue(idempotentNotif);
+
+      const result = await repository.create({
+        userId: mockUser1Id,
+        title: 'Assessment Invitation',
+        content: 'You are invited to take an assessment.',
+        idempotencyKey: 'assessment_invitation:app-123',
+      });
+
+      expect(result).toEqual(idempotentNotif);
+      expect(mockPrisma.notification.create).toHaveBeenCalledWith({
+        data: {
+          userId: mockUser1Id,
+          title: 'Assessment Invitation',
+          content: 'You are invited to take an assessment.',
+          isRead: false,
+          idempotencyKey: 'assessment_invitation:app-123',
+        },
+      });
+    });
+
+    it('should catch P2002 unique constraint error and return existing notification for duplicate idempotencyKey', async () => {
+      const existingNotif = {
+        ...mockNotification1,
+        idempotencyKey: 'assessment_invitation:app-123',
+      };
+      const p2002Error = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed on the fields: (`idempotency_key`)',
+        {
+          code: 'P2002',
+          clientVersion: '5.22.0',
+        },
+      );
+      mockPrisma.notification.create.mockRejectedValue(p2002Error);
+      mockPrisma.notification.findUnique.mockResolvedValue(existingNotif);
+
+      const result = await repository.create({
+        userId: mockUser1Id,
+        title: 'Assessment Invitation',
+        content: 'You are invited to take an assessment.',
+        idempotencyKey: 'assessment_invitation:app-123',
+      });
+
+      expect(result).toEqual(existingNotif);
+      expect(mockPrisma.notification.findUnique).toHaveBeenCalledWith({
+        where: { idempotencyKey: 'assessment_invitation:app-123' },
       });
     });
 
@@ -134,6 +189,34 @@ describe('NotificationsRepository', () => {
 
       const result = await repository.findById('non-existent-id');
       expect(result).toBeNull();
+    });
+  });
+
+  describe('findByIdempotencyKey', () => {
+    it('should return a notification by its idempotencyKey', async () => {
+      const notif = {
+        ...mockNotification1,
+        idempotencyKey: 'assessment_invitation:app-123',
+      };
+      mockPrisma.notification.findUnique.mockResolvedValue(notif);
+
+      const result = await repository.findByIdempotencyKey(
+        'assessment_invitation:app-123',
+      );
+      expect(result).toEqual(notif);
+      expect(mockPrisma.notification.findUnique).toHaveBeenCalledWith({
+        where: { idempotencyKey: 'assessment_invitation:app-123' },
+      });
+    });
+
+    it('should return null if idempotencyKey is empty or not found', async () => {
+      expect(await repository.findByIdempotencyKey('')).toBeNull();
+      expect(await repository.findByIdempotencyKey('   ')).toBeNull();
+
+      mockPrisma.notification.findUnique.mockResolvedValue(null);
+      expect(
+        await repository.findByIdempotencyKey('non-existent-key'),
+      ).toBeNull();
     });
   });
 

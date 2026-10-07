@@ -19,10 +19,13 @@ export class NotificationsRepository {
 
   /**
    * Create and persist a new notification for a specific user.
+   * If an idempotencyKey is provided and already exists in the database,
+   * it prevents duplicate notification creation and returns the existing record.
    */
   async create(data: CreateNotificationData): Promise<Notification> {
     const trimmedTitle = data.title?.trim();
     const trimmedContent = data.content?.trim();
+    const trimmedIdempotencyKey = data.idempotencyKey?.trim() || undefined;
 
     if (!data.userId) {
       throw new BadRequestException(
@@ -43,6 +46,7 @@ export class NotificationsRepository {
           title: trimmedTitle,
           content: trimmedContent,
           isRead: false,
+          idempotencyKey: trimmedIdempotencyKey,
         },
       });
 
@@ -53,6 +57,17 @@ export class NotificationsRepository {
       return notification;
     } catch (error: any) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002' && trimmedIdempotencyKey) {
+          this.logger.warn(
+            `Duplicate notification prevented for idempotencyKey: ${trimmedIdempotencyKey}. Returning existing record.`,
+          );
+          const existing = await this.prisma.notification.findUnique({
+            where: { idempotencyKey: trimmedIdempotencyKey },
+          });
+          if (existing) {
+            return existing;
+          }
+        }
         if (error.code === 'P2003' || error.code === 'P2025') {
           throw new NotFoundException(`User with ID ${data.userId} not found.`);
         }
@@ -67,6 +82,21 @@ export class NotificationsRepository {
   async findById(id: string): Promise<Notification | null> {
     return this.prisma.notification.findUnique({
       where: { id },
+    });
+  }
+
+  /**
+   * Look up a notification by its unique idempotency key.
+   */
+  async findByIdempotencyKey(
+    idempotencyKey: string,
+  ): Promise<Notification | null> {
+    const trimmedKey = idempotencyKey?.trim();
+    if (!trimmedKey) {
+      return null;
+    }
+    return this.prisma.notification.findUnique({
+      where: { idempotencyKey: trimmedKey },
     });
   }
 

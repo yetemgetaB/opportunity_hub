@@ -17,12 +17,14 @@ export class NotificationsService {
 
   /**
    * Dispatch / create a new notification for a user.
+   * If idempotencyKey is supplied, duplicate notifications for the same key are safely prevented.
    * Consumed by Backend 3 or other internal domain services.
    */
   async sendNotification(
     userId: string,
     title: string,
     content: string,
+    idempotencyKey?: string,
   ): Promise<Notification> {
     if (!userId) {
       throw new BadRequestException('User ID is required.');
@@ -31,7 +33,20 @@ export class NotificationsService {
       userId,
       title,
       content,
+      idempotencyKey,
     });
+  }
+
+  /**
+   * Retrieve a notification by its unique idempotency key.
+   */
+  async getNotificationByIdempotencyKey(
+    idempotencyKey: string,
+  ): Promise<Notification | null> {
+    if (!idempotencyKey?.trim()) {
+      return null;
+    }
+    return this.notificationsRepository.findByIdempotencyKey(idempotencyKey);
   }
 
   /**
