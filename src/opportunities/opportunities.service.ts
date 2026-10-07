@@ -29,12 +29,14 @@ import {
 } from './opportunity-response.mapper';
 import { mapApplicantForResponse } from './applicant-response.mapper';
 import { OpportunitySearchCriteria } from './opportunity-search.interface';
+import { NotificationsService } from '@/notifications/notifications.service';
 
 @Injectable()
 export class OpportunitiesService {
   constructor(
     private readonly opportunitiesRepository: OpportunitiesRepository,
     private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createOpportunity(
@@ -439,16 +441,20 @@ return applicants.map(mapApplicantForResponse);
    * the relations required by the matching engine.
    */
   async searchOpportunitiesForMatching(
-  query: SearchOpportunityDto,
-  studentUserId?: string,
-): Promise<OpportunityWithRelations[]> {
-  const filters = await this.buildSearchFilters(
-    query,
-    studentUserId,
-  );
+    query: SearchOpportunityDto,
+    studentUserId?: string,
+  ): Promise<OpportunityWithRelations[]> {
+    const filters = await this.buildSearchFilters(
+      query,
+      studentUserId,
+    );
 
-  return this.opportunitiesRepository.findMany(filters);
-}
+    if (filters.take === undefined) {
+      filters.take = 25;
+    }
+
+    return this.opportunitiesRepository.findMany(filters);
+  }
 
   async getPublishedOpportunity(opportunityId: string) {
     const opportunity =
@@ -670,6 +676,13 @@ return applicants.map(mapApplicantForResponse);
           id: applicationId,
           opportunityId,
         },
+        include: {
+          studentProfile: {
+            include: {
+              user: true,
+            },
+          },
+        },
       });
 
     if (!application) {
@@ -688,6 +701,14 @@ return applicants.map(mapApplicantForResponse);
     if (result.count === 0) {
       throw new NotFoundException(
         'Application not found.',
+      );
+    }
+
+    if (application.studentProfile?.user?.id) {
+      await this.notificationsService.sendNotification(
+        application.studentProfile.user.id,
+        'Application status updated',
+        `Your application status has been updated to ${status}.`,
       );
     }
 

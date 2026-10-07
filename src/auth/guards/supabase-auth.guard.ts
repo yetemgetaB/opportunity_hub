@@ -5,13 +5,50 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
+  private supabaseClient: SupabaseClient | null = null;
+
   constructor(
     private readonly configService: ConfigService,
   ) {}
+
+  private getSupabaseClient(): SupabaseClient {
+    if (this.supabaseClient) {
+      return this.supabaseClient;
+    }
+
+    const supabaseUrl =
+      this.configService.get<string>(
+        'database.supabaseUrl',
+      );
+
+    const supabaseAnonKey =
+      this.configService.get<string>(
+        'database.supabaseAnonKey',
+      );
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new UnauthorizedException(
+        'Supabase authentication is not configured.',
+      );
+    }
+
+    this.supabaseClient = createClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    );
+
+    return this.supabaseClient;
+  }
 
   async canActivate(
     context: ExecutionContext,
@@ -37,26 +74,7 @@ export class SupabaseAuthGuard implements CanActivate {
       );
     }
 
-    const supabaseUrl =
-      this.configService.get<string>(
-        'database.supabaseUrl',
-      );
-
-    const supabaseAnonKey =
-      this.configService.get<string>(
-        'database.supabaseAnonKey',
-      );
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new UnauthorizedException(
-        'Supabase authentication is not configured.',
-      );
-    }
-
-    const supabase = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
-    );
+    const supabase = this.getSupabaseClient();
 
     const {
       data: { user },

@@ -11,6 +11,7 @@ import { OpportunitiesRepository } from './opportunities.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOpportunityDto } from './dto/create-opportunity.dto';
 import { UpdateOpportunityDto } from './dto/update-opportunity.dto';
+import { NotificationsService } from '@/notifications/notifications.service';
 
 describe('OpportunitiesService', () => {
   let service: OpportunitiesService;
@@ -65,6 +66,13 @@ describe('OpportunitiesService', () => {
         {
           provide: PrismaService,
           useValue: mockPrisma,
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            create: jest.fn(),
+            sendNotification: jest.fn(),
+          },
         },
       ],
     }).compile();

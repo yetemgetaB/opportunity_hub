@@ -1,9 +1,13 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AssessmentQuestionType } from '@prisma/client';
+import {
+  AssessmentQuestionType,
+  AssessmentStatus,
+} from '@prisma/client';
 
 import { AssessmentsRepository } from './assessments.repository';
 import { OrganizationProfileRepository } from '@/organization-profile/organization-profile.repository';
@@ -85,6 +89,67 @@ export class AssessmentsService {
       title: `${opportunity.title} Assessment`,
       questions,
     });
+  }
+
+  async startAssessment(userId: string, opportunityId: string) {
+    const membership =
+      await this.organizationProfileRepository.findByUserId(userId);
+
+    if (!membership || membership.organization?.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const opportunity =
+      await this.opportunitiesRepository.findById(opportunityId);
+
+    if (!opportunity) {
+      throw new NotFoundException('Opportunity not found.');
+    }
+
+    if (
+      opportunity.organizationId !==
+      membership.organizationId
+    ) {
+      throw new ForbiddenException(
+        'You are not authorized to start an assessment for this opportunity.',
+      );
+    }
+
+    if (!opportunity.applicationDeadline) {
+      throw new BadRequestException(
+        'This opportunity does not have an application deadline.',
+      );
+    }
+
+    if (new Date() <= opportunity.applicationDeadline) {
+      throw new BadRequestException(
+        'The application deadline has not passed yet.',
+      );
+    }
+
+    const assessment =
+      await this.assessmentsRepository.getAssessment(
+        opportunityId,
+      );
+
+    if (!assessment) {
+      throw new NotFoundException(
+        'Assessment not found for this opportunity.',
+      );
+    }
+
+    if (assessment.status !== AssessmentStatus.DRAFT) {
+      throw new BadRequestException(
+        `Assessment cannot be started from ${assessment.status} status.`,
+      );
+    }
+
+    return this.assessmentsRepository.update(
+      assessment.id,
+      {
+        status: AssessmentStatus.ACTIVE,
+      },
+    );
   }
 
   getAssessment(assessmentId: string) {
