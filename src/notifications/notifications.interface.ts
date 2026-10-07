@@ -4,6 +4,7 @@ export interface CreateNotificationData {
   userId: string;
   title: string;
   content: string;
+  idempotencyKey?: string;
 }
 
 export interface NotificationFilterOptions {
@@ -12,3 +13,6 @@ export interface NotificationFilterOptions {
   take?: number;
   orderBy?: Prisma.NotificationOrderByWithRelationInput;
 }
+
+export type NotificationListOptions = NotificationFilterOptions;
+

@@ -28,7 +28,7 @@ export interface GeneratedAssessmentQuestions {
 
 @Injectable()
 export class AIQuestionService {
-  private readonly ai: GoogleGenAI;
+  private ai: GoogleGenAI | null = null;
   private readonly model: string;
 
   constructor(private readonly configService: ConfigService) {
@@ -38,13 +38,27 @@ export class AIQuestionService {
       this.configService.get<string>('ai.model') ||
       'gemini-3.8-flash';
 
+    if (apiKey) {
+      this.ai = new GoogleGenAI({
+        apiKey,
+      });
+    }
+  }
+
+  private getClient(): GoogleGenAI {
+    if (this.ai) {
+      return this.ai;
+    }
+
+    const apiKey = this.configService.get<string>('ai.apiKey');
     if (!apiKey) {
-      throw new Error('AI_API_KEY is not configured.');
+      throw new InternalServerErrorException('AI_API_KEY is not configured.');
     }
 
     this.ai = new GoogleGenAI({
       apiKey,
     });
+    return this.ai;
   }
 
   async generateQuestions(
@@ -53,7 +67,7 @@ export class AIQuestionService {
     const prompt = this.buildPrompt(requirements);
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await this.getClient().models.generateContent({
         model: this.model,
         contents: prompt,
         config: {

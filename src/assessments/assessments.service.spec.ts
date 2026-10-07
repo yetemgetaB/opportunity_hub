@@ -23,6 +23,7 @@ describe('AssessmentsService', () => {
     create: jest.fn(),
     getAssessment: jest.fn(),
     getAssessmentQuestions: jest.fn(),
+    update: jest.fn(),
 
     createAttempt: jest.fn(),
     findAttemptById: jest.fn(),
@@ -1263,6 +1264,201 @@ describe('AssessmentsService', () => {
       expect(result).toEqual([
         assessmentResult,
       ]);
+    });
+  });
+
+  describe('startAssessment', () => {
+    it('should throw NotFoundException if organization membership is not found', async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(null);
+
+      await expect(
+        service.startAssessment('user-123', 'opp-123'),
+      ).rejects.toThrow('Organization membership not found.');
+    });
+
+    it('should throw NotFoundException if organization is deleted', async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: 'org-123',
+        organization: {
+          deletedAt: new Date(),
+        },
+      });
+
+      await expect(
+        service.startAssessment('user-123', 'opp-123'),
+      ).rejects.toThrow('Organization membership not found.');
+    });
+
+    it('should throw NotFoundException if opportunity is not found', async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: 'org-123',
+        organization: {
+          deletedAt: null,
+        },
+      });
+      mockOpportunitiesRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.startAssessment('user-123', 'opp-123'),
+      ).rejects.toThrow('Opportunity not found.');
+    });
+
+    it('should throw ForbiddenException if opportunity belongs to different organization', async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: 'org-123',
+        organization: {
+          deletedAt: null,
+        },
+      });
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: 'opp-123',
+        organizationId: 'different-org',
+        applicationDeadline: new Date(Date.now() - 60000),
+      });
+
+      await expect(
+        service.startAssessment('user-123', 'opp-123'),
+      ).rejects.toThrow(
+        'You are not authorized to start an assessment for this opportunity.',
+      );
+    });
+
+    it('should throw BadRequestException if opportunity has no application deadline', async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: 'org-123',
+        organization: {
+          deletedAt: null,
+        },
+      });
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: 'opp-123',
+        organizationId: 'org-123',
+        applicationDeadline: null,
+      });
+
+      await expect(
+        service.startAssessment('user-123', 'opp-123'),
+      ).rejects.toThrow(
+        'This opportunity does not have an application deadline.',
+      );
+    });
+
+    it('should prevent starting an assessment before the application deadline', async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: 'org-123',
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      const futureDeadline = new Date(Date.now() + 60 * 60 * 1000);
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: 'opp-123',
+        organizationId: 'org-123',
+        applicationDeadline: futureDeadline,
+      });
+
+      await expect(
+        service.startAssessment('user-123', 'opp-123'),
+      ).rejects.toThrow('The application deadline has not passed yet.');
+
+      expect(mockAssessmentsRepository.getAssessment).not.toHaveBeenCalled();
+      expect(mockAssessmentsRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if assessment not found for opportunity', async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: 'org-123',
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      const pastDeadline = new Date(Date.now() - 60 * 60 * 1000);
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: 'opp-123',
+        organizationId: 'org-123',
+        applicationDeadline: pastDeadline,
+      });
+      mockAssessmentsRepository.getAssessment.mockResolvedValue(null);
+
+      await expect(
+        service.startAssessment('user-123', 'opp-123'),
+      ).rejects.toThrow('Assessment not found for this opportunity.');
+    });
+
+    it('should throw BadRequestException if assessment is not in DRAFT status', async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: 'org-123',
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      const pastDeadline = new Date(Date.now() - 60 * 60 * 1000);
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: 'opp-123',
+        organizationId: 'org-123',
+        applicationDeadline: pastDeadline,
+      });
+      mockAssessmentsRepository.getAssessment.mockResolvedValue({
+        id: 'assessment-123',
+        opportunityId: 'opp-123',
+        status: AssessmentStatus.ACTIVE,
+      });
+
+      await expect(
+        service.startAssessment('user-123', 'opp-123'),
+      ).rejects.toThrow('Assessment cannot be started from ACTIVE status.');
+    });
+
+    it('should start a draft assessment after the application deadline', async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: 'org-123',
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      const pastDeadline = new Date(Date.now() - 60 * 60 * 1000);
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: 'opp-123',
+        organizationId: 'org-123',
+        applicationDeadline: pastDeadline,
+      });
+
+      mockAssessmentsRepository.getAssessment.mockResolvedValue({
+        id: 'assessment-123',
+        opportunityId: 'opp-123',
+        status: AssessmentStatus.DRAFT,
+      });
+
+      mockAssessmentsRepository.update.mockResolvedValue({
+        id: 'assessment-123',
+        opportunityId: 'opp-123',
+        status: AssessmentStatus.ACTIVE,
+      });
+
+      const result = await service.startAssessment('user-123', 'opp-123');
+
+      expect(mockAssessmentsRepository.getAssessment).toHaveBeenCalledWith(
+        'opp-123',
+      );
+      expect(mockAssessmentsRepository.update).toHaveBeenCalledWith(
+        'assessment-123',
+        {
+          status: AssessmentStatus.ACTIVE,
+        },
+      );
+      expect(result).toEqual({
+        id: 'assessment-123',
+        opportunityId: 'opp-123',
+        status: AssessmentStatus.ACTIVE,
+      });
     });
   });
 });

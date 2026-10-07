@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsModule } from '@/notifications/notifications.module';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 
 describe('Notifications Authorization & Cross-User Isolation Integration', () => {
   let service: NotificationsService;
@@ -52,16 +53,43 @@ describe('Notifications Authorization & Cross-User Isolation Integration', () =>
     const mockPrisma = {
       notification: {
         create: jest.fn(async ({ data }) => {
+          if (data.idempotencyKey) {
+            const existingWithKey = Array.from(notificationStore.values()).find(
+              (n) => n.idempotencyKey === data.idempotencyKey,
+            );
+            if (existingWithKey) {
+              const { Prisma } = await import('@prisma/client');
+              throw new Prisma.PrismaClientKnownRequestError(
+                'Unique constraint failed on the fields: (`idempotency_key`)',
+                {
+                  code: 'P2002',
+                  clientVersion: '5.22.0',
+                },
+              );
+            }
+          }
           const created = {
-            id: `notif-${Date.now()}`,
+            id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             userId: data.userId,
             title: data.title,
             content: data.content,
             isRead: false,
+            idempotencyKey: data.idempotencyKey,
             createdAt: new Date(),
           };
           notificationStore.set(created.id, created);
           return created;
+        }),
+        findUnique: jest.fn(async ({ where }) => {
+          if (where.id) return notificationStore.get(where.id) || null;
+          if (where.idempotencyKey) {
+            return (
+              Array.from(notificationStore.values()).find(
+                (n) => n.idempotencyKey === where.idempotencyKey,
+              ) || null
+            );
+          }
+          return null;
         }),
         findFirst: jest.fn(async ({ where }) => {
           return (
@@ -129,6 +157,10 @@ describe('Notifications Authorization & Cross-User Isolation Integration', () =>
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrisma)
+      .overrideGuard(SupabaseAuthGuard)
+      .useValue({
+        canActivate: jest.fn(() => true),
+      })
       .compile();
 
     service = module.get<NotificationsService>(NotificationsService);
@@ -180,6 +212,37 @@ describe('Notifications Authorization & Cross-User Isolation Integration', () =>
 
       const notifB = notificationStore.get('notif-b1');
       expect(notifB.isRead).toBe(false);
+    });
+
+    it('prevent duplicate notifications when sending with identical idempotencyKey', async () => {
+      const idempotencyKey = 'assessment_invitation:app-test-999';
+
+      const first = await service.sendNotification(
+        userA,
+        'Assessment Invitation',
+        'Please complete your technical assessment.',
+        idempotencyKey,
+      );
+
+      expect(first).toBeDefined();
+      expect(first.idempotencyKey).toBe(idempotencyKey);
+
+      // Attempt second identical notification (e.g. retry / race condition)
+      const second = await service.sendNotification(
+        userA,
+        'Assessment Invitation',
+        'Please complete your technical assessment.',
+        idempotencyKey,
+      );
+
+      // Must return the exact same existing notification without duplicating
+      expect(second.id).toBe(first.id);
+      expect(second.idempotencyKey).toBe(idempotencyKey);
+
+      // Verify total notifications in store for userA did not increase twice
+      const userANotifs = await service.getUserNotifications(userA);
+      const matching = userANotifs.filter((n) => n.idempotencyKey === idempotencyKey);
+      expect(matching).toHaveLength(1);
     });
   });
 });

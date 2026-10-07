@@ -30,7 +30,7 @@ app.enableCors({
     credentials: true,
   });
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(
     `Campus Opportunity Hub backend service listening on port ${port}`,
   );

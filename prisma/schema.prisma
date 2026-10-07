@@ -510,12 +510,13 @@ model AssessmentResult {
 
 /// In-app user notifications
 model Notification {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  title     String   @map("title")
-  content   String   @map("content")
-  isRead    Boolean  @default(false) @map("is_read")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  title          String   @map("title")
+  content        String   @map("content")
+  isRead         Boolean  @default(false) @map("is_read")
+  idempotencyKey String?  @unique(map: "uq_notifications_idempotency_key") @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
