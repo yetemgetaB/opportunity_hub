@@ -62,8 +62,17 @@ describe('Voice Search & Structured Query Data Access (Backend 2 Day 14)', () =>
       },
     };
 
+    const mockNotificationsService = {
+      create: jest.fn(),
+      sendNotification: jest.fn(),
+    };
+
     repository = new OpportunitiesRepository(mockPrisma);
-    service = new OpportunitiesService(repository, mockPrisma);
+    service = new OpportunitiesService(
+      repository,
+      mockPrisma,
+      mockNotificationsService as any,
+    );
   });
 
   describe('Repository buildWhereClause & findMany filters', () => {

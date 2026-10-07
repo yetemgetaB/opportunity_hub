@@ -137,26 +137,34 @@ export class NotificationsRepository {
   }
 
   /**
-   * Mark a single notification as read.
-   * Scoped strictly by both notification ID and user ID to enforce tenant isolation.
-   * Throws NotFoundException if the notification does not exist or does not belong to the user.
+   * Alias for countUnread.
    */
-  async markAsRead(id: string, userId: string): Promise<Notification> {
-    const existing = await this.prisma.notification.findFirst({
-      where: {
-        id,
-        userId,
-      },
-    });
+  async countUnreadByUserId(userId: string): Promise<number> {
+    return this.countUnread(userId);
+  }
 
-    if (!existing) {
-      throw new NotFoundException(
-        `Notification with ID ${id} not found for this user.`,
-      );
-    }
+  /**
+   * Mark a single notification as read.
+   * If userId is supplied, verifies user ownership and enforces tenant isolation.
+   */
+  async markAsRead(id: string, userId?: string): Promise<Notification> {
+    if (userId) {
+      const existing = await this.prisma.notification.findFirst({
+        where: {
+          id,
+          userId,
+        },
+      });
 
-    if (existing.isRead) {
-      return existing;
+      if (!existing) {
+        throw new NotFoundException(
+          `Notification with ID ${id} not found for this user.`,
+        );
+      }
+
+      if (existing.isRead) {
+        return existing;
+      }
     }
 
     return this.prisma.notification.update({

@@ -184,6 +184,57 @@ describe('NotificationsService', () => {
     });
   });
 
+  describe('markAsRead (user-scoped)', () => {
+    it('should mark a notification as read if owned by user', async () => {
+      mockRepository.findById.mockResolvedValue(mockNotification);
+      const readNotification = { ...mockNotification, isRead: true };
+      mockRepository.markAsRead.mockResolvedValue(readNotification);
+
+      const result = await service.markAsRead(mockUserId, mockNotificationId);
+      expect(result).toEqual(readNotification);
+      expect(mockRepository.findById).toHaveBeenCalledWith(mockNotificationId);
+      expect(mockRepository.markAsRead).toHaveBeenCalledWith(mockNotificationId);
+    });
+
+    it('should throw NotFoundException if notification does not exist', async () => {
+      mockRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.markAsRead(mockUserId, 'non-existent'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if notification belongs to another user', async () => {
+      mockRepository.findById.mockResolvedValue({
+        ...mockNotification,
+        userId: 'different-user',
+      });
+
+      await expect(
+        service.markAsRead(mockUserId, mockNotificationId),
+      ).rejects.toThrow('Access denied: You can only update your own notifications.');
+    });
+  });
+
+  describe('markAllAsRead', () => {
+    it('should mark all unread notifications as read and return message + count', async () => {
+      mockRepository.markAllAsRead.mockResolvedValue({ count: 5 });
+
+      const result = await service.markAllAsRead(mockUserId);
+      expect(result).toEqual({
+        message: 'All notifications marked as read.',
+        count: 5,
+      });
+      expect(mockRepository.markAllAsRead).toHaveBeenCalledWith(mockUserId);
+    });
+
+    it('should throw BadRequestException if userId is missing', async () => {
+      await expect(service.markAllAsRead('')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
   describe('markAllNotificationsAsRead', () => {
     it('should delegate to repository.markAllAsRead and return count of updated notifications', async () => {
       mockRepository.markAllAsRead.mockResolvedValue({ count: 7 });

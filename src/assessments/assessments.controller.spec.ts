@@ -15,6 +15,7 @@ describe('AssessmentsController', () => {
     getAssessmentResultsByOpportunity: jest.Mock;
     getAssessment: jest.Mock;
     getAssessmentQuestions: jest.Mock;
+    startAssessment: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -31,6 +32,7 @@ describe('AssessmentsController', () => {
                 jest.fn(),
               getAssessment: jest.fn(),
               getAssessmentQuestions: jest.fn(),
+              startAssessment: jest.fn(),
             },
           },
         ],
@@ -205,5 +207,28 @@ describe('AssessmentsController', () => {
         questionOrder: 1,
       },
     ]);
+  });
+
+  it('should start an assessment', async () => {
+    service.startAssessment.mockResolvedValue({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      status: 'ACTIVE',
+    });
+
+    const result = await controller.startAssessment(
+      'user-123',
+      'opp-123',
+    );
+
+    expect(service.startAssessment).toHaveBeenCalledWith(
+      'user-123',
+      'opp-123',
+    );
+    expect(result).toEqual({
+      id: 'assessment-123',
+      opportunityId: 'opp-123',
+      status: 'ACTIVE',
+    });
   });
 });

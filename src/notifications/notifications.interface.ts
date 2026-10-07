@@ -13,3 +13,6 @@ export interface NotificationFilterOptions {
   take?: number;
   orderBy?: Prisma.NotificationOrderByWithRelationInput;
 }
+
+export type NotificationListOptions = NotificationFilterOptions;
+

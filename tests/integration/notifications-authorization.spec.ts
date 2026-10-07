@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsModule } from '@/notifications/notifications.module';
 import { NotificationsService } from '@/notifications/notifications.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 
 describe('Notifications Authorization & Cross-User Isolation Integration', () => {
   let service: NotificationsService;
@@ -156,6 +157,10 @@ describe('Notifications Authorization & Cross-User Isolation Integration', () =>
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrisma)
+      .overrideGuard(SupabaseAuthGuard)
+      .useValue({
+        canActivate: jest.fn(() => true),
+      })
       .compile();
 
     service = module.get<NotificationsService>(NotificationsService);
