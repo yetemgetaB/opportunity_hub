@@ -9,6 +9,9 @@ import {
   OpportunityType,
 } from '@prisma/client';
 
+import { AIQuestionService } from '../../src/assessments/ai-question.service';
+import { AIApplicantAnalysisService } from '../../src/assessments/ai-applicant-analysis.service';
+
 const request = require('supertest');
 
 jest.setTimeout(30000);
@@ -63,6 +66,14 @@ describe('Day 10 - Application Tracking & Authorization', () => {
 
             return false;
           },
+        })
+        .overrideProvider(AIQuestionService)
+        .useValue({
+          generateQuestions: jest.fn(),
+        })
+        .overrideProvider(AIApplicantAnalysisService)
+        .useValue({
+          analyzeApplicant: jest.fn(),
         })
         .compile();
 

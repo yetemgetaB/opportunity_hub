@@ -15,6 +15,9 @@ import { AppModule } from '@/app.module';
 import { SupabaseAuthGuard } from '@/auth/guards/supabase-auth.guard';
 import { PrismaService } from '@/prisma/prisma.service';
 
+import { AIQuestionService } from '@/assessments/ai-question.service';
+import { AIApplicantAnalysisService } from '@/assessments/ai-applicant-analysis.service';
+
 jest.setTimeout(30000);
 
 describe('Day 8 AI Matching E2E Flow', () => {
@@ -55,6 +58,14 @@ describe('Day 8 AI Matching E2E Flow', () => {
 
             return false;
           },
+        })
+        .overrideProvider(AIQuestionService)
+        .useValue({
+          generateQuestions: jest.fn(),
+        })
+        .overrideProvider(AIApplicantAnalysisService)
+        .useValue({
+          analyzeApplicant: jest.fn(),
         })
         .compile();
 

@@ -35,7 +35,7 @@ export class AssessmentsController {
     );
   }
 
-    @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZATION)
   @Post('opportunities/:id/analyze-applicants')
   analyzeApplicants(
@@ -48,20 +48,37 @@ export class AssessmentsController {
     );
   }
 
-    @UseGuards(SupabaseAuthGuard, RolesGuard)
-    @Roles(UserRole.ORGANIZATION)
-    @Get('opportunities/:id/candidate-results')
-getCandidateResults(
-  @CurrentUser('id') userId: string,
-  @Param('id', ParseUUIDPipe) opportunityId: string,
-  @Query() filters: AssessmentResultFilterDto,
-) {
-  return this.assessmentsService.getAssessmentResultsByOpportunity(
-    userId,
-    opportunityId,
-    filters,
-  );
-}
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Post(
+    'opportunities/:opportunityId/applicants/:applicationId/analyze',
+  )
+  analyzeApplicant(
+    @CurrentUser('id') userId: string,
+    @Param('opportunityId', ParseUUIDPipe) opportunityId: string,
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+  ) {
+    return this.assessmentsService.analyzeApplicant(
+      userId,
+      opportunityId,
+      applicationId,
+    );
+  }
+
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Get('opportunities/:id/candidate-results')
+  getCandidateResults(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) opportunityId: string,
+    @Query() filters: AssessmentResultFilterDto,
+  ) {
+    return this.assessmentsService.getAssessmentResultsByOpportunity(
+      userId,
+      opportunityId,
+      filters,
+    );
+  }
 
   @UseGuards(SupabaseAuthGuard)
   @Get('assessments/:id')
