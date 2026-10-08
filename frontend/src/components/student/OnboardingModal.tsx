@@ -187,7 +187,7 @@ export default function OnboardingModal({ isOpen, onComplete, studentName }: Pro
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-8 ring-emerald-50">
                 <Icon name="check" className="h-8 w-8" />
               </div>
-              <h3 className="mt-4 font-display text-2xl font-bold text-slate-900">Profile Complete! 🎉</h3>
+              <h3 className="mt-4 font-display text-2xl font-bold text-slate-900">Profile Complete!</h3>
               <p className="mt-2 text-sm text-slate-600">
                 Loading your personalized opportunities and matching score…
               </p>
@@ -424,7 +424,7 @@ export default function OnboardingModal({ isOpen, onComplete, studentName }: Pro
                     disabled={submitting}
                     className="min-w-36 rounded-xl px-6 py-2.5 text-xs font-bold shadow-md shadow-brand/20"
                   >
-                    {submitting ? 'Saving Profile…' : 'Complete Setup 🚀'}
+                    {submitting ? 'Saving Profile…' : 'Complete Setup'}
                   </Button>
                 )}
               </div>

@@ -76,9 +76,16 @@ export default function LoginPage() {
 
       <div className="mx-auto my-6 w-full max-w-96">
         {isEmailVerifiedRedirect ? (
-          <div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-            <p className="font-semibold">🎉 Email verified successfully!</p>
-            <p className="mt-1 text-xs text-emerald-800">Your account is active. Enter your password below to log in.</p>
+          <div role="status" className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-200/70 text-emerald-800">
+              <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </span>
+            <div>
+              <p className="font-semibold text-emerald-950">Email verified successfully!</p>
+              <p className="mt-0.5 text-xs text-emerald-800">Your account is active. Enter your password below to log in.</p>
+            </div>
           </div>
         ) : registrationState?.registrationComplete ? (
           <p role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-800">

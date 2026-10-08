@@ -136,7 +136,11 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
 
         <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-left">
           <div className="flex gap-3">
-            <span className="text-lg leading-none" aria-hidden="true">📬</span>
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200/60 text-amber-800" aria-hidden="true">
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+              </svg>
+            </span>
             <div className="space-y-1 text-xs text-amber-900">
               <p className="font-semibold text-amber-950">Can&apos;t find the email?</p>
               <p>
