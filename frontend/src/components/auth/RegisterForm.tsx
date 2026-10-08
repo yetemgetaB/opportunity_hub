@@ -57,6 +57,7 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
   const [errors, setErrors] = useState<FieldErrors>({})
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
+  const [submittedEmail, setSubmittedEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const isStudent = role === 'student'
   const t = copy[role]
@@ -103,13 +104,7 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
         role: isStudent ? 'STUDENT' : 'ORGANIZATION',
         ...(!isStudent ? { organizationName } : {}),
       })
-      navigate('/login', {
-        replace: true,
-        state: {
-          registrationComplete: true,
-          accountRole: role,
-        },
-      })
+      setSubmittedEmail(email)
     } catch (cause) {
       setError(registrationErrorMessage(cause))
     } finally {
@@ -120,6 +115,54 @@ export default function RegisterForm({ role }: { role: 'student' | 'organization
   function fieldError(name: FieldName) {
     return errors[name] && (
       <p id={`${name}-error`} role="alert" className="mt-1 text-xs text-red-600">{errors[name]}</p>
+    )
+  }
+
+  if (submittedEmail) {
+    return (
+      <div className="mx-auto w-full max-w-md py-4 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-brand ring-8 ring-amber-50/50">
+          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+          </svg>
+        </div>
+
+        <h2 className="mt-6 font-display text-2xl font-bold tracking-tight text-slate-900">
+          Check your email
+        </h2>
+        <p className="mt-2 text-sm text-gray-600">
+          We sent a verification link to <span className="font-semibold text-slate-900">{submittedEmail}</span>
+        </p>
+
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-left">
+          <div className="flex gap-3">
+            <span className="text-lg leading-none" aria-hidden="true">📬</span>
+            <div className="space-y-1 text-xs text-amber-900">
+              <p className="font-semibold text-amber-950">Can&apos;t find the email?</p>
+              <p>
+                Be sure to check your <strong>Spam</strong>, <strong>Junk</strong>, or <strong>Promotions</strong> folder. It may take up to a minute to arrive.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 space-y-3">
+          <Button
+            to="/login"
+            className="min-h-12 w-full rounded-xl text-base font-bold shadow-sm"
+          >
+            Go to Log in
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => setSubmittedEmail('')}
+            className="text-xs font-semibold text-gray-500 hover:text-slate-800"
+          >
+            Need to change your email address?
+          </button>
+        </div>
+      </div>
     )
   }
 
