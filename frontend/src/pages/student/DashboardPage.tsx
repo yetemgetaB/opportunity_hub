@@ -1,9 +1,9 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import StatCard from '../../components/ui/StatCard'
 import RecommendedCard from '../../components/opportunities/RecommendedCard'
 import RecentActivity from '../../components/notifications/RecentActivity'
+import OnboardingModal from '../../components/student/OnboardingModal'
 import type { ActivityItem } from '../../types/student'
 import type { ApplicationItem } from '../../types/application'
 import type { OpportunityRecommendation } from '../../services/recommendationService'
@@ -17,31 +17,35 @@ export default function DashboardPage() {
   const [applications, setApplications] = useState<ApplicationItem[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [profileIncomplete, setProfileIncomplete] = useState(false)
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    let active = true
+  const loadDashboardData = useCallback(async () => {
     setLoading(true)
-    Promise.allSettled([
-      recommendationService.getRecommendations(),
-      applicationService.getMyApplications(),
-    ]).then(([recommendationResult, applicationResult]) => {
-      if (!active) return
+    try {
+      const [recommendationResult, applicationResult] = await Promise.allSettled([
+        recommendationService.getRecommendations(),
+        applicationService.getMyApplications(),
+      ])
+
       const errors: string[] = []
       if (recommendationResult.status === 'fulfilled') {
         setRecommendations(recommendationResult.value)
         setProfileIncomplete(false)
+        setShowOnboardingModal(false)
       } else {
         const reason = recommendationResult.reason instanceof Error
           ? recommendationResult.reason.message
           : 'Unable to load recommendations.'
         if (reason.toLowerCase().includes('student profile not found') || reason.toLowerCase().includes('profile not found')) {
           setProfileIncomplete(true)
+          setShowOnboardingModal(true)
         } else {
           errors.push(reason)
         }
       }
+
       if (applicationResult.status === 'fulfilled') {
         const applicationItems = applicationResult.value
         setApplications(applicationItems)
@@ -65,14 +69,24 @@ export default function DashboardPage() {
           errors.push(reason)
         }
       }
+
       setError(errors.join(' '))
-    }).catch((cause: unknown) => {
-      if (active) setError(cause instanceof Error ? cause.message : 'Unable to load your dashboard.')
-    }).finally(() => {
-      if (active) setLoading(false)
-    })
-    return () => { active = false }
-  }, [user?.id])
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load your dashboard.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadDashboardData()
+  }, [loadDashboardData, user?.id])
+
+  function handleOnboardingComplete() {
+    setShowOnboardingModal(false)
+    setProfileIncomplete(false)
+    loadDashboardData()
+  }
 
   const stats = [
     { label: 'Applications', value: applications.length, note: 'Applications submitted', icon: 'file' as const },
@@ -81,6 +95,13 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1440px]">
+      {/* Onboarding Modal Pop-up */}
+      <OnboardingModal
+        isOpen={showOnboardingModal}
+        onComplete={handleOnboardingComplete}
+        studentName={user?.firstName}
+      />
+
       <div>
         <h2 className="font-display text-3xl font-bold tracking-tight text-black">Welcome back, {user?.firstName || 'Student'}</h2>
         <p className="mt-1.5 text-base text-gray-500">Recommendations matched to your profile and your applications.</p>
@@ -94,12 +115,13 @@ export default function DashboardPage() {
               Add your university, field of study, and career goals to get personalized opportunity recommendations powered by AI.
             </p>
           </div>
-          <Link
-            to="/student/profile"
+          <button
+            type="button"
+            onClick={() => setShowOnboardingModal(true)}
             className="inline-flex shrink-0 items-center justify-center rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand/90"
           >
-            Complete Profile &rarr;
-          </Link>
+            Start Setup &rarr;
+          </button>
         </div>
       )}
 
@@ -126,9 +148,13 @@ export default function DashboardPage() {
           <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center">
             <p className="text-sm font-semibold text-slate-800">No recommendations yet</p>
             <p className="mt-1 text-xs text-gray-500">Set up your student profile to unlock personalized opportunity recommendations.</p>
-            <Link to="/student/profile" className="mt-3 inline-block text-xs font-bold text-brand hover:underline">
-              Set up profile &rarr;
-            </Link>
+            <button
+              type="button"
+              onClick={() => setShowOnboardingModal(true)}
+              className="mt-3 inline-block text-xs font-bold text-brand hover:underline"
+            >
+              Start setup &rarr;
+            </button>
           </div>
         ) : !error ? (
           <p className="rounded-xl border border-neutral-200 bg-white p-6 text-sm text-slate-500">No recommendations are available for your profile right now.</p>
@@ -141,3 +167,4 @@ export default function DashboardPage() {
     </div>
   )
 }
+
