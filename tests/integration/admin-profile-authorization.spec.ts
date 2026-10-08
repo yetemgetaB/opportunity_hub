@@ -1,4 +1,4 @@
-import { ExecutionContext, ForbiddenException, ValidationPipe } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException, UnauthorizedException, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserRole } from '@prisma/client';
@@ -126,6 +126,18 @@ describe('Admin Profile Role Authorization & Validation Security Suite', () => {
           ForbiddenException,
         );
       });
+
+      it('Unauthenticated request (missing user) is rejected with 401 Unauthorized for get admin profile', async () => {
+        const context = createMockExecutionContext(
+          undefined,
+          AdminController,
+          AdminController.prototype.getProfile,
+        );
+
+        await expect(rolesGuard.canActivate(context)).rejects.toThrow(
+          UnauthorizedException,
+        );
+      });
     });
 
     describe('PATCH /admin/profile (updateProfile)', () => {
@@ -188,6 +200,18 @@ describe('Admin Profile Role Authorization & Validation Security Suite', () => {
 
         await expect(rolesGuard.canActivate(context)).rejects.toThrow(
           ForbiddenException,
+        );
+      });
+
+      it('Unauthenticated request (missing user) is rejected with 401 Unauthorized for update admin profile', async () => {
+        const context = createMockExecutionContext(
+          undefined,
+          AdminController,
+          AdminController.prototype.updateProfile,
+        );
+
+        await expect(rolesGuard.canActivate(context)).rejects.toThrow(
+          UnauthorizedException,
         );
       });
     });
@@ -308,6 +332,176 @@ describe('Admin Profile Role Authorization & Validation Security Suite', () => {
           type: 'body',
           metatype: UpdateAdminProfileDto,
         }),
+      ).rejects.toThrow();
+    });
+
+    it('Empty firstName fails validation', async () => {
+      const dto = plainToInstance(UpdateAdminProfileDto, {
+        firstName: '',
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].property).toBe('firstName');
+    });
+
+    it('Whitespace-only firstName fails validation', async () => {
+      const dto = plainToInstance(UpdateAdminProfileDto, {
+        firstName: '   ',
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].property).toBe('firstName');
+    });
+
+    it('Null firstName fails validation', async () => {
+      const dto = plainToInstance(UpdateAdminProfileDto, {
+        firstName: null,
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].property).toBe('firstName');
+    });
+
+    it('Empty lastName fails validation', async () => {
+      const dto = plainToInstance(UpdateAdminProfileDto, {
+        lastName: '',
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].property).toBe('lastName');
+    });
+
+    it('Whitespace-only lastName fails validation', async () => {
+      const dto = plainToInstance(UpdateAdminProfileDto, {
+        lastName: '   ',
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].property).toBe('lastName');
+    });
+
+    it('Null lastName fails validation', async () => {
+      const dto = plainToInstance(UpdateAdminProfileDto, {
+        lastName: null,
+      });
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].property).toBe('lastName');
+    });
+
+    it('Foreign userId field (cross-user attack) rejected by ValidationPipe', async () => {
+      const pipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+
+      const maliciousPayload = {
+        userId: 'foreign-admin-user-id',
+        firstName: 'Attacker',
+      };
+
+      await expect(
+        pipe.transform(maliciousPayload, {
+          type: 'body',
+          metatype: UpdateAdminProfileDto,
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('Arbitrary id field in payload rejected by ValidationPipe', async () => {
+      const pipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+
+      const maliciousPayload = {
+        id: 'foreign-admin-user-id',
+        firstName: 'Attacker',
+      };
+
+      await expect(
+        pipe.transform(maliciousPayload, {
+          type: 'body',
+          metatype: UpdateAdminProfileDto,
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('Role modification attempts (STUDENT, ORGANIZATION, ADMIN) rejected by ValidationPipe', async () => {
+      const pipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+
+      for (const attemptRole of ['STUDENT', 'ORGANIZATION', 'ADMIN']) {
+        await expect(
+          pipe.transform(
+            { role: attemptRole },
+            {
+              type: 'body',
+              metatype: UpdateAdminProfileDto,
+            },
+          ),
+        ).rejects.toThrow();
+      }
+    });
+
+    it('Protected account fields (isActive, deletedAt, createdAt, updatedAt) rejected by ValidationPipe', async () => {
+      const pipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+
+      const maliciousPayload = {
+        isActive: false,
+        deletedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await expect(
+        pipe.transform(maliciousPayload, {
+          type: 'body',
+          metatype: UpdateAdminProfileDto,
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('Authentication-owned fields (email, password) rejected by ValidationPipe', async () => {
+      const pipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+
+      await expect(
+        pipe.transform(
+          { email: 'newemail@example.com' },
+          {
+            type: 'body',
+            metatype: UpdateAdminProfileDto,
+          },
+        ),
+      ).rejects.toThrow();
+
+      await expect(
+        pipe.transform(
+          { password: 'NewSecretPassword123!' },
+          {
+            type: 'body',
+            metatype: UpdateAdminProfileDto,
+          },
+        ),
       ).rejects.toThrow();
     });
   });
