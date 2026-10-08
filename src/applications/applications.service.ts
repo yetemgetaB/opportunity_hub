@@ -107,7 +107,7 @@ export class ApplicationsService {
     });
 
     if (!student) {
-      throw new NotFoundException('Student profile not found.');
+      return [];
     }
 
     return this.applicationsRepository.findByStudentProfileId(
