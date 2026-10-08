@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { ServeStaticModule } from '@nestjs/serve-static';
 
 import { ConfigModule } from '@nestjs/config';
 
@@ -28,8 +31,20 @@ import { OrganizationProfileModule } from './organization-profile/organization-p
 import { ApplicationsModule } from './applications/applications.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
+const frontendDist = existsSync(join(process.cwd(), 'frontend', 'dist'))
+  ? join(process.cwd(), 'frontend', 'dist')
+  : join(__dirname, '..', 'frontend', 'dist');
+
 @Module({
   imports: [
+    ...(existsSync(frontendDist)
+      ? [
+          ServeStaticModule.forRoot({
+            rootPath: frontendDist,
+            exclude: ['/api/(.*)'],
+          }),
+        ]
+      : []),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, aiConfig],
