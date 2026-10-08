@@ -193,12 +193,11 @@ describe('ApplicationsService', () => {
       expect(result).toEqual([mockApplication]);
     });
 
-    it('should throw NotFoundException if student profile does not exist', async () => {
+    it('should return empty array if student profile does not exist', async () => {
       mockPrisma.studentProfile.findUnique.mockResolvedValue(null);
 
-      await expect(service.getMyApplications(studentUserId)).rejects.toThrow(
-        NotFoundException,
-      );
+      const result = await service.getMyApplications(studentUserId);
+      expect(result).toEqual([]);
     });
   });
 

@@ -87,6 +87,9 @@ describe('AuthService Hardening & Rollback', () => {
       expect(mockSignUp).toHaveBeenCalledWith({
         email: registerDto.email,
         password: registerDto.password,
+        options: {
+          emailRedirectTo: expect.stringContaining('/login'),
+        },
       });
       expect(usersService.createApplicationUser).toHaveBeenCalledWith({
         id: 'auth-user-123',
