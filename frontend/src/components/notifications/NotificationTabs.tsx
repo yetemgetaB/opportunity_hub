@@ -1,11 +1,8 @@
-export type NotificationFilter = 'all' | 'unread' | 'applicant' | 'assessment' | 'system'
+export type NotificationFilter = 'all' | 'unread'
 
 const tabs: { id: NotificationFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'unread', label: 'Unread' },
-  { id: 'applicant', label: 'Applicants' },
-  { id: 'assessment', label: 'Assessments' },
-  { id: 'system', label: 'System' },
 ]
 
 export default function NotificationTabs({ active, onChange }: { active: NotificationFilter; onChange: (f: NotificationFilter) => void }) {
