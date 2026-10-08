@@ -81,10 +81,19 @@ export default function OnboardingModal({ isOpen, onComplete, studentName }: Pro
 
   function addCustomTag() {
     const trimmed = customTagInput.trim()
-    if (trimmed && !selectedInterests.includes(trimmed)) {
-      setSelectedInterests((current) => [...current, trimmed])
+    if (trimmed) {
+      const alreadyExists = selectedInterests.some(
+        (t) => t.toLowerCase() === trimmed.toLowerCase()
+      )
+      if (!alreadyExists) {
+        setSelectedInterests((current) => [...current, trimmed])
+      }
       setCustomTagInput('')
     }
+  }
+
+  function removeInterest(tag: string) {
+    setSelectedInterests((current) => current.filter((t) => t !== tag))
   }
 
   function handleNextStep() {
@@ -130,6 +139,8 @@ export default function OnboardingModal({ isOpen, onComplete, studentName }: Pro
       setSubmitting(false)
     }
   }
+
+  const customTags = selectedInterests.filter((t) => !SUGGESTED_INTERESTS.includes(t))
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/60 p-4 backdrop-blur-sm transition-all animate-in fade-in duration-200">
@@ -290,6 +301,29 @@ export default function OnboardingModal({ isOpen, onComplete, studentName }: Pro
                           </button>
                         )
                       })}
+
+                      {/* Custom Added Tags */}
+                      {customTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-brand bg-brand px-3 py-1.5 text-xs font-semibold text-white shadow-sm"
+                        >
+                          <span>✓ {tag}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              removeInterest(tag)
+                            }}
+                            className="rounded-full bg-white/20 p-0.5 hover:bg-white/30"
+                            aria-label={`Remove ${tag}`}
+                          >
+                            <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </span>
+                      ))}
                     </div>
 
                     {/* Custom Tag Add */}
