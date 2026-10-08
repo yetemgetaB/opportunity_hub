@@ -111,6 +111,9 @@ export class AuthService {
 
   async register(data: RegisterDto) {
     const supabase = this.getSupabaseClient();
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      'http://localhost:5173';
 
     const {
       data: authData,
@@ -118,6 +121,9 @@ export class AuthService {
     } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
+      options: {
+        emailRedirectTo: `${frontendUrl.replace(/\/$/, '')}/login`,
+      },
     });
 
     if (error) {
@@ -142,6 +148,13 @@ export class AuthService {
     if (!authData.user) {
       throw new BadRequestException(
         'Supabase did not return a user after registration.',
+      );
+    }
+
+    // When email confirmations are enabled and the user already exists, Supabase returns user with empty identities array
+    if (authData.user.identities && authData.user.identities.length === 0) {
+      throw new ConflictException(
+        'An account with this email already exists.',
       );
     }
 
@@ -176,6 +189,12 @@ export class AuthService {
         session: authData.session,
       };
     } catch (appUserError: any) {
+      if (appUserError instanceof ConflictException || appUserError.status === 409) {
+        throw new ConflictException(
+          'An account with this email already exists.',
+        );
+      }
+
       this.logger.error(
         `Failed to create application account for Auth ID: ${authData.user.id}. Initiating compensating rollback. Error: ${appUserError.message}`,
       );
