@@ -35,6 +35,11 @@ export default function LoginPage() {
     from?: { pathname?: string }
   } | null
   const registrationState = locationState
+  const isEmailVerifiedRedirect = typeof window !== 'undefined' && (
+    window.location.hash.includes('type=signup') ||
+    window.location.hash.includes('access_token') ||
+    location.search.includes('type=signup')
+  )
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -70,11 +75,16 @@ export default function LoginPage() {
       />
 
       <div className="mx-auto my-6 w-full max-w-96">
-        {registrationState?.registrationComplete && (
+        {isEmailVerifiedRedirect ? (
+          <div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+            <p className="font-semibold">🎉 Email verified successfully!</p>
+            <p className="mt-1 text-xs text-emerald-800">Your account is active. Enter your password below to log in.</p>
+          </div>
+        ) : registrationState?.registrationComplete ? (
           <p role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-800">
             Your {registrationState.accountRole ?? 'user'} account was created. Sign in to continue to profile setup.
           </p>
-        )}
+        ) : null}
         <header className="mb-6">
           <h2 className="font-display text-3xl font-bold text-slate-900">Welcome Back</h2>
           <p className="mt-2 text-sm text-gray-500">Please log in to continue to your {role} portal.</p>
