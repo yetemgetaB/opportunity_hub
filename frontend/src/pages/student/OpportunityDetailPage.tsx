@@ -248,22 +248,31 @@ export default function OpportunityDetailPage() {
           {/* Key Skills & Requirements */}
           {o.tags.length > 0 && (
             <section className="border-t border-slate-100 pt-6">
-              <h2 className="font-display text-lg font-bold text-navy flex items-center gap-2">
-                <span className="size-2 rounded-full bg-amber-500" />
-                Target Skills & Qualifications
-              </h2>
-              <p className="mt-1 text-xs text-slate-500">
-                Skills tagged by the organization for candidate evaluation.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">
+                    Required & Target Skills
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Click any skill to filter matching opportunities across the platform.
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-slate-400">
+                  {o.tags.length} tagged
+                </span>
+              </div>
+              <div className="mt-3.5 flex flex-wrap gap-2">
                 {o.tags.map((tag) => (
-                  <span
+                  <button
                     key={tag}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200/80 bg-amber-50/70 px-3 py-1.5 text-xs font-semibold text-amber-900 shadow-2xs"
+                    type="button"
+                    onClick={() => navigate(`/student/opportunities?search=${encodeURIComponent(tag)}`)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-amber-400 hover:bg-amber-50 hover:text-amber-900 focus:outline-none active:scale-[0.98]"
+                    title={`Browse ${tag} opportunities`}
                   >
-                    <span className="size-1.5 rounded-full bg-amber-500" />
-                    {tag}
-                  </span>
+                    <span>{tag}</span>
+                    <span className="text-[10px] text-slate-400">↗</span>
+                  </button>
                 ))}
               </div>
             </section>

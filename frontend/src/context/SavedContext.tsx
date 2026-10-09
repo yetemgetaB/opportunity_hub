@@ -64,20 +64,29 @@ export function SavedProvider({ children }: { children: ReactNode }) {
 
   const toggleSaved = useCallback((opportunityId: string) => {
     const wasSaved = saved.includes(opportunityId)
+
+    // OPTIMISTIC UPDATE: Update state immediately so UI feedback is instant (0ms)
+    setSaved((current) => wasSaved
+      ? current.filter((id) => id !== opportunityId)
+      : current.includes(opportunityId) ? current : [...current, opportunityId]
+    )
+
+    showToast({
+      variant: wasSaved ? 'removed' : 'saved',
+      message: wasSaved ? 'Removed from saved opportunities.' : 'Opportunity saved.',
+      action: wasSaved ? undefined : { label: 'View Saved', to: '/student/saved' },
+    })
+
     const request = wasSaved
       ? applicationService.unsaveOpportunity(opportunityId)
       : applicationService.saveOpportunity(opportunityId)
 
-    void request.then(() => {
+    void request.catch((cause: unknown) => {
+      // Revert optimistic update on real failure
       setSaved((current) => wasSaved
-        ? current.filter((id) => id !== opportunityId)
-        : current.includes(opportunityId) ? current : [...current, opportunityId])
-      showToast({
-        variant: wasSaved ? 'removed' : 'saved',
-        message: wasSaved ? 'Removed from saved opportunities.' : 'Opportunity saved.',
-        action: wasSaved ? undefined : { label: 'View Saved', to: '/student/saved' },
-      })
-    }).catch((cause: unknown) => {
+        ? (current.includes(opportunityId) ? current : [...current, opportunityId])
+        : current.filter((id) => id !== opportunityId)
+      )
       const message = cause instanceof ApiError && cause.status === 409 && !wasSaved
         ? 'This opportunity is already saved.'
         : cause instanceof Error
