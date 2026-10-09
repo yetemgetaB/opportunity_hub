@@ -3,6 +3,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
 import { NotificationsProvider } from './context/NotificationsContext'
 import { SavedProvider } from './context/SavedContext'
+import { Assistant } from './components/Assistant'
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
         <NotificationsProvider>
           <SavedProvider>
             <AppRoutes />
+            <Assistant />
           </SavedProvider>
         </NotificationsProvider>
       </AuthProvider>
