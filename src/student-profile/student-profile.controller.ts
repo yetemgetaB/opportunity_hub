@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Patch,
   Post,
   UseGuards,
@@ -48,5 +50,34 @@ export class StudentProfileController {
       userId,
       data,
     );
+  }
+
+  @Get('skills')
+  async getMySkills(@CurrentUser('id') userId: string) {
+    return this.studentProfileService.getMySkills(userId);
+  }
+
+  @Post('skills')
+  async addSkill(
+    @CurrentUser('id') userId: string,
+    @Body() data: { skillId: string; proficiency?: number; yearsOfExperience?: number },
+  ) {
+    return this.studentProfileService.addSkill(userId, data);
+  }
+
+  @Post('skills/bulk')
+  async setSkills(
+    @CurrentUser('id') userId: string,
+    @Body('skillIds') skillIds: string[],
+  ) {
+    return this.studentProfileService.setSkills(userId, skillIds ?? []);
+  }
+
+  @Delete('skills/:skillId')
+  async removeSkill(
+    @CurrentUser('id') userId: string,
+    @Param('skillId') skillId: string,
+  ) {
+    return this.studentProfileService.removeSkill(userId, skillId);
   }
 }
