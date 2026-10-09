@@ -151,5 +151,58 @@ describe('AdminService', () => {
       ).rejects.toThrow(ForbiddenException);
       expect(mockUsersRepository.update).not.toHaveBeenCalled();
     });
+
+    it('should throw NotFoundException when updating an inactive administrator', async () => {
+      mockUsersRepository.findById.mockResolvedValue({
+        ...mockAdminUser,
+        isActive: false,
+      });
+
+      await expect(
+        service.updateProfile(mockAdminId, { firstName: 'Test' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockUsersRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('should allow clearing nullable fields (middleName: null, avatarUrl: null)', async () => {
+      mockUsersRepository.findById.mockResolvedValue(mockAdminUser);
+      const updateDto: UpdateAdminProfileDto = {
+        middleName: null,
+        avatarUrl: null,
+      };
+      const updatedUser = {
+        ...mockAdminUser,
+        middleName: null,
+        avatarUrl: null,
+      };
+      mockUsersRepository.update.mockResolvedValue(updatedUser);
+
+      const result = await service.updateProfile(mockAdminId, updateDto);
+
+      expect(result.middleName).toBeNull();
+      expect(result.avatarUrl).toBeNull();
+      expect(result.role).toBe(UserRole.ADMIN);
+      expect(mockUsersRepository.update).toHaveBeenCalledWith(mockAdminId, {
+        firstName: undefined,
+        middleName: null,
+        lastName: undefined,
+        avatarUrl: null,
+      });
+    });
+
+    it('should ensure the returned profile role strictly remains ADMIN after update', async () => {
+      mockUsersRepository.findById.mockResolvedValue(mockAdminUser);
+      mockUsersRepository.update.mockResolvedValue({
+        ...mockAdminUser,
+        firstName: 'UpdatedAdmin',
+      });
+
+      const result = await service.updateProfile(mockAdminId, {
+        firstName: 'UpdatedAdmin',
+      });
+
+      expect(result.role).toBe(UserRole.ADMIN);
+      expect(result.firstName).toBe('UpdatedAdmin');
+    });
   });
 });
