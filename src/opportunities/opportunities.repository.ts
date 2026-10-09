@@ -113,27 +113,32 @@ export class OpportunitiesRepository {
   }
 
   async saveOpportunity(
-  studentProfileId: string,
-  opportunityId: string,
-) {
-  return this.prisma.savedOpportunity.create({
-    data: {
-      studentProfileId,
-      opportunityId,
-    },
-  });
-}
-
-async removeSavedOpportunity(
     studentProfileId: string,
     opportunityId: string,
   ) {
-    return this.prisma.savedOpportunity.delete({
+    return this.prisma.savedOpportunity.upsert({
       where: {
         studentProfileId_opportunityId: {
           studentProfileId,
           opportunityId,
         },
+      },
+      update: {},
+      create: {
+        studentProfileId,
+        opportunityId,
+      },
+    });
+  }
+
+  async removeSavedOpportunity(
+    studentProfileId: string,
+    opportunityId: string,
+  ) {
+    return this.prisma.savedOpportunity.deleteMany({
+      where: {
+        studentProfileId,
+        opportunityId,
       },
     });
   }
