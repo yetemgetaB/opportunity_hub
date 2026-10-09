@@ -3,16 +3,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import FiltersPanel from '../../components/opportunities/FiltersPanel'
 import OpportunityListCard from '../../components/opportunities/OpportunityListCard'
+import ApplyModal from '../../components/opportunities/ApplyModal'
 import type { Opportunity } from '../../types/student'
 import type { OpportunityType } from '../../types/opportunity'
 import { opportunityService } from '../../services/opportunityService'
+import { applicationService } from '../../services/applicationService'
 import { toStudentOpportunitySearch } from '../../utils/opportunityPresentation'
+import { useAuthContext } from '../../context/AuthContext'
 
 const OPPORTUNITY_TYPES: readonly OpportunityType[] = [
   'INTERNSHIP', 'JOB', 'SCHOLARSHIP', 'HACKATHON', 'COMPETITION', 'TRAINING', 'VOLUNTEER', 'FELLOWSHIP', 'OTHER',
 ]
 
 export default function OpportunitiesPage() {
+  const { user } = useAuthContext()
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState(searchParams.get('search') ?? '')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
@@ -23,6 +27,8 @@ export default function OpportunitiesPage() {
   const [skill, setSkill] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
   const [items, setItems] = useState<Opportunity[]>([])
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
+  const [selectedForApply, setSelectedForApply] = useState<Opportunity | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -35,6 +41,17 @@ export default function OpportunitiesPage() {
     }, 250)
     return () => window.clearTimeout(timeout)
   }, [query, searchParams, setSearchParams])
+
+  useEffect(() => {
+    if (user?.role !== 'STUDENT') return
+    let active = true
+    applicationService.getMyApplications()
+      .then((apps) => {
+        if (active) setAppliedIds(new Set(apps.map((a) => a.opportunityId)))
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [user?.role])
 
   useEffect(() => {
     let active = true
@@ -129,9 +146,14 @@ export default function OpportunitiesPage() {
             {[0, 1, 2].map((item) => <div key={item} className="h-48 animate-pulse rounded-xl border border-neutral-200 bg-white" />)}
           </div>
         ) : opportunities.length > 0 ? (
-          <div className="mt-5 space-y-5">
+          <div className="mt-5 space-y-4">
             {opportunities.map((opportunity) => (
-              <OpportunityListCard key={opportunity.id} o={opportunity} />
+              <OpportunityListCard
+                key={opportunity.id}
+                o={opportunity}
+                onApplyClick={(opp) => setSelectedForApply(opp)}
+                isApplied={appliedIds.has(opportunity.id)}
+              />
             ))}
           </div>
         ) : (
@@ -143,6 +165,19 @@ export default function OpportunitiesPage() {
           </div>
         )}
       </div>
+
+      {selectedForApply && (
+        <ApplyModal
+          isOpen={Boolean(selectedForApply)}
+          opportunity={selectedForApply}
+          onClose={() => setSelectedForApply(null)}
+          onSuccess={() => {
+            if (selectedForApply) {
+              setAppliedIds((prev) => new Set([...prev, selectedForApply.id]))
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

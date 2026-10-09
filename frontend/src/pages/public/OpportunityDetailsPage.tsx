@@ -11,6 +11,8 @@ import { applicationService } from '../../services/applicationService'
 import type { PublicOpportunity } from '../../types/opportunity'
 import { useAuthContext } from '../../context/AuthContext'
 import { useSaved } from '../../context/SavedContext'
+import ApplyModal from '../../components/opportunities/ApplyModal'
+import { toStudentOpportunity } from '../../utils/opportunityPresentation'
 
 function formatDate(value?: string | null) {
   if (!value) return null
@@ -70,6 +72,7 @@ export default function OpportunityDetailsPage() {
   const [actionMessage, setActionMessage] = useState('')
   const [alreadyApplied, setAlreadyApplied] = useState(false)
   const [applicationCheckError, setApplicationCheckError] = useState('')
+  const [showApplyModal, setShowApplyModal] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
@@ -121,11 +124,11 @@ export default function OpportunityDetailsPage() {
 
   function continueToLogin(action: 'apply' | 'save') {
     navigate('/login', {
-      state: { from: { pathname: `/student/opportunities/${id}` }, intent: action },
+      state: { from: { pathname: `/opportunities/${id}` }, intent: action },
     })
   }
 
-  async function applyToOpportunity() {
+  function applyToOpportunity() {
     if (!user) {
       continueToLogin('apply')
       return
@@ -134,13 +137,12 @@ export default function OpportunityDetailsPage() {
       setActionMessage('Sign in with a student account to apply.')
       return
     }
-    try {
-      await applicationService.apply(opportunity.id)
-      setAlreadyApplied(true)
-      setActionMessage('Application submitted. Track it from your student dashboard.')
-    } catch (cause) {
-      setActionMessage(cause instanceof Error ? cause.message : 'Unable to submit your application.')
-    }
+    setShowApplyModal(true)
+  }
+
+  function handleApplicationSuccess() {
+    setAlreadyApplied(true)
+    setActionMessage('Application submitted successfully! You can track its progress in your applications dashboard.')
   }
 
   function saveOpportunity() {
@@ -333,6 +335,15 @@ export default function OpportunityDetailsPage() {
             </section>
           </aside>
         </div>
+
+        {opportunity && (
+          <ApplyModal
+            isOpen={showApplyModal}
+            opportunity={toStudentOpportunity(opportunity)}
+            onClose={() => setShowApplyModal(false)}
+            onSuccess={handleApplicationSuccess}
+          />
+        )}
       </>
     )
   }
