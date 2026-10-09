@@ -12,7 +12,7 @@ export default function StatCard({ label, value, note, icon }: Props) {
         </span>
       </div>
       <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="font-display text-3xl font-bold text-black">{value}</span>
+        <span className="dark-stat-value font-display text-3xl font-bold text-black">{value}</span>
         <span className="text-xs font-semibold text-amber-500">{note}</span>
       </p>
     </article>

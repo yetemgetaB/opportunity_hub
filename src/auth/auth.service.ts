@@ -2,6 +2,8 @@ import {
   Injectable,
   Logger,
   BadRequestException,
+  BadGatewayException,
+  InternalServerErrorException,
   UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
@@ -267,5 +269,97 @@ export class AuthService {
       user,
       session: authData.session,
     };
+  }
+
+  async updatePassword(
+    newPassword: string,
+    authorization: string,
+  ) {
+    const supabaseUrl =
+      this.configService.get<string>(
+        'database.supabaseUrl',
+      );
+    const supabaseAnonKey =
+      this.configService.get<string>(
+        'database.supabaseAnonKey',
+      );
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new InternalServerErrorException(
+        'Supabase authentication is not configured.',
+      );
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(
+        `${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`,
+        {
+          method: 'PUT',
+          headers: {
+            apikey: supabaseAnonKey,
+            Authorization: authorization,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ password: newPassword }),
+        },
+      );
+    } catch (error) {
+      this.logger.error(
+        'Password update request to Supabase failed.',
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadGatewayException(
+        'Password could not be updated. Please try again.',
+      );
+    }
+
+    if (!response.ok) {
+      let providerMessage: string | undefined;
+      try {
+        const providerError: {
+          message?: unknown;
+          msg?: unknown;
+          error_description?: unknown;
+        } = await response.json();
+        const message =
+          providerError.message ??
+          providerError.msg ??
+          providerError.error_description;
+        if (typeof message === 'string') {
+          providerMessage = message;
+        }
+      } catch {
+        providerMessage = undefined;
+      }
+
+      this.logger.warn(
+        `Supabase password update rejected with status ${response.status}: ${
+          providerMessage ?? 'No provider message returned.'
+        }`,
+      );
+
+      if (response.status === 401) {
+        throw new UnauthorizedException(
+          providerMessage ??
+            'Authentication failed. Please sign in again.',
+        );
+      }
+
+      if (response.status >= 500) {
+        this.logger.error(
+          `Supabase password update failed with status ${response.status}.`,
+        );
+        throw new BadGatewayException(
+          'Password service is temporarily unavailable.',
+        );
+      }
+
+      throw new BadRequestException(
+        providerMessage ?? 'Password could not be updated.',
+      );
+    }
+
+    return { message: 'Password updated successfully.' };
   }
 }

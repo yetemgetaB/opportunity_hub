@@ -28,7 +28,6 @@ import {
   mapOpportunityForSearch,
 } from './opportunity-response.mapper';
 import { mapApplicantForResponse } from './applicant-response.mapper';
-import { OpportunitySearchCriteria } from './opportunity-search.interface';
 import { NotificationsService } from '@/notifications/notifications.service';
 
 @Injectable()
@@ -469,6 +468,36 @@ return applicants.map(mapApplicantForResponse);
     }
 
     return mapOpportunityForDetails(opportunity);
+  }
+
+  async getSavedOpportunities(userId: string) {
+    const studentProfile = await this.prisma.studentProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!studentProfile) {
+      throw new NotFoundException('Student profile not found.');
+    }
+
+    return this.prisma.savedOpportunity.findMany({
+      where: {
+        studentProfileId: studentProfile.userId,
+        opportunity: {
+          deletedAt: null,
+        },
+      },
+      select: {
+        opportunityId: true,
+        savedAt: true,
+        opportunity: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+      orderBy: { savedAt: 'desc' },
+    });
   }
 
   async saveOpportunity(

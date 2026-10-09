@@ -2,10 +2,10 @@ import type { ButtonHTMLAttributes } from 'react'
 import { Link } from 'react-router-dom'
 
 const styles = {
-  primary: 'bg-brand text-navy hover:brightness-110',
-  dark: 'bg-navy text-white hover:bg-navy-light',
-  outline: 'border border-white/40 text-white hover:bg-white/10',
-  secondary: 'border border-slate-200 bg-white text-navy hover:bg-slate-50',
+  primary: 'bg-brand text-navy hover:brightness-110 dark-button-primary',
+  dark: 'bg-navy text-white hover:bg-navy-light dark-button-dark',
+  outline: 'border border-white/40 text-white hover:bg-white/10 dark-button-outline',
+  secondary: 'border border-slate-200 bg-white text-navy hover:bg-slate-50 dark-button-secondary',
 }
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
