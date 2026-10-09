@@ -1,0 +1,9 @@
+.git
+.github
+docs
+tests
+test
+node_modules
+dist
+.vscode
+*.md
