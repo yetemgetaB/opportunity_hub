@@ -8,7 +8,7 @@ import { OpportunityStatus, OpportunityType } from '@prisma/client';
 import { AIQuestionService } from '../../src/assessments/ai-question.service';
 import { AIApplicantAnalysisService } from '../../src/assessments/ai-applicant-analysis.service';
 
-const request = require('supertest');
+import request from 'supertest';
 
 jest.setTimeout(30000);
 

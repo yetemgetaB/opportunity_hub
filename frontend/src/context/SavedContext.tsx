@@ -1,6 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+/* eslint-disable react-hooks/set-state-in-effect */
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Toast, { type ToastState } from '../components/ui/Toast'
+import { useAuthContext } from './AuthContext'
 import { applicationService } from '../services/applicationService'
 import { ApiError } from '../services/api'
 
@@ -15,6 +17,7 @@ interface SavedContextValue {
 const SavedContext = createContext<SavedContextValue | undefined>(undefined)
 
 export function SavedProvider({ children }: { children: ReactNode }) {
+  const { user, isAuthenticated, isLoading } = useAuthContext()
   const [saved, setSaved] = useState<string[]>([])
   const [toast, setToast] = useState<ToastState | null>(null)
   const timer = useRef<number | undefined>(undefined)
@@ -31,6 +34,31 @@ export function SavedProvider({ children }: { children: ReactNode }) {
     setToast({ ...next, id: counter.current })
     timer.current = window.setTimeout(() => setToast(null), TOAST_MS)
   }, [])
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || user?.role !== 'STUDENT') {
+      setSaved([])
+      return
+    }
+
+    let active = true
+    void applicationService.getSavedOpportunities()
+      .then((savedIds) => {
+        if (active) setSaved(savedIds)
+      })
+      .catch((cause: unknown) => {
+        if (!active) return
+        if (cause instanceof ApiError && cause.status === 404) {
+          setSaved([])
+          return
+        }
+        setSaved([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isAuthenticated, isLoading, user?.id, user?.role])
 
   const isSaved = useCallback((opportunityId: string) => saved.includes(opportunityId), [saved])
 
@@ -51,7 +79,7 @@ export function SavedProvider({ children }: { children: ReactNode }) {
       })
     }).catch((cause: unknown) => {
       const message = cause instanceof ApiError && cause.status === 409 && !wasSaved
-        ? 'This opportunity is already saved, but the backend does not provide a saved-list endpoint to retrieve it.'
+        ? 'This opportunity is already saved.'
         : cause instanceof Error
           ? cause.message
           : 'Unable to update saved opportunities.'

@@ -14,7 +14,7 @@ import {
   OpportunityType,
 } from '@prisma/client';
 
-const request = require('supertest');
+import request from 'supertest';
 
 jest.setTimeout(60000);
 

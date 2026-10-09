@@ -29,6 +29,10 @@ import StudentNotificationsPage from '../pages/student/NotificationsPage'
 import StudentReportsPage from '../pages/student/ReportsPage'
 import StudentSettingsPage from '../pages/student/SettingsPage'
 import StudentAssessmentPage from '../pages/student/AssessmentPage'
+import AdminLayout from '../layouts/AdminLayout'
+import AdminDashboardPage from '../pages/admin/DashboardPage'
+import AdminOrganizationsPage from '../pages/admin/OrganizationsPage'
+import AdminReportsPage from '../pages/admin/ReportsPage'
 import ProtectedRoute from './ProtectedRoute'
 import RoleRoute from './RoleRoute'
 
@@ -76,6 +80,15 @@ export default function AppRoutes() {
             <Route path="reports" element={<StudentReportsPage />} />
             <Route path="settings" element={<StudentSettingsPage />} />
             <Route path="profile" element={<StudentProfilePage />} />
+            <Route path="*" element={<p className="text-sm text-slate-500">This page is coming soon.</p>} />
+          </Route>
+        </Route>
+
+        <Route element={<RoleRoute allowedRoles={['ADMIN']} />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="organizations" element={<AdminOrganizationsPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
             <Route path="*" element={<p className="text-sm text-slate-500">This page is coming soon.</p>} />
           </Route>
         </Route>

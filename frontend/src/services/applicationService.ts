@@ -52,6 +52,15 @@ export interface OpportunityApplicant {
   }
 }
 
+export interface SavedOpportunityRecord {
+  id?: string
+  opportunityId?: string
+  savedAt?: string
+  opportunity?: {
+    id?: string
+  }
+}
+
 export const applicationService = {
   apply(opportunityId: string): Promise<ApplicationItem> {
     return apiRequest<ApplicationItem>(`/opportunities/${encodeURIComponent(opportunityId)}/apply`, {
@@ -61,6 +70,14 @@ export const applicationService = {
 
   getMyApplications(): Promise<ApplicationItem[]> {
     return apiRequest<ApplicationItem[]>('/opportunities/applications')
+  },
+
+  getSavedOpportunities(): Promise<string[]> {
+    return apiRequest<SavedOpportunityRecord[]>('/opportunities/saved').then((items) =>
+      items
+        .map((item) => item.opportunityId ?? item.opportunity?.id ?? item.id)
+        .filter((id): id is string => Boolean(id)),
+    )
   },
 
   saveOpportunity(opportunityId: string): Promise<unknown> {

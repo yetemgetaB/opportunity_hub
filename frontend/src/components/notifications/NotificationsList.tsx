@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from 'react'
 import NotificationRow from './NotificationRow'
 import NotificationTabs, { type NotificationFilter } from './NotificationTabs'
