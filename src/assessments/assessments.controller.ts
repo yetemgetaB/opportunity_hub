@@ -16,6 +16,8 @@ import { RolesGuard } from "@/common/guards/roles.guard";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { CurrentUser } from "@/auth/decorators/current-user.decorator";
 import { AssessmentResultFilterDto } from "./dto/assessment-result-filter.dto";
+import { StartAssessmentAttemptDto } from "./dto/start-assessment-attempt.dto";
+import { SaveAssessmentAnswerDto } from "./dto/save-assessment-answer.dto";
 
 @Controller()
 export class AssessmentsController {
@@ -102,13 +104,10 @@ export class AssessmentsController {
   startAttempt(
     @CurrentUser("id") userId: string,
     @Param("assessmentId", ParseUUIDPipe) assessmentId: string,
-    @Body()
-    body: {
-      applicationId: string;
-    },
+    @Body() dto: StartAssessmentAttemptDto,
   ) {
     return this.assessmentsService.startAttempt(userId, {
-      applicationId: body.applicationId,
+      applicationId: dto.applicationId,
       assessmentId,
     });
   }
@@ -129,16 +128,12 @@ export class AssessmentsController {
   saveAnswer(
     @CurrentUser("id") userId: string,
     @Param("attemptId", ParseUUIDPipe) attemptId: string,
-    @Body()
-    body: {
-      assessmentQuestionId: string;
-      answerText: string;
-    },
+    @Body() dto: SaveAssessmentAnswerDto,
   ) {
     return this.assessmentsService.saveAnswer(userId, {
       assessmentAttemptId: attemptId,
-      assessmentQuestionId: body.assessmentQuestionId,
-      answerText: body.answerText,
+      assessmentQuestionId: dto.assessmentQuestionId,
+      answerText: dto.answerText,
     });
   }
 

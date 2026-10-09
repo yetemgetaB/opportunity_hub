@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 
@@ -22,8 +23,15 @@ import { SaveAssessmentResultData } from "./assessments.interface";
 import { CvsService } from "@/student-profile/cvs.service";
 import { NotificationsService } from "@/notifications/notifications.service";
 import { ApplicationsRepository } from "@/applications/applications.repository";
+import {
+  sanitizeQuestionForStudent,
+  sanitizeAttemptForStudent,
+} from "./assessments-sanitizer";
+
 @Injectable()
 export class AssessmentsService {
+  private readonly logger = new Logger(AssessmentsService.name);
+
   constructor(
     private readonly applicationsRepository: ApplicationsRepository,
     private readonly notificationsService: NotificationsService,
@@ -162,12 +170,18 @@ export class AssessmentsService {
         continue;
       }
 
-      await this.notificationsService.sendNotification(
-        studentUserId,
-        "Assessment Invitation",
-        `You have been invited to complete the assessment for ${opportunity.title}.`,
-        `assessment_invitation:${application.id}`,
-      );
+      try {
+        await this.notificationsService.sendNotification(
+          studentUserId,
+          "Assessment Invitation",
+          `You have been invited to complete the assessment for ${opportunity.title}.`,
+          `assessment_invitation:${application.id}`,
+        );
+      } catch (notificationError: any) {
+        this.logger.warn(
+          `Failed to deliver assessment invitation notification for student ${studentUserId}: ${notificationError.message}`,
+        );
+      }
     }
 
     return activatedAssessment;
@@ -177,8 +191,10 @@ export class AssessmentsService {
     return this.assessmentsRepository.getAssessment(assessmentId);
   }
 
-  getAssessmentQuestions(assessmentId: string) {
-    return this.assessmentsRepository.getAssessmentQuestions(assessmentId);
+  async getAssessmentQuestions(assessmentId: string) {
+    const questions =
+      await this.assessmentsRepository.getAssessmentQuestions(assessmentId);
+    return questions.map((q) => sanitizeQuestionForStudent(q));
   }
 
   async startAttempt(
@@ -201,7 +217,8 @@ export class AssessmentsService {
         "You are not authorized to start an assessment for this application.",
       );
     }
-    return this.assessmentsRepository.createAttempt(data);
+    const attempt = await this.assessmentsRepository.createAttempt(data);
+    return sanitizeAttemptForStudent(attempt);
   }
 
   async getAttempt(attemptId: string) {
@@ -222,7 +239,7 @@ export class AssessmentsService {
       );
     }
 
-    return attempt;
+    return sanitizeAttemptForStudent(attempt);
   }
 
   async getAttemptByApplicationId(applicationId: string) {
@@ -246,14 +263,21 @@ export class AssessmentsService {
     const submittedAttempt =
       await this.assessmentsRepository.submitAttempt(attemptId);
 
-    await this.notificationsService.sendNotification(
-      userId,
-      "Assessment Completed",
-      "Your assessment has been submitted successfully.",
-      `assessment_completed:${attemptId}`,
-    );
+    try {
+      await this.notificationsService.sendNotification(
+        userId,
+        "Assessment Completed",
+        "Your assessment has been submitted successfully.",
+        `assessment_completed:${attemptId}`,
+      );
+    } catch (notificationError: any) {
+      this.logger.error(
+        `Failed to deliver assessment completion notification for attempt ${attemptId}: ${notificationError.message}`,
+        notificationError.stack,
+      );
+    }
 
-    return submittedAttempt;
+    return sanitizeAttemptForStudent(submittedAttempt);
   }
 
   async getSubmittedAttemptsByOpportunity(opportunityId: string) {
@@ -290,7 +314,14 @@ export class AssessmentsService {
       );
     }
 
-    return this.assessmentsRepository.saveAnswer(data);
+    const saved = await this.assessmentsRepository.saveAnswer(data);
+    if (saved && (saved as any).question) {
+      return {
+        ...saved,
+        question: sanitizeQuestionForStudent((saved as any).question),
+      };
+    }
+    return saved;
   }
 
   async saveAnswers(
@@ -314,7 +345,19 @@ export class AssessmentsService {
       );
     }
 
-    return this.assessmentsRepository.saveAnswers(attemptId, answers);
+    const results = await this.assessmentsRepository.saveAnswers(
+      attemptId,
+      answers,
+    );
+    return results.map((saved: any) => {
+      if (saved && saved.question) {
+        return {
+          ...saved,
+          question: sanitizeQuestionForStudent(saved.question),
+        };
+      }
+      return saved;
+    });
   }
 
   async getAnswersByAttempt(attemptId: string) {

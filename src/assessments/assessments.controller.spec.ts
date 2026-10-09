@@ -19,6 +19,9 @@ describe("AssessmentsController", () => {
     getAssessmentQuestions: jest.Mock;
     startAssessment: jest.Mock;
     submitAttempt: jest.Mock;
+    startAttempt: jest.Mock;
+    getAttemptWithAnswers: jest.Mock;
+    saveAnswer: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -35,6 +38,9 @@ describe("AssessmentsController", () => {
             getAssessmentQuestions: jest.fn(),
             startAssessment: jest.fn(),
             submitAttempt: jest.fn(),
+            startAttempt: jest.fn(),
+            getAttemptWithAnswers: jest.fn(),
+            saveAnswer: jest.fn(),
           },
         },
       ],
@@ -209,5 +215,69 @@ describe("AssessmentsController", () => {
     );
 
     expect(result).toEqual(submittedAttempt);
+  });
+
+  it("should start an assessment attempt for student", async () => {
+    const createdAttempt = {
+      id: "attempt-123",
+      applicationId: "app-123",
+      assessmentId: "assessment-123",
+      status: "IN_PROGRESS",
+    };
+
+    service.startAttempt.mockResolvedValue(createdAttempt);
+
+    const result = await controller.startAttempt("student-123", "assessment-123", {
+      applicationId: "app-123",
+    });
+
+    expect(service.startAttempt).toHaveBeenCalledWith("student-123", {
+      applicationId: "app-123",
+      assessmentId: "assessment-123",
+    });
+
+    expect(result).toEqual(createdAttempt);
+  });
+
+  it("should get an assessment attempt for student", async () => {
+    const attemptWithAnswers = {
+      id: "attempt-123",
+      answers: [],
+    };
+
+    service.getAttemptWithAnswers.mockResolvedValue(attemptWithAnswers);
+
+    const result = await controller.getAttempt("student-123", "attempt-123");
+
+    expect(service.getAttemptWithAnswers).toHaveBeenCalledWith(
+      "student-123",
+      "attempt-123",
+    );
+
+    expect(result).toEqual(attemptWithAnswers);
+  });
+
+  it("should save an assessment answer for student", async () => {
+    const savedAnswer = {
+      id: "ans-123",
+      assessmentAttemptId: "attempt-123",
+      assessmentQuestionId: "q-123",
+      answerText: "Student answer",
+    };
+
+    service.saveAnswer.mockResolvedValue(savedAnswer);
+
+    const result = await controller.saveAnswer("student-123", "attempt-123", {
+      assessmentQuestionId: "q-123",
+      answerText: "Student answer",
+    });
+
+    expect(service.saveAnswer).toHaveBeenCalledWith("student-123", {
+      assessmentAttemptId: "attempt-123",
+      assessmentQuestionId: "q-123",
+      answerText: "Student answer",
+    });
+
+    expect(result).toEqual(savedAnswer);
   });
 });
