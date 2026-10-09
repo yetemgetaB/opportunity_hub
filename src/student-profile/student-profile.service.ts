@@ -69,4 +69,31 @@ export class StudentProfileService {
     data,
   );
 }
+
+  async getMySkills(userId: string) {
+    await this.getMyProfile(userId);
+    return this.studentProfileRepository.getSkills(userId);
+  }
+
+  async addSkill(
+    userId: string,
+    data: {
+      skillId: string;
+      proficiency?: number;
+      yearsOfExperience?: number;
+    },
+  ) {
+    await this.getMyProfile(userId);
+    return this.studentProfileRepository.addSkill(userId, data);
+  }
+
+  async removeSkill(userId: string, skillId: string) {
+    await this.getMyProfile(userId);
+    return this.studentProfileRepository.removeSkill(userId, skillId);
+  }
+
+  async setSkills(userId: string, skillIds: string[]) {
+    await this.getMyProfile(userId);
+    return this.studentProfileRepository.setSkills(userId, skillIds);
+  }
 }
