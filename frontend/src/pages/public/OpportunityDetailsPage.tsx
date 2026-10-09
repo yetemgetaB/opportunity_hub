@@ -280,12 +280,21 @@ export default function OpportunityDetailsPage() {
                 </DetailSection>
               )}
               {skills && skills.length > 0 && (
-                <DetailSection title="Skills">
+                <DetailSection title="Target Skills & Technologies">
+                  <p className="text-xs text-slate-500 mb-3">
+                    Click any skill to filter and explore relevant opportunities.
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill) => (
-                      <span key={skill} className="rounded-md border border-neutral-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600">
-                        {skill}
-                      </span>
+                      <button
+                        key={skill}
+                        type="button"
+                        onClick={() => navigate(`/opportunities?skills=${encodeURIComponent(skill)}`)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-amber-400 hover:bg-amber-50 hover:text-amber-900 focus:outline-none active:scale-[0.98]"
+                      >
+                        <span>{skill}</span>
+                        <span className="text-[10px] text-slate-400">↗</span>
+                      </button>
                     ))}
                   </div>
                 </DetailSection>
