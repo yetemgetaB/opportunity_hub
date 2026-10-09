@@ -21,13 +21,16 @@ import { OpportunitiesRepository } from '@/opportunities/opportunities.repositor
 import { AIQuestionService } from './ai-question.service';
 import { AIApplicantAnalysisService } from './ai-applicant-analysis.service';
 import { CvsService } from '@/student-profile/cvs.service';
+import { NotificationsService } from '@/notifications/notifications.service';
+import { ApplicationsRepository } from '@/applications/applications.repository';
 
 describe('Day 13 Backend 2: Assessments Data Foundation', () => {
   let repository: AssessmentsRepository;
   let service: AssessmentsService;
-  let mockPrisma: any;
-  let mockOrgProfileRepo: any;
-  let mockOppsRepo: any;
+let mockPrisma: any;
+let mockOrgProfileRepo: any;
+let mockOppsRepo: any;
+let mockApplicationsRepo: any;
 
   const mockDate = new Date('2026-10-04T10:00:00Z');
   const opportunityId = 'opp-1111-1111-1111-111111111111';
@@ -190,6 +193,11 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
       findByIdAndOrganizationId: jest.fn(),
     };
 
+    mockApplicationsRepo = {
+  findById: jest.fn(),
+  findByOpportunityId: jest.fn(),
+};
+
     const mockAIQuestionService = {
       generateQuestions: jest.fn(),
     };
@@ -229,6 +237,16 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
         {
           provide: CvsService,
           useValue: mockCvsService,
+        },
+       {
+        provide: ApplicationsRepository,
+        useValue: mockApplicationsRepo,
+      },
+        {
+          provide: NotificationsService,
+          useValue: {
+            sendNotification: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -882,51 +900,78 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
   // ==========================================================================
 
   describe('AssessmentsService Delegation', () => {
+    it('should delegate submitAttempt to repository', async () => {
+  mockPrisma.assessmentAttempt.findUnique.mockResolvedValue({
+    ...mockAttempt,
+    application: {
+      studentProfile: {
+        user: {
+          id: 'student-user-id',
+        },
+      },
+    },
+  });
+
+  mockPrisma.assessmentAttempt.update.mockResolvedValue(
+    mockSubmittedAttempt,
+  );
+
+  const result = await service.submitAttempt(
+    'student-user-id',
+    attemptId,
+  );
+
+  expect(result).toEqual(mockSubmittedAttempt);
+});
     it('should delegate startAttempt to repository', async () => {
+      mockApplicationsRepo.findById.mockResolvedValue({
+        studentProfile: {
+          user: {
+            id: 'user-123',
+          },
+        },
+      });
+
       mockPrisma.application.findUnique.mockResolvedValue(mockApplication);
       mockPrisma.assessment.findUnique.mockResolvedValue(mockAssessment);
       mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(null);
       mockPrisma.assessmentAttempt.create.mockResolvedValue(mockAttempt);
 
-      const result = await service.startAttempt({
-        applicationId,
-        assessmentId,
+      const result = await service.startAttempt('user-123', {
+        applicationId: 'application-123',
+        assessmentId: 'assessment-123',
       });
 
       expect(result).toEqual(mockAttempt);
     });
 
-    it('should delegate submitAttempt to repository', async () => {
-      mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockAttempt);
-      mockPrisma.assessmentAttempt.update.mockResolvedValue(
-        mockSubmittedAttempt,
-      );
-
-      const result = await service.submitAttempt(attemptId);
-
-      expect(result).toEqual(mockSubmittedAttempt);
-    });
-
-    it('should delegate saveAnswer to repository', async () => {
-      mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(mockAttempt);
-      mockPrisma.assessmentQuestion.findUnique.mockResolvedValue(
-        mockQuestion,
-      );
+    it('should delegate saveAnswer to repository and sanitize grading fields', async () => {
+      mockPrisma.assessmentAttempt.findUnique.mockResolvedValue({
+        ...mockAttempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: 'student-user-id',
+            },
+          },
+        },
+      });
+      mockPrisma.assessmentQuestion.findUnique.mockResolvedValue(mockQuestion);
       mockPrisma.assessmentAnswer.upsert.mockResolvedValue(mockAnswer);
 
-      const result = await service.saveAnswer({
+      const result = await service.saveAnswer('student-user-id', {
         assessmentAttemptId: attemptId,
         assessmentQuestionId: questionId,
         answerText: 'Answer text',
       });
 
-      expect(result).toEqual(mockAnswer);
+      expect(result.id).toBe(mockAnswer.id);
+      expect((result as any).question.referenceAnswer).toBeUndefined();
+      expect((result as any).question.evaluationGuidance).toBeUndefined();
     });
 
     it('should delegate getEligibleApplicantsForAnalysis to repository', async () => {
-      mockPrisma.application.findMany.mockResolvedValue([
-        mockSubmittedAttempt,
-      ]);
+      mockPrisma.application.findMany.mockResolvedValue([mockSubmittedAttempt]);
 
       const result =
         await service.getEligibleApplicantsForAnalysis(opportunityId);
@@ -940,9 +985,7 @@ describe('Day 13 Backend 2: Assessments Data Foundation', () => {
         application: mockApplication,
       });
 
-      mockPrisma.assessmentResult.upsert.mockResolvedValue(
-        mockAssessmentResult,
-      );
+      mockPrisma.assessmentResult.upsert.mockResolvedValue(mockAssessmentResult);
 
       const result = await service.saveAssessmentResult({
         assessmentAttemptId: attemptId,

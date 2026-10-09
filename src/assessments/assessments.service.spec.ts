@@ -1,27 +1,29 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from "@nestjs/testing";
 import {
+  BadRequestException,
   ForbiddenException,
   NotFoundException,
-} from '@nestjs/common';
-import {
-  AssessmentQuestionType,
-  AssessmentStatus,
-} from '@prisma/client';
+} from "@nestjs/common";
+import { AssessmentQuestionType, AssessmentStatus } from "@prisma/client";
 
-import { AssessmentsService } from './assessments.service';
-import { AssessmentsRepository } from './assessments.repository';
-import { OrganizationProfileRepository } from '@/organization-profile/organization-profile.repository';
-import { OpportunitiesRepository } from '@/opportunities/opportunities.repository';
-import { AIQuestionService } from './ai-question.service';
-import { AIApplicantAnalysisService } from './ai-applicant-analysis.service';
-import { CvsService } from '@/student-profile/cvs.service';
+import { AssessmentsService } from "./assessments.service";
+import { AssessmentsRepository } from "./assessments.repository";
+import { OrganizationProfileRepository } from "@/organization-profile/organization-profile.repository";
+import { OpportunitiesRepository } from "@/opportunities/opportunities.repository";
+import { AIQuestionService } from "./ai-question.service";
+import { AIApplicantAnalysisService } from "./ai-applicant-analysis.service";
+import { CvsService } from "@/student-profile/cvs.service";
+import { ApplicationsRepository } from "@/applications/applications.repository";
+import { NotificationsService } from "@/notifications/notifications.service";
+import { ApplicationStatus } from "@prisma/client";
 
-describe('AssessmentsService', () => {
+describe("AssessmentsService", () => {
   let service: AssessmentsService;
 
   const mockAssessmentsRepository = {
     create: jest.fn(),
     getAssessment: jest.fn(),
+    findByOpportunityIdWithQuestions: jest.fn(),
     getAssessmentQuestions: jest.fn(),
     update: jest.fn(),
 
@@ -49,7 +51,6 @@ describe('AssessmentsService', () => {
     findAssessmentResultByApplicationId: jest.fn(),
     findAssessmentResultsByOpportunityId: jest.fn(),
   };
-
   const mockOrganizationProfileRepository = {
     findByUserId: jest.fn(),
   };
@@ -57,6 +58,15 @@ describe('AssessmentsService', () => {
   const mockOpportunitiesRepository = {
     findById: jest.fn(),
     findByIdAndOrganizationId: jest.fn(),
+  };
+
+  const mockApplicationsRepository = {
+    findById: jest.fn(),
+    findByOpportunityId: jest.fn(),
+  };
+
+  const mockNotificationsService = {
+    sendNotification: jest.fn(),
   };
 
   const mockAIQuestionService = {
@@ -72,42 +82,42 @@ describe('AssessmentsService', () => {
   };
 
   const organizationMembership = {
-    organizationId: 'org-1',
-    userId: 'user-1',
+    organizationId: "org-1",
+    userId: "user-1",
     organization: {
-      id: 'org-1',
+      id: "org-1",
       deletedAt: null,
     },
   };
 
   const opportunity = {
-    id: 'opportunity-1',
-    organizationId: 'org-1',
-    title: 'Software Engineering Internship',
-    description: 'Software engineering internship opportunity',
-    opportunityType: 'INTERNSHIP',
-    location: 'Addis Ababa',
+    id: "opportunity-1",
+    organizationId: "org-1",
+    title: "Software Engineering Internship",
+    description: "Software engineering internship opportunity",
+    opportunityType: "INTERNSHIP",
+    location: "Addis Ababa",
     isRemote: false,
     minimumAcademicYear: 3,
     maximumAcademicYear: 5,
     minimumGpa: 3.0,
-    eligibleFields: ['Computer Science'],
+    eligibleFields: ["Computer Science"],
     skills: [
       {
         skill: {
-          id: 'skill-1',
-          name: 'TypeScript',
-          category: 'Programming',
+          id: "skill-1",
+          name: "TypeScript",
+          category: "Programming",
         },
-        requirementLevel: 'REQUIRED',
+        requirementLevel: "REQUIRED",
       },
       {
         skill: {
-          id: 'skill-2',
-          name: 'React',
-          category: 'Frontend',
+          id: "skill-2",
+          name: "React",
+          category: "Frontend",
         },
-        requirementLevel: 'PREFERRED',
+        requirementLevel: "PREFERRED",
       },
     ],
   };
@@ -115,29 +125,29 @@ describe('AssessmentsService', () => {
   const generatedQuestions = {
     questions: [
       {
-        question: 'Explain TypeScript interfaces.',
+        question: "Explain TypeScript interfaces.",
       },
       {
-        question: 'How do you manage state in React?',
+        question: "How do you manage state in React?",
       },
     ],
   };
 
   const assessment = {
-    id: 'assessment-1',
-    opportunityId: 'opportunity-1',
-    title: 'Software Engineering Internship Assessment',
+    id: "assessment-1",
+    opportunityId: "opportunity-1",
+    title: "Software Engineering Internship Assessment",
     status: AssessmentStatus.ACTIVE,
     questions: [
       {
-        id: 'question-1',
-        questionText: 'Explain TypeScript interfaces.',
+        id: "question-1",
+        questionText: "Explain TypeScript interfaces.",
         questionType: AssessmentQuestionType.TEXT,
         questionOrder: 1,
       },
       {
-        id: 'question-2',
-        questionText: 'How do you manage state in React?',
+        id: "question-2",
+        questionText: "How do you manage state in React?",
         questionType: AssessmentQuestionType.TEXT,
         questionOrder: 2,
       },
@@ -145,80 +155,85 @@ describe('AssessmentsService', () => {
   };
 
   const attempt = {
-    id: 'attempt-1',
-    applicationId: 'application-1',
-    assessmentId: 'assessment-1',
-    status: 'IN_PROGRESS',
+    id: "attempt-1",
+    applicationId: "application-1",
+    assessmentId: "assessment-1",
+    status: "IN_PROGRESS",
     startedAt: new Date(),
     submittedAt: null,
   };
 
   const answer = {
-    id: 'answer-1',
-    assessmentAttemptId: 'attempt-1',
-    assessmentQuestionId: 'question-1',
-    answerText: 'A TypeScript interface defines the shape of an object.',
+    id: "answer-1",
+    assessmentAttemptId: "attempt-1",
+    assessmentQuestionId: "question-1",
+    answerText: "A TypeScript interface defines the shape of an object.",
   };
 
   const assessmentResult = {
-    id: 'result-1',
-    assessmentAttemptId: 'attempt-1',
+    id: "result-1",
+    assessmentAttemptId: "attempt-1",
     aiScore: 85,
-    aiRequirementMatch: 'Strong match',
-    aiStrengths: ['TypeScript knowledge'],
-    aiGaps: ['Limited React experience'],
-    aiSummary: 'Strong candidate overall.',
+    aiRequirementMatch: "Strong match",
+    aiStrengths: ["TypeScript knowledge"],
+    aiGaps: ["Limited React experience"],
+    aiSummary: "Strong candidate overall.",
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    const module: TestingModule =
-      await Test.createTestingModule({
-        providers: [
-          AssessmentsService,
-          {
-            provide: AssessmentsRepository,
-            useValue: mockAssessmentsRepository,
-          },
-          {
-            provide: OrganizationProfileRepository,
-            useValue: mockOrganizationProfileRepository,
-          },
-          {
-            provide: OpportunitiesRepository,
-            useValue: mockOpportunitiesRepository,
-          },
-          {
-            provide: AIQuestionService,
-            useValue: mockAIQuestionService,
-          },
-          {
-            provide: AIApplicantAnalysisService,
-            useValue: mockAIApplicantAnalysisService,
-          },
-          {
-            provide: CvsService,
-            useValue: mockCvsService,
-          },
-        ],
-      }).compile();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AssessmentsService,
+        {
+          provide: AssessmentsRepository,
+          useValue: mockAssessmentsRepository,
+        },
+        {
+          provide: OrganizationProfileRepository,
+          useValue: mockOrganizationProfileRepository,
+        },
+        {
+          provide: OpportunitiesRepository,
+          useValue: mockOpportunitiesRepository,
+        },
+        {
+          provide: ApplicationsRepository,
+          useValue: mockApplicationsRepository,
+        },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
+        },
+        {
+          provide: AIQuestionService,
+          useValue: mockAIQuestionService,
+        },
+        {
+          provide: AIApplicantAnalysisService,
+          useValue: mockAIApplicantAnalysisService,
+        },
+        {
+          provide: CvsService,
+          useValue: mockCvsService,
+        },
+      ],
+    }).compile();
 
     service = module.get<AssessmentsService>(AssessmentsService);
   });
 
-  describe('createAssessment', () => {
-    it('should throw NotFoundException when organization membership is not found', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
-        null,
-      );
+  describe("createAssessment", () => {
+    it("should throw NotFoundException when organization membership is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(null);
 
       await expect(
-        service.createAssessment('user-1', 'opportunity-1'),
+        service.createAssessment("user-1", "opportunity-1"),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw NotFoundException when organization is deleted', async () => {
+    it("should throw NotFoundException when organization is deleted", async () => {
       mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
         ...organizationMembership,
         organization: {
@@ -228,11 +243,11 @@ describe('AssessmentsService', () => {
       });
 
       await expect(
-        service.createAssessment('user-1', 'opportunity-1'),
+        service.createAssessment("user-1", "opportunity-1"),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw NotFoundException when opportunity is not found', async () => {
+    it("should throw NotFoundException when opportunity is not found", async () => {
       mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
         organizationMembership,
       );
@@ -240,82 +255,65 @@ describe('AssessmentsService', () => {
       mockOpportunitiesRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.createAssessment('user-1', 'opportunity-1'),
+        service.createAssessment("user-1", "opportunity-1"),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ForbiddenException when organization does not own the opportunity', async () => {
+    it("should throw ForbiddenException when organization does not own the opportunity", async () => {
       mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
         organizationMembership,
       );
 
       mockOpportunitiesRepository.findById.mockResolvedValue({
         ...opportunity,
-        organizationId: 'different-org',
+        organizationId: "different-org",
       });
 
       await expect(
-        service.createAssessment('user-1', 'opportunity-1'),
+        service.createAssessment("user-1", "opportunity-1"),
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should generate AI questions and create an assessment for an organization opportunity', async () => {
+    it("should generate AI questions and create an assessment for an organization opportunity", async () => {
       mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
         organizationMembership,
       );
 
-      mockOpportunitiesRepository.findById.mockResolvedValue(
-        opportunity,
-      );
+      mockOpportunitiesRepository.findById.mockResolvedValue(opportunity);
 
       mockAIQuestionService.generateQuestions.mockResolvedValue(
         generatedQuestions,
       );
 
-      mockAssessmentsRepository.create.mockResolvedValue(
-        assessment,
-      );
+      mockAssessmentsRepository.create.mockResolvedValue(assessment);
 
-      const result = await service.createAssessment(
-        'user-1',
-        'opportunity-1',
-      );
+      const result = await service.createAssessment("user-1", "opportunity-1");
 
-      expect(
-        mockAIQuestionService.generateQuestions,
-      ).toHaveBeenCalledWith({
+      expect(mockAIQuestionService.generateQuestions).toHaveBeenCalledWith({
         title: opportunity.title,
         description: opportunity.description,
-        requiredSkills: ['TypeScript'],
+        requiredSkills: ["TypeScript"],
         location: opportunity.location,
         eligibleFields: opportunity.eligibleFields,
-        minimumAcademicYear:
-          opportunity.minimumAcademicYear,
-        maximumAcademicYear:
-          opportunity.maximumAcademicYear,
+        minimumAcademicYear: opportunity.minimumAcademicYear,
+        maximumAcademicYear: opportunity.maximumAcademicYear,
         minimumGpa: Number(opportunity.minimumGpa),
         opportunityType: opportunity.opportunityType,
       });
 
-      expect(
-        mockAssessmentsRepository.create,
-      ).toHaveBeenCalledWith({
-        opportunityId: 'opportunity-1',
-        title: 'Software Engineering Internship Assessment',
+      expect(mockAssessmentsRepository.create).toHaveBeenCalledWith({
+        opportunityId: "opportunity-1",
+        title: "Software Engineering Internship Assessment",
         questions: [
           {
-            questionText:
-              'Explain TypeScript interfaces.',
-            questionType:
-              AssessmentQuestionType.TEXT,
+            questionText: "Explain TypeScript interfaces.",
+            questionType: AssessmentQuestionType.TEXT,
             questionOrder: 1,
             isAiGenerated: true,
           },
           {
-            questionText:
-              'How do you manage state in React?',
-            questionType:
-              AssessmentQuestionType.TEXT,
+            questionText: "How do you manage state in React?",
+            questionType: AssessmentQuestionType.TEXT,
             questionOrder: 2,
             isAiGenerated: true,
           },
@@ -326,229 +324,932 @@ describe('AssessmentsService', () => {
     });
   });
 
-  describe('getAssessment', () => {
-    it('should get an assessment', async () => {
-      mockAssessmentsRepository.getAssessment.mockResolvedValue(
-        assessment,
+  describe("getAssessment", () => {
+    it("should get an assessment", async () => {
+      mockAssessmentsRepository.getAssessment.mockResolvedValue(assessment);
+
+      const result = await service.getAssessment("assessment-1");
+
+      expect(mockAssessmentsRepository.getAssessment).toHaveBeenCalledWith(
+        "assessment-1",
       );
-
-      const result =
-        await service.getAssessment('assessment-1');
-
-      expect(
-        mockAssessmentsRepository.getAssessment,
-      ).toHaveBeenCalledWith('assessment-1');
 
       expect(result).toEqual(assessment);
     });
   });
 
-  describe('getAssessmentQuestions', () => {
-    it('should get assessment questions', async () => {
+  describe("getAssessmentQuestions", () => {
+    it("should get assessment questions", async () => {
       const questions = assessment.questions;
 
       mockAssessmentsRepository.getAssessmentQuestions.mockResolvedValue(
         questions,
       );
 
-      const result =
-        await service.getAssessmentQuestions(
-          'assessment-1',
-        );
+      const result = await service.getAssessmentQuestions("assessment-1");
 
       expect(
         mockAssessmentsRepository.getAssessmentQuestions,
-      ).toHaveBeenCalledWith('assessment-1');
+      ).toHaveBeenCalledWith("assessment-1");
 
       expect(result).toEqual(questions);
     });
-  });
 
-  describe('startAttempt', () => {
-    it('should delegate startAttempt to repository', async () => {
-      mockAssessmentsRepository.createAttempt.mockResolvedValue(
-        attempt,
+    it("should strip referenceAnswer and evaluationGuidance from returned questions", async () => {
+      const questionsWithSecrets = [
+        {
+          id: "question-1",
+          questionText: "Explain TypeScript interfaces.",
+          questionType: AssessmentQuestionType.TEXT,
+          questionOrder: 1,
+          referenceAnswer: "Secret reference answer",
+          evaluationGuidance: "Secret evaluation rubric",
+        },
+      ];
+
+      mockAssessmentsRepository.getAssessmentQuestions.mockResolvedValue(
+        questionsWithSecrets,
       );
 
-      const data = {
-        applicationId: 'application-1',
-        assessmentId: 'assessment-1',
-      };
+      const result = await service.getAssessmentQuestions("assessment-1");
 
-      const result = await service.startAttempt(data);
+      expect(result).toHaveLength(1);
+      expect((result[0] as any).referenceAnswer).toBeUndefined();
+      expect((result[0] as any).evaluationGuidance).toBeUndefined();
+      expect(result[0].questionText).toBe("Explain TypeScript interfaces.");
+    });
+  });
+
+  describe("startAssessment", () => {
+    it("should throw NotFoundException if organization membership is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(null);
+
+      await expect(
+        service.startAssessment("user-123", "opp-123"),
+      ).rejects.toThrow("Organization membership not found.");
+    });
+
+    it("should throw NotFoundException if organization is deleted", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: "org-123",
+        organization: {
+          deletedAt: new Date(),
+        },
+      });
+
+      await expect(
+        service.startAssessment("user-123", "opp-123"),
+      ).rejects.toThrow("Organization membership not found.");
+    });
+
+    it("should throw NotFoundException if opportunity is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: "org-123",
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      mockOpportunitiesRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.startAssessment("user-123", "opp-123"),
+      ).rejects.toThrow("Opportunity not found.");
+    });
+
+    it("should throw ForbiddenException if opportunity belongs to different organization", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: "org-123",
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: "opp-123",
+        organizationId: "different-org",
+        applicationDeadline: new Date(Date.now() - 60000),
+      });
+
+      await expect(
+        service.startAssessment("user-123", "opp-123"),
+      ).rejects.toThrow(
+        "You are not authorized to start an assessment for this opportunity.",
+      );
+    });
+
+    it("should throw BadRequestException if opportunity has no application deadline", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: "org-123",
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: "opp-123",
+        organizationId: "org-123",
+        applicationDeadline: null,
+      });
+
+      await expect(
+        service.startAssessment("user-123", "opp-123"),
+      ).rejects.toThrow(
+        "This opportunity does not have an application deadline.",
+      );
+    });
+
+    it("should prevent starting an assessment before the application deadline", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: "org-123",
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      const futureDeadline = new Date(Date.now() + 60 * 60 * 1000);
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: "opp-123",
+        organizationId: "org-123",
+        applicationDeadline: futureDeadline,
+      });
+
+      await expect(
+        service.startAssessment("user-123", "opp-123"),
+      ).rejects.toThrow("The application deadline has not passed yet.");
+
+      expect(mockAssessmentsRepository.getAssessment).not.toHaveBeenCalled();
 
       expect(
-        mockAssessmentsRepository.createAttempt,
-      ).toHaveBeenCalledWith(data);
+        mockAssessmentsRepository.findByOpportunityIdWithQuestions,
+      ).not.toHaveBeenCalled();
+
+      expect(mockAssessmentsRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("should throw NotFoundException if assessment not found for opportunity", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: "org-123",
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      const pastDeadline = new Date(Date.now() - 60 * 60 * 1000);
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: "opp-123",
+        organizationId: "org-123",
+        applicationDeadline: pastDeadline,
+      });
+
+      mockAssessmentsRepository.findByOpportunityIdWithQuestions.mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        service.startAssessment("user-123", "opp-123"),
+      ).rejects.toThrow("Assessment not found for this opportunity.");
+    });
+
+    it("should throw BadRequestException if assessment is not in DRAFT status", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: "org-123",
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      const pastDeadline = new Date(Date.now() - 60 * 60 * 1000);
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: "opp-123",
+        organizationId: "org-123",
+        applicationDeadline: pastDeadline,
+      });
+
+      mockAssessmentsRepository.findByOpportunityIdWithQuestions.mockResolvedValue(
+        {
+          id: "assessment-123",
+          opportunityId: "opp-123",
+          status: AssessmentStatus.ACTIVE,
+        },
+      );
+
+      await expect(
+        service.startAssessment("user-123", "opp-123"),
+      ).rejects.toThrow("Assessment cannot be started from ACTIVE status.");
+    });
+
+    it("should start a draft assessment after the application deadline", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        organizationId: "org-123",
+        organization: {
+          deletedAt: null,
+        },
+      });
+
+      const pastDeadline = new Date(Date.now() - 60 * 60 * 1000);
+
+      mockOpportunitiesRepository.findById.mockResolvedValue({
+        id: "opp-123",
+        organizationId: "org-123",
+        applicationDeadline: pastDeadline,
+      });
+
+      mockAssessmentsRepository.findByOpportunityIdWithQuestions.mockResolvedValue(
+        {
+          id: "assessment-123",
+          opportunityId: "opp-123",
+          status: AssessmentStatus.DRAFT,
+        },
+      );
+
+      mockAssessmentsRepository.update.mockResolvedValue({
+        id: "assessment-123",
+        opportunityId: "opp-123",
+        status: AssessmentStatus.ACTIVE,
+      });
+
+      mockApplicationsRepository.findByOpportunityId.mockResolvedValue([
+        {
+          id: "application-1",
+          studentProfile: {
+            user: {
+              id: "student-1",
+            },
+          },
+        },
+      ]);
+
+      const result = await service.startAssessment("user-123", "opp-123");
+
+      expect(
+        mockAssessmentsRepository.findByOpportunityIdWithQuestions,
+      ).toHaveBeenCalledWith("opp-123");
+
+      expect(mockAssessmentsRepository.update).toHaveBeenCalledWith(
+        "assessment-123",
+        {
+          status: AssessmentStatus.ACTIVE,
+        },
+      );
+
+      expect(result).toEqual({
+        id: "assessment-123",
+        opportunityId: "opp-123",
+        status: AssessmentStatus.ACTIVE,
+      });
+    });
+  });
+
+  it("should notify eligible applicants when an assessment starts", async () => {
+    const expiredOpportunity = {
+      ...opportunity,
+      applicationDeadline: new Date(Date.now() - 60 * 60 * 1000),
+    };
+
+    mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
+      organizationMembership,
+    );
+
+    mockOpportunitiesRepository.findById.mockResolvedValue(expiredOpportunity);
+
+    mockAssessmentsRepository.findByOpportunityIdWithQuestions.mockResolvedValue(
+      {
+        ...assessment,
+        status: AssessmentStatus.DRAFT,
+      },
+    );
+
+    mockAssessmentsRepository.update.mockResolvedValue({
+      ...assessment,
+      status: AssessmentStatus.ACTIVE,
+    });
+
+    mockApplicationsRepository.findByOpportunityId.mockResolvedValue([
+      {
+        id: "application-1",
+        studentProfile: {
+          user: {
+            id: "student-1",
+          },
+        },
+      },
+      {
+        id: "application-2",
+        studentProfile: {
+          user: {
+            id: "student-2",
+          },
+        },
+      },
+    ]);
+
+    mockNotificationsService.sendNotification.mockResolvedValue({
+      id: "notification-1",
+    });
+
+    const result = await service.startAssessment("user-1", opportunity.id);
+
+    expect(result.status).toBe(AssessmentStatus.ACTIVE);
+
+    expect(mockApplicationsRepository.findByOpportunityId).toHaveBeenCalledWith(
+      opportunity.id,
+      { status: "SUBMITTED" },
+    );
+
+    expect(mockNotificationsService.sendNotification).toHaveBeenCalledTimes(2);
+
+    expect(mockNotificationsService.sendNotification).toHaveBeenNthCalledWith(
+      1,
+      "student-1",
+      "Assessment Invitation",
+      `You have been invited to complete the assessment for ${opportunity.title}.`,
+      "assessment_invitation:application-1",
+    );
+
+    expect(mockNotificationsService.sendNotification).toHaveBeenNthCalledWith(
+      2,
+      "student-2",
+      "Assessment Invitation",
+      `You have been invited to complete the assessment for ${opportunity.title}.`,
+      "assessment_invitation:application-2",
+    );
+  });
+
+  it("should throw BadRequestException when no eligible applicants are found", async () => {
+    mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
+      organizationMembership,
+    );
+
+    mockOpportunitiesRepository.findById.mockResolvedValue({
+      ...opportunity,
+      applicationDeadline: new Date(Date.now() - 60 * 60 * 1000),
+    });
+
+    mockAssessmentsRepository.findByOpportunityIdWithQuestions.mockResolvedValue(
+      {
+        ...assessment,
+        status: AssessmentStatus.DRAFT,
+      },
+    );
+
+    mockApplicationsRepository.findByOpportunityId.mockResolvedValue([]);
+
+    await expect(
+      service.startAssessment("user-1", opportunity.id),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(mockApplicationsRepository.findByOpportunityId).toHaveBeenCalledWith(
+      opportunity.id,
+      { status: ApplicationStatus.SUBMITTED },
+    );
+
+    expect(mockAssessmentsRepository.update).not.toHaveBeenCalled();
+
+    expect(mockNotificationsService.sendNotification).not.toHaveBeenCalled();
+  });
+
+  describe("startAttempt", () => {
+    it("should throw NotFoundException if application is not found", async () => {
+      mockApplicationsRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.startAttempt("user-1", {
+          applicationId: "non-existent-app",
+          assessmentId: "assessment-1",
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockAssessmentsRepository.createAttempt).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenException if application belongs to another student", async () => {
+      mockApplicationsRepository.findById.mockResolvedValue({
+        studentProfile: {
+          user: {
+            id: "another-student",
+          },
+        },
+      });
+
+      await expect(
+        service.startAttempt("user-1", {
+          applicationId: "application-1",
+          assessmentId: "assessment-1",
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockAssessmentsRepository.createAttempt).not.toHaveBeenCalled();
+    });
+
+    it("should start an assessment attempt", async () => {
+      mockApplicationsRepository.findById.mockResolvedValue({
+        studentProfile: {
+          user: {
+            id: "user-1",
+          },
+        },
+      });
+
+      mockAssessmentsRepository.createAttempt.mockResolvedValue(attempt);
+
+      const result = await service.startAttempt("user-1", {
+        applicationId: "application-1",
+        assessmentId: "assessment-1",
+      });
+
+      expect(mockApplicationsRepository.findById).toHaveBeenCalledWith(
+        "application-1",
+      );
+
+      expect(mockAssessmentsRepository.createAttempt).toHaveBeenCalledWith({
+        applicationId: "application-1",
+        assessmentId: "assessment-1",
+      });
 
       expect(result).toEqual(attempt);
     });
   });
 
-  describe('getAttempt', () => {
-    it('should delegate getAttempt to repository', async () => {
-      mockAssessmentsRepository.findAttemptById.mockResolvedValue(
-        attempt,
+  describe("getAttempt", () => {
+    it("should get an assessment attempt", async () => {
+      mockAssessmentsRepository.findAttemptById.mockResolvedValue(attempt);
+
+      const result = await service.getAttempt("attempt-1");
+
+      expect(mockAssessmentsRepository.findAttemptById).toHaveBeenCalledWith(
+        "attempt-1",
       );
-
-      const result =
-        await service.getAttempt('attempt-1');
-
-      expect(
-        mockAssessmentsRepository.findAttemptById,
-      ).toHaveBeenCalledWith('attempt-1');
 
       expect(result).toEqual(attempt);
     });
   });
 
-  describe('getAttemptWithAnswers', () => {
-    it('should delegate getAttemptWithAnswers to repository', async () => {
+  describe("getAttemptWithAnswers", () => {
+    it("should throw NotFoundException if attempt is not found", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(null);
+
+      await expect(
+        service.getAttemptWithAnswers("user-1", "non-existent-attempt"),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("should throw ForbiddenException if attempt belongs to another student", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-student",
+            },
+          },
+        },
+      });
+
+      await expect(
+        service.getAttemptWithAnswers("user-1", "attempt-1"),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("should get an assessment attempt with answers and sanitize question secrets", async () => {
       const attemptWithAnswers = {
         ...attempt,
-        answers: [answer],
+        application: {
+          studentProfile: {
+            user: {
+              id: "user-1",
+            },
+          },
+        },
+        answers: [
+          {
+            ...answer,
+            question: {
+              id: "question-1",
+              questionText: "Explain TypeScript interfaces.",
+              referenceAnswer: "Secret reference answer",
+              evaluationGuidance: "Secret rubric",
+            },
+          },
+        ],
       };
 
       mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(
         attemptWithAnswers,
       );
 
-      const result =
-        await service.getAttemptWithAnswers(
-          'attempt-1',
-        );
+      const result: any = await service.getAttemptWithAnswers("user-1", "attempt-1");
 
       expect(
         mockAssessmentsRepository.findAttemptByIdWithAnswers,
-      ).toHaveBeenCalledWith('attempt-1');
+      ).toHaveBeenCalledWith("attempt-1");
 
-      expect(result).toEqual(attemptWithAnswers);
+      expect(result.answers[0].question).toEqual({
+        id: "question-1",
+        questionText: "Explain TypeScript interfaces.",
+      });
+      expect(result.answers[0].question).not.toHaveProperty("referenceAnswer");
+      expect(result.answers[0].question).not.toHaveProperty("evaluationGuidance");
     });
   });
 
-  describe('getAttemptByApplicationId', () => {
-    it('should delegate getAttemptByApplicationId to repository', async () => {
+  describe("getAttemptByApplicationId", () => {
+    it("should get an assessment attempt by application ID", async () => {
       mockAssessmentsRepository.findAttemptByApplicationId.mockResolvedValue(
         attempt,
       );
 
-      const result =
-        await service.getAttemptByApplicationId(
-          'application-1',
-        );
+      const result = await service.getAttemptByApplicationId("application-1");
 
       expect(
         mockAssessmentsRepository.findAttemptByApplicationId,
-      ).toHaveBeenCalledWith('application-1');
+      ).toHaveBeenCalledWith("application-1");
 
       expect(result).toEqual(attempt);
     });
   });
 
-  describe('submitAttempt', () => {
-    it('should delegate submitAttempt to repository', async () => {
+  describe("submitAttempt", () => {
+    it("should throw NotFoundException if attempt is not found", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(null);
+
+      await expect(
+        service.submitAttempt("user-1", "non-existent-attempt"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockAssessmentsRepository.submitAttempt).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenException if attempt belongs to another student", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-student",
+            },
+          },
+        },
+      });
+
+      await expect(
+        service.submitAttempt("user-1", "attempt-1"),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockAssessmentsRepository.submitAttempt).not.toHaveBeenCalled();
+    });
+
+    it("should submit an assessment attempt and dispatch notification", async () => {
       const submittedAttempt = {
         ...attempt,
-        status: 'SUBMITTED',
+        status: "SUBMITTED",
         submittedAt: new Date(),
       };
+
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "user-1",
+            },
+          },
+        },
+      });
 
       mockAssessmentsRepository.submitAttempt.mockResolvedValue(
         submittedAttempt,
       );
 
-      const result =
-        await service.submitAttempt('attempt-1');
+      const result = await service.submitAttempt("user-1", "attempt-1");
 
       expect(
-        mockAssessmentsRepository.submitAttempt,
-      ).toHaveBeenCalledWith('attempt-1');
+        mockAssessmentsRepository.findAttemptByIdWithAnswers,
+      ).toHaveBeenCalledWith("attempt-1");
 
+      expect(mockAssessmentsRepository.submitAttempt).toHaveBeenCalledWith(
+        "attempt-1",
+      );
+
+      expect(mockNotificationsService.sendNotification).toHaveBeenCalledWith(
+        "user-1",
+        "Assessment Completed",
+        "Your assessment has been submitted successfully.",
+        "assessment_completed:attempt-1",
+      );
+
+      expect(result).toEqual(submittedAttempt);
+    });
+
+    it("should succeed and not throw if notification delivery fails", async () => {
+      const submittedAttempt = {
+        ...attempt,
+        status: "SUBMITTED",
+        submittedAt: new Date(),
+      };
+
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "user-1",
+            },
+          },
+        },
+      });
+
+      mockAssessmentsRepository.submitAttempt.mockResolvedValue(
+        submittedAttempt,
+      );
+      mockNotificationsService.sendNotification.mockRejectedValue(
+        new Error("Notification gateway unavailable"),
+      );
+
+      const result = await service.submitAttempt("user-1", "attempt-1");
+
+      expect(mockAssessmentsRepository.submitAttempt).toHaveBeenCalledWith(
+        "attempt-1",
+      );
       expect(result).toEqual(submittedAttempt);
     });
   });
 
-  describe('saveAnswer', () => {
-    it('should delegate saveAnswer to repository', async () => {
-      mockAssessmentsRepository.saveAnswer.mockResolvedValue(
-        answer,
+  describe("getSubmittedAttemptsByOpportunity", () => {
+    it("should get submitted attempts by opportunity", async () => {
+      const submittedAttempts = [attempt];
+
+      mockAssessmentsRepository.findSubmittedAttemptsByOpportunityId.mockResolvedValue(
+        submittedAttempts,
       );
 
-      const data = {
-        assessmentAttemptId: 'attempt-1',
-        assessmentQuestionId: 'question-1',
-        answerText: 'My answer',
-      };
-
       const result =
-        await service.saveAnswer(data);
+        await service.getSubmittedAttemptsByOpportunity("opportunity-1");
 
       expect(
-        mockAssessmentsRepository.saveAnswer,
-      ).toHaveBeenCalledWith(data);
+        mockAssessmentsRepository.findSubmittedAttemptsByOpportunityId,
+      ).toHaveBeenCalledWith("opportunity-1");
 
-      expect(result).toEqual(answer);
+      expect(result).toEqual(submittedAttempts);
     });
   });
 
-  describe('saveAnswers', () => {
-    it('should delegate saveAnswers to repository', async () => {
+  describe("getSubmittedAttemptsByAssessment", () => {
+    it("should get submitted attempts by assessment", async () => {
+      const submittedAttempts = [attempt];
+
+      mockAssessmentsRepository.findSubmittedAttemptsByAssessmentId.mockResolvedValue(
+        submittedAttempts,
+      );
+
+      const result =
+        await service.getSubmittedAttemptsByAssessment("assessment-1");
+
+      expect(
+        mockAssessmentsRepository.findSubmittedAttemptsByAssessmentId,
+      ).toHaveBeenCalledWith("assessment-1");
+
+      expect(result).toEqual(submittedAttempts);
+    });
+  });
+
+  describe("saveAnswer", () => {
+    it("should throw NotFoundException if attempt is not found", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(null);
+
+      await expect(
+        service.saveAnswer("user-1", {
+          assessmentAttemptId: "non-existent-attempt",
+          assessmentQuestionId: "question-1",
+          answerText: "Answer text",
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockAssessmentsRepository.saveAnswer).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenException if attempt belongs to another student", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-student",
+            },
+          },
+        },
+      });
+
+      await expect(
+        service.saveAnswer("user-1", {
+          assessmentAttemptId: "attempt-1",
+          assessmentQuestionId: "question-1",
+          answerText: "Answer text",
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockAssessmentsRepository.saveAnswer).not.toHaveBeenCalled();
+    });
+
+    it("should save an assessment answer and sanitize question if present", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "user-1",
+            },
+          },
+        },
+      });
+
+      mockAssessmentsRepository.saveAnswer.mockResolvedValue({
+        ...answer,
+        question: {
+          id: "question-1",
+          questionText: "Explain TypeScript interfaces.",
+          referenceAnswer: "Secret answer",
+          evaluationGuidance: "Secret rubric",
+        },
+      });
+
+      const answerData = {
+        assessmentAttemptId: "attempt-1",
+        assessmentQuestionId: "question-1",
+        answerText: "I have experience with TypeScript.",
+      };
+
+      const result: any = await service.saveAnswer("user-1", answerData);
+
+      expect(
+        mockAssessmentsRepository.findAttemptByIdWithAnswers,
+      ).toHaveBeenCalledWith("attempt-1");
+
+      expect(mockAssessmentsRepository.saveAnswer).toHaveBeenCalledWith(
+        answerData,
+      );
+
+      expect(result.question).toEqual({
+        id: "question-1",
+        questionText: "Explain TypeScript interfaces.",
+      });
+      expect(result.question.referenceAnswer).toBeUndefined();
+      expect(result.question.evaluationGuidance).toBeUndefined();
+    });
+  });
+
+  describe("saveAnswers", () => {
+    it("should throw NotFoundException if attempt is not found", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(null);
+
+      await expect(
+        service.saveAnswers("user-1", "non-existent-attempt", []),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockAssessmentsRepository.saveAnswers).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenException if attempt belongs to another student", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-student",
+            },
+          },
+        },
+      });
+
+      await expect(
+        service.saveAnswers("user-1", "attempt-1", []),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockAssessmentsRepository.saveAnswers).not.toHaveBeenCalled();
+    });
+
+    it("should save multiple assessment answers and sanitize questions", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "user-1",
+            },
+          },
+        },
+      });
+
       const answers = [
         {
-          assessmentQuestionId: 'question-1',
-          answerText: 'Answer one',
-        },
-        {
-          assessmentQuestionId: 'question-2',
-          answerText: 'Answer two',
+          assessmentQuestionId: "question-1",
+          answerText: "I have experience with TypeScript.",
         },
       ];
 
-      mockAssessmentsRepository.saveAnswers.mockResolvedValue(
-        answers,
-      );
+      const savedAnswers = [
+        {
+          ...answer,
+          question: {
+            id: "question-1",
+            questionText: "Explain TypeScript interfaces.",
+            referenceAnswer: "Secret answer",
+            evaluationGuidance: "Secret rubric",
+          },
+        },
+      ];
 
-      const result = await service.saveAnswers(
-        'attempt-1',
-        answers,
-      );
+      mockAssessmentsRepository.saveAnswers.mockResolvedValue(savedAnswers);
+
+      const result = await service.saveAnswers("user-1", "attempt-1", answers);
 
       expect(
-        mockAssessmentsRepository.saveAnswers,
-      ).toHaveBeenCalledWith(
-        'attempt-1',
+        mockAssessmentsRepository.findAttemptByIdWithAnswers,
+      ).toHaveBeenCalledWith("attempt-1");
+      expect(mockAssessmentsRepository.saveAnswers).toHaveBeenCalledWith(
+        "attempt-1",
         answers,
       );
+
+      expect(result[0].question).toEqual({
+        id: "question-1",
+        questionText: "Explain TypeScript interfaces.",
+      });
+      expect(result[0].question.referenceAnswer).toBeUndefined();
+      expect(result[0].question.evaluationGuidance).toBeUndefined();
+    });
+  });
+
+  describe("getAnswersByAttempt", () => {
+    it("should get answers by assessment attempt", async () => {
+      const answers = [answer];
+
+      mockAssessmentsRepository.findAnswersByAttemptId.mockResolvedValue(
+        answers,
+      );
+
+      const result = await service.getAnswersByAttempt("attempt-1");
+
+      expect(
+        mockAssessmentsRepository.findAnswersByAttemptId,
+      ).toHaveBeenCalledWith("attempt-1");
 
       expect(result).toEqual(answers);
     });
   });
 
-  describe('getAnswersByAttempt', () => {
-    it('should delegate getAnswersByAttempt to repository', async () => {
-      mockAssessmentsRepository.findAnswersByAttemptId.mockResolvedValue(
-        [answer],
+  describe("getApplicantAnalysisData", () => {
+    it("should get applicant analysis data", async () => {
+      const analysisData = {
+        applicationId: "application-1",
+      };
+
+      mockAssessmentsRepository.getApplicantAnalysisData.mockResolvedValue(
+        analysisData,
       );
 
-      const result =
-        await service.getAnswersByAttempt(
-          'attempt-1',
-        );
+      const result = await service.getApplicantAnalysisData("application-1");
 
       expect(
-        mockAssessmentsRepository.findAnswersByAttemptId,
-      ).toHaveBeenCalledWith('attempt-1');
+        mockAssessmentsRepository.getApplicantAnalysisData,
+      ).toHaveBeenCalledWith("application-1");
 
-      expect(result).toEqual([answer]);
+      expect(result).toEqual(analysisData);
     });
   });
 
-  describe('getEligibleApplicantsForAnalysis', () => {
-    it('should delegate getEligibleApplicantsForAnalysis to repository', async () => {
+  describe("getSubmittedApplicantAnalysisData", () => {
+    it("should get submitted applicant analysis data", async () => {
+      const analysisData = {
+        applicationId: "application-1",
+      };
+
+      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
+        analysisData,
+      );
+
+      const result =
+        await service.getSubmittedApplicantAnalysisData("application-1");
+
+      expect(
+        mockAssessmentsRepository.getSubmittedApplicantAnalysisData,
+      ).toHaveBeenCalledWith("application-1");
+
+      expect(result).toEqual(analysisData);
+    });
+  });
+
+  describe("getEligibleApplicantsForAnalysis", () => {
+    it("should get eligible applicants for analysis", async () => {
       const applicants = [
         {
-          id: 'application-1',
-          opportunityId: 'opportunity-1',
+          applicationId: "application-1",
+        },
+        {
+          applicationId: "application-2",
         },
       ];
 
@@ -557,661 +1258,650 @@ describe('AssessmentsService', () => {
       );
 
       const result =
-        await service.getEligibleApplicantsForAnalysis(
-          'opportunity-1',
-        );
+        await service.getEligibleApplicantsForAnalysis("opportunity-1");
 
       expect(
         mockAssessmentsRepository.findEligibleApplicantsForAnalysis,
-      ).toHaveBeenCalledWith(
-        'opportunity-1',
-      );
+      ).toHaveBeenCalledWith("opportunity-1");
 
       expect(result).toEqual(applicants);
     });
   });
 
-  describe('saveAssessmentResult', () => {
-    it('should delegate saveAssessmentResult to repository', async () => {
-      const data = {
-        assessmentAttemptId: 'attempt-1',
+  describe("buildApplicantAnalysisInput", () => {
+    it("should throw NotFoundException when submitted applicant data is not found", async () => {
+      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        service.buildApplicantAnalysisInput("application-1"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockAssessmentsRepository.getSubmittedApplicantAnalysisData,
+      ).toHaveBeenCalledWith("application-1");
+
+      expect(mockCvsService.getCvTextForStudent).not.toHaveBeenCalled();
+    });
+
+    it("should build applicant analysis input with CV text", async () => {
+      const submittedApplicantData = {
+        id: "application-1",
+
+        studentProfile: {
+          userId: "user-1",
+          academicYear: 3,
+          university: "Unity University",
+          fieldOfStudy: "Computer Science",
+          location: "Addis Ababa",
+          careerGoals: "Software Engineering",
+          careerGoalTags: ["software", "backend"],
+          interests: ["technology", "AI"],
+
+          skills: [
+            {
+              skill: {
+                name: "TypeScript",
+                category: "Programming",
+              },
+              proficiency: "ADVANCED",
+              yearsOfExperience: 2,
+            },
+          ],
+
+          experiences: [
+            {
+              title: "Backend Developer Intern",
+              organizationName: "Tech Company",
+              experienceType: "INTERNSHIP",
+              startDate: new Date("2025-01-01"),
+              endDate: new Date("2025-06-01"),
+              location: "Addis Ababa",
+              description: "Worked on backend APIs.",
+            },
+          ],
+
+          cvs: [
+            {
+              fileName: "cv.pdf",
+              filePath: "/cvs/cv.pdf",
+              fileType: "application/pdf",
+              isDefault: true,
+              uploadedAt: new Date("2025-01-01"),
+            },
+          ],
+        },
+
+        opportunity: {
+          id: "opportunity-1",
+          title: "Software Engineering Internship",
+          description: "Backend development internship.",
+          opportunityType: "INTERNSHIP",
+          location: "Addis Ababa",
+          isRemote: false,
+          minimumAcademicYear: 3,
+          maximumAcademicYear: 5,
+          minimumGpa: 3.0,
+          eligibleFields: ["Computer Science"],
+
+          skills: [
+            {
+              skill: {
+                name: "TypeScript",
+                category: "Programming",
+              },
+              requirementLevel: "REQUIRED",
+            },
+          ],
+        },
+
+        assessmentAttempt: {
+          id: "attempt-1",
+
+          assessment: {
+            questions: [
+              {
+                id: "question-1",
+                questionText: "Explain TypeScript.",
+                questionType: "TEXT",
+                questionOrder: 1,
+                options: null,
+                referenceAnswer: null,
+                evaluationGuidance: null,
+                requirementLevel: null,
+              },
+            ],
+          },
+
+          answers: [
+            {
+              assessmentQuestionId: "question-1",
+              answerText: "TypeScript is a typed superset of JavaScript.",
+              question: {
+                questionText: "Explain TypeScript.",
+                questionOrder: 1,
+              },
+            },
+          ],
+        },
+      };
+
+      const cvText = "Experienced software developer with TypeScript skills.";
+
+      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
+        submittedApplicantData,
+      );
+
+      mockCvsService.getCvTextForStudent.mockResolvedValue(cvText);
+
+      const result = await service.buildApplicantAnalysisInput("application-1");
+
+      expect(
+        mockAssessmentsRepository.getSubmittedApplicantAnalysisData,
+      ).toHaveBeenCalledWith("application-1");
+
+      expect(mockCvsService.getCvTextForStudent).toHaveBeenCalledWith("user-1");
+
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe("prepareApplicantAnalysis", () => {
+    it("should throw NotFoundException when organization membership is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(null);
+
+      await expect(
+        service.prepareApplicantAnalysis("user-1", "opportunity-1"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockOrganizationProfileRepository.findByUserId,
+      ).toHaveBeenCalledWith("user-1");
+
+      expect(
+        mockOpportunitiesRepository.findByIdAndOrganizationId,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should throw NotFoundException when opportunity is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
+        organizationMembership,
+      );
+
+      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        service.prepareApplicantAnalysis("user-1", "opportunity-1"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockOpportunitiesRepository.findByIdAndOrganizationId,
+      ).toHaveBeenCalledWith("opportunity-1", "org-1");
+
+      expect(
+        mockAssessmentsRepository.findEligibleApplicantsForAnalysis,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should prepare applicant analysis for an organization opportunity", async () => {
+      const applicants = [
+        {
+          applicationId: "application-1",
+        },
+        {
+          applicationId: "application-2",
+        },
+      ];
+
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
+        organizationMembership,
+      );
+
+      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
+        opportunity,
+      );
+
+      mockAssessmentsRepository.findEligibleApplicantsForAnalysis.mockResolvedValue(
+        applicants,
+      );
+
+      const result = await service.prepareApplicantAnalysis(
+        "user-1",
+        "opportunity-1",
+      );
+
+      expect(
+        mockOrganizationProfileRepository.findByUserId,
+      ).toHaveBeenCalledWith("user-1");
+
+      expect(
+        mockOpportunitiesRepository.findByIdAndOrganizationId,
+      ).toHaveBeenCalledWith("opportunity-1", "org-1");
+
+      expect(
+        mockAssessmentsRepository.findEligibleApplicantsForAnalysis,
+      ).toHaveBeenCalledWith("opportunity-1");
+
+      expect(result).toEqual({
+        opportunityId: "opportunity-1",
+        eligibleApplicants: applicants,
+        totalEligibleApplicants: 2,
+      });
+    });
+  });
+
+  describe("analyzeApplicant", () => {
+    it("should throw NotFoundException when organization membership is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(null);
+
+      await expect(
+        service.analyzeApplicant("user-1", "opportunity-1", "application-1"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockOrganizationProfileRepository.findByUserId,
+      ).toHaveBeenCalledWith("user-1");
+
+      expect(
+        mockOpportunitiesRepository.findByIdAndOrganizationId,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should throw NotFoundException when opportunity is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
+        organizationMembership,
+      );
+
+      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        service.analyzeApplicant("user-1", "opportunity-1", "application-1"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockOpportunitiesRepository.findByIdAndOrganizationId,
+      ).toHaveBeenCalledWith("opportunity-1", "org-1");
+
+      expect(
+        mockAssessmentsRepository.getSubmittedApplicantAnalysisData,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should throw NotFoundException when submitted applicant data is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
+        organizationMembership,
+      );
+
+      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
+        opportunity,
+      );
+
+      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        service.analyzeApplicant("user-1", "opportunity-1", "application-1"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockAssessmentsRepository.getSubmittedApplicantAnalysisData,
+      ).toHaveBeenCalledWith("application-1");
+    });
+
+    it("should throw NotFoundException when application belongs to another opportunity", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
+        organizationMembership,
+      );
+
+      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
+        opportunity,
+      );
+
+      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
+        {
+          id: "application-1",
+          studentProfile: {
+            userId: "user-1",
+          },
+          opportunity: {
+            id: "another-opportunity",
+          },
+        },
+      );
+
+      await expect(
+        service.analyzeApplicant("user-1", "opportunity-1", "application-1"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockAssessmentsRepository.getSubmittedApplicantAnalysisData,
+      ).toHaveBeenCalledWith("application-1");
+    });
+
+    it("should throw NotFoundException when submitted assessment attempt is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
+        organizationMembership,
+      );
+
+      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
+        opportunity,
+      );
+
+      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
+        {
+          id: "application-1",
+          studentProfile: {
+            userId: "user-1",
+          },
+          opportunity: {
+            id: "opportunity-1",
+          },
+          assessmentAttempt: null,
+        },
+      );
+
+      await expect(
+        service.analyzeApplicant("user-1", "opportunity-1", "application-1"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockCvsService.getCvTextForStudent).not.toHaveBeenCalled();
+    });
+
+    it("should analyze an applicant and save the assessment result", async () => {
+      const submittedApplicantData = {
+        id: "application-1",
+
+        studentProfile: {
+          userId: "user-1",
+          academicYear: 3,
+          university: "Unity University",
+          fieldOfStudy: "Computer Science",
+          location: "Addis Ababa",
+          careerGoals: "Software Engineering",
+          careerGoalTags: ["software"],
+          interests: ["technology"],
+
+          skills: [
+            {
+              skill: {
+                name: "TypeScript",
+                category: "Programming",
+              },
+              proficiency: "ADVANCED",
+              yearsOfExperience: 2,
+            },
+          ],
+
+          experiences: [
+            {
+              title: "Backend Developer Intern",
+              organizationName: "Tech Company",
+              experienceType: "INTERNSHIP",
+              startDate: new Date("2025-01-01"),
+              endDate: new Date("2025-06-01"),
+              location: "Addis Ababa",
+              description: "Worked on backend APIs.",
+            },
+          ],
+
+          cvs: [
+            {
+              fileName: "cv.pdf",
+              filePath: "/cvs/cv.pdf",
+              fileType: "application/pdf",
+              isDefault: true,
+              uploadedAt: new Date("2025-01-01"),
+            },
+          ],
+        },
+
+        opportunity: {
+          id: "opportunity-1",
+          title: "Software Engineering Internship",
+          description: "Backend development internship.",
+          opportunityType: "INTERNSHIP",
+          location: "Addis Ababa",
+          isRemote: false,
+          minimumAcademicYear: 3,
+          maximumAcademicYear: 5,
+          minimumGpa: 3.0,
+          eligibleFields: ["Computer Science"],
+
+          skills: [
+            {
+              skill: {
+                name: "TypeScript",
+                category: "Programming",
+              },
+              requirementLevel: "REQUIRED",
+            },
+          ],
+        },
+
+        assessmentAttempt: {
+          id: "attempt-1",
+
+          assessment: {
+            questions: [
+              {
+                id: "question-1",
+                questionText: "Explain TypeScript.",
+                questionType: "TEXT",
+                questionOrder: 1,
+                options: null,
+                referenceAnswer: null,
+                evaluationGuidance: null,
+                requirementLevel: null,
+              },
+            ],
+          },
+
+          answers: [
+            {
+              assessmentQuestionId: "question-1",
+              answerText: "TypeScript is a typed superset of JavaScript.",
+              question: {
+                questionText: "Explain TypeScript.",
+                questionOrder: 1,
+              },
+            },
+          ],
+        },
+      };
+
+      const cvText = "Experienced software developer with TypeScript skills.";
+
+      const analysis = {
+        overallScore: 85,
+        requirementMatch: 90,
+        skillAnalysis: {
+          TypeScript: "Strong",
+        },
+        strengths: ["TypeScript experience"],
+        gaps: ["Limited professional experience"],
+        summary: "Strong candidate with relevant technical skills.",
+      };
+
+      const savedResult = {
+        ...assessmentResult,
         aiScore: 85,
-        aiRequirementMatch: 'Strong match',
-        aiStrengths: ['TypeScript'],
-        aiGaps: ['React'],
-        aiSummary: 'Strong candidate.',
+        aiRequirementMatch: 90,
+      };
+
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
+        organizationMembership,
+      );
+
+      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
+        opportunity,
+      );
+
+      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
+        submittedApplicantData,
+      );
+
+      mockCvsService.getCvTextForStudent.mockResolvedValue(cvText);
+
+      mockAIApplicantAnalysisService.analyzeApplicant.mockResolvedValue(
+        analysis,
+      );
+
+      mockAssessmentsRepository.saveAssessmentResult.mockResolvedValue(
+        savedResult,
+      );
+
+      const result = await service.analyzeApplicant(
+        "user-1",
+        "opportunity-1",
+        "application-1",
+      );
+
+      expect(
+        mockAIApplicantAnalysisService.analyzeApplicant,
+      ).toHaveBeenCalled();
+
+      expect(
+        mockAssessmentsRepository.saveAssessmentResult,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assessmentAttemptId: "attempt-1",
+          aiScore: 85,
+          aiRequirementMatch: 90,
+          aiStrengths: ["TypeScript experience"],
+          aiGaps: ["Limited professional experience"],
+          aiSummary: "Strong candidate with relevant technical skills.",
+          aiSkillAnalysis: {
+            TypeScript: "Strong",
+          },
+        }),
+      );
+
+      expect(result).toEqual({
+        applicationId: "application-1",
+        opportunityId: "opportunity-1",
+        analysis,
+        result: savedResult,
+      });
+    });
+  });
+
+  describe("saveAssessmentResult", () => {
+    it("should save an assessment result", async () => {
+      const resultData = {
+        assessmentAttemptId: "attempt-1",
+        aiScore: 85,
+        aiRequirementMatch: "90",
+        aiStrengths: ["TypeScript experience"],
+        aiGaps: ["Limited professional experience"],
+        aiSummary: "Strong candidate.",
+        aiEvaluatedAt: new Date(),
       };
 
       mockAssessmentsRepository.saveAssessmentResult.mockResolvedValue(
         assessmentResult,
       );
 
-      const result =
-        await service.saveAssessmentResult(data);
+      const result = await service.saveAssessmentResult(resultData);
 
       expect(
         mockAssessmentsRepository.saveAssessmentResult,
-      ).toHaveBeenCalledWith(data);
+      ).toHaveBeenCalledWith(resultData);
 
       expect(result).toEqual(assessmentResult);
     });
   });
 
-  describe('buildApplicantAnalysisInput', () => {
-    const analysisData = {
-      id: 'application-1',
-      studentProfile: {
-        userId: 'student-user-1',
-        academicYear: 4,
-        university: 'Addis Ababa University',
-        fieldOfStudy: 'Computer Science',
-        location: 'Addis Ababa',
-        careerGoals: 'Become a software engineer',
-        careerGoalTags: ['software engineering'],
-        interests: ['AI', 'Web Development'],
-
-        skills: [
-          {
-            proficiency: 4,
-            yearsOfExperience: 2,
-            skill: {
-              name: 'TypeScript',
-              category: 'Programming',
-            },
-          },
-        ],
-
-        experiences: [
-          {
-            title: 'Software Developer Intern',
-            organizationName: 'Example Company',
-            experienceType: 'INTERNSHIP',
-            startDate: new Date('2025-06-01'),
-            endDate: new Date('2025-08-30'),
-            location: 'Addis Ababa',
-            description: 'Built web applications.',
-          },
-        ],
-
-        cvs: [
-          {
-            fileName: 'student-cv.pdf',
-            filePath:
-              'student-user-1/student-cv.pdf',
-            fileType: 'application/pdf',
-            isDefault: true,
-            uploadedAt: new Date('2026-01-01'),
-          },
-        ],
-      },
-
-      opportunity: {
-        id: 'opportunity-1',
-        title: 'Software Engineering Internship',
-        description: 'Build software applications.',
-        opportunityType: 'INTERNSHIP',
-        location: 'Addis Ababa',
-        isRemote: false,
-        minimumAcademicYear: 3,
-        maximumAcademicYear: 5,
-        minimumGpa: 3.0,
-        eligibleFields: ['Computer Science'],
-
-        skills: [
-          {
-            requirementLevel: 'REQUIRED',
-            skill: {
-              name: 'TypeScript',
-              category: 'Programming',
-            },
-          },
-        ],
-      },
-
-      assessmentAttempt: {
-        id: 'attempt-1',
-        assessment: {
-          questions: [
-            {
-              id: 'question-1',
-              questionText:
-                'Explain TypeScript interfaces.',
-              questionType: 'TEXT',
-              questionOrder: 1,
-              options: null,
-              referenceAnswer: null,
-              evaluationGuidance:
-                'Look for understanding of interfaces.',
-              requirementLevel: 'REQUIRED',
-            },
-          ],
-        },
-        answers: [
-          {
-            assessmentQuestionId: 'question-1',
-            answerText:
-              'Interfaces define the structure of objects.',
-            question: {
-              questionText:
-                'Explain TypeScript interfaces.',
-              questionOrder: 1,
-            },
-          },
-        ],
-      },
-    };
-
-    it('should build applicant analysis input with extracted CV text', async () => {
-      const cvText =
-        'Lidiya is a Computer Science student with TypeScript experience.';
-
-      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
-        analysisData,
-      );
-
-      mockCvsService.getCvTextForStudent.mockResolvedValue(
-        cvText,
-      );
-
-      const result =
-        await service.buildApplicantAnalysisInput(
-          'application-1',
-        );
-
-      expect(
-        mockAssessmentsRepository.getSubmittedApplicantAnalysisData,
-      ).toHaveBeenCalledWith('application-1');
-
-      expect(
-        mockCvsService.getCvTextForStudent,
-      ).toHaveBeenCalledWith(
-        'student-user-1',
-      );
-
-      expect(result.applicant.cvText).toBe(
-        cvText,
-      );
-
-      expect(result.applicant.profile).toEqual({
-        academicYear: 4,
-        university: 'Addis Ababa University',
-        fieldOfStudy: 'Computer Science',
-        location: 'Addis Ababa',
-        careerGoals:
-          'Become a software engineer',
-        careerGoalTags: ['software engineering'],
-        interests: ['AI', 'Web Development'],
-      });
-
-      expect(result.opportunity.title).toBe(
-        'Software Engineering Internship',
-      );
-
-      expect(result.assessment.questions).toHaveLength(
-        1,
-      );
-
-      expect(result.assessment.answers).toHaveLength(
-        1,
-      );
-    });
-
-    it('should throw NotFoundException when submitted analysis data is not found', async () => {
-      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
-        null,
-      );
-
-      await expect(
-        service.buildApplicantAnalysisInput(
-          'application-1',
-        ),
-      ).rejects.toThrow(NotFoundException);
-
-      expect(
-        mockCvsService.getCvTextForStudent,
-      ).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('analyzeApplicant', () => {
-    const analysisData = {
-      id: 'application-1',
-      studentProfile: {
-        userId: 'student-user-1',
-        academicYear: 4,
-        university: 'Addis Ababa University',
-        fieldOfStudy: 'Computer Science',
-        location: 'Addis Ababa',
-        careerGoals: 'Become a software engineer',
-        careerGoalTags: ['software engineering'],
-        interests: ['AI', 'Web Development'],
-
-        skills: [
-          {
-            proficiency: 4,
-            yearsOfExperience: 2,
-            skill: {
-              name: 'TypeScript',
-              category: 'Programming',
-            },
-          },
-        ],
-
-        experiences: [
-          {
-            title: 'Software Developer Intern',
-            organizationName: 'Example Company',
-            experienceType: 'INTERNSHIP',
-            startDate: new Date('2025-06-01'),
-            endDate: new Date('2025-08-30'),
-            location: 'Addis Ababa',
-            description: 'Built web applications.',
-          },
-        ],
-
-        cvs: [
-          {
-            fileName: 'student-cv.pdf',
-            filePath:
-              'student-user-1/student-cv.pdf',
-            fileType: 'application/pdf',
-            isDefault: true,
-            uploadedAt: new Date('2026-01-01'),
-          },
-        ],
-      },
-
-      opportunity: {
-        id: 'opportunity-1',
-        title: 'Software Engineering Internship',
-        description: 'Build software applications.',
-        opportunityType: 'INTERNSHIP',
-        location: 'Addis Ababa',
-        isRemote: false,
-        minimumAcademicYear: 3,
-        maximumAcademicYear: 5,
-        minimumGpa: 3.0,
-        eligibleFields: ['Computer Science'],
-
-        skills: [
-          {
-            requirementLevel: 'REQUIRED',
-            skill: {
-              name: 'TypeScript',
-              category: 'Programming',
-            },
-          },
-        ],
-      },
-
-      assessmentAttempt: {
-        id: 'attempt-1',
-        assessment: {
-          questions: [
-            {
-              id: 'question-1',
-              questionText:
-                'Explain TypeScript interfaces.',
-              questionType: 'TEXT',
-              questionOrder: 1,
-              options: null,
-              referenceAnswer: null,
-              evaluationGuidance:
-                'Look for understanding of interfaces.',
-              requirementLevel: 'REQUIRED',
-            },
-          ],
-        },
-        answers: [
-          {
-            assessmentQuestionId: 'question-1',
-            answerText:
-              'Interfaces define the structure of objects.',
-            question: {
-              questionText:
-                'Explain TypeScript interfaces.',
-              questionOrder: 1,
-            },
-          },
-        ],
-      },
-    };
-
-    const aiAnalysis = {
-      applicantId: 'student-user-1',
-      applicationId: 'application-1',
-      opportunityId: 'opportunity-1',
-      overallScore: 88,
-      requirementMatch: 'Strong match',
-      skillAnalysis: {
-        TypeScript: {
-          matched: true,
-          evidence: 'Student profile and CV',
-        },
-      },
-      strengths: [
-        'TypeScript experience',
-        'Relevant education',
-      ],
-      gaps: ['Limited professional experience'],
-      summary:
-        'Strong candidate for the opportunity.',
-    };
-
-    it('should analyze an applicant and save the AI result with extracted CV text', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
-        organizationMembership,
-      );
-
-      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
-        opportunity,
-      );
-
-      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
-        analysisData,
-      );
-
-      mockCvsService.getCvTextForStudent.mockResolvedValue(
-        'Student CV text with TypeScript and software engineering experience.',
-      );
-
-      mockAIApplicantAnalysisService.analyzeApplicant.mockResolvedValue(
-        aiAnalysis,
-      );
-
-      mockAssessmentsRepository.saveAssessmentResult.mockResolvedValue(
-        assessmentResult,
-      );
-
-      const result =
-        await service.analyzeApplicant(
-          'user-1',
-          'opportunity-1',
-          'application-1',
-        );
-
-      expect(
-        mockOrganizationProfileRepository.findByUserId,
-      ).toHaveBeenCalledWith('user-1');
-
-      expect(
-        mockOpportunitiesRepository.findByIdAndOrganizationId,
-      ).toHaveBeenCalledWith(
-        'opportunity-1',
-        'org-1',
-      );
-
-      expect(
-        mockAssessmentsRepository.getSubmittedApplicantAnalysisData,
-      ).toHaveBeenCalledWith(
-        'application-1',
-      );
-
-      expect(
-        mockCvsService.getCvTextForStudent,
-      ).toHaveBeenCalledWith(
-        'student-user-1',
-      );
-
-      expect(
-        mockAIApplicantAnalysisService.analyzeApplicant,
-      ).toHaveBeenCalledWith(
-        expect.objectContaining({
-          applicantId: 'student-user-1',
-          applicationId: 'application-1',
-          opportunityId: 'opportunity-1',
-          applicant: expect.objectContaining({
-            cvText:
-              'Student CV text with TypeScript and software engineering experience.',
-          }),
-        }),
-      );
-
-      expect(
-        mockAssessmentsRepository.saveAssessmentResult,
-      ).toHaveBeenCalledWith(
-        expect.objectContaining({
-          assessmentAttemptId: 'attempt-1',
-          aiScore: 88,
-          aiRequirementMatch:
-            'Strong match',
-          aiStrengths: [
-            'TypeScript experience',
-            'Relevant education',
-          ],
-          aiGaps: [
-            'Limited professional experience',
-          ],
-          aiSummary:
-            'Strong candidate for the opportunity.',
-          aiEvaluatedAt: expect.any(Date),
-        }),
-      );
-
-      expect(result).toEqual({
-        applicationId: 'application-1',
-        opportunityId: 'opportunity-1',
-        analysis: aiAnalysis,
-        result: assessmentResult,
-      });
-    });
-
-    it('should throw NotFoundException when organization membership is not found', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
-        null,
-      );
-
-      await expect(
-        service.analyzeApplicant(
-          'user-1',
-          'opportunity-1',
-          'application-1',
-        ),
-      ).rejects.toThrow(NotFoundException);
-
-      expect(
-        mockAIApplicantAnalysisService.analyzeApplicant,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('should throw NotFoundException when opportunity is not owned by the organization', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
-        organizationMembership,
-      );
-
-      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
-        null,
-      );
-
-      await expect(
-        service.analyzeApplicant(
-          'user-1',
-          'opportunity-1',
-          'application-1',
-        ),
-      ).rejects.toThrow(NotFoundException);
-
-      expect(
-        mockAIApplicantAnalysisService.analyzeApplicant,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('should throw NotFoundException when submitted applicant analysis data is not found', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
-        organizationMembership,
-      );
-
-      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
-        opportunity,
-      );
-
-      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
-        null,
-      );
-
-      await expect(
-        service.analyzeApplicant(
-          'user-1',
-          'opportunity-1',
-          'application-1',
-        ),
-      ).rejects.toThrow(NotFoundException);
-
-      expect(
-        mockCvsService.getCvTextForStudent,
-      ).not.toHaveBeenCalled();
-
-      expect(
-        mockAIApplicantAnalysisService.analyzeApplicant,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('should throw NotFoundException when application belongs to a different opportunity', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
-        organizationMembership,
-      );
-
-      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
-        opportunity,
-      );
-
-      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
-        {
-          ...analysisData,
-          opportunity: {
-            ...analysisData.opportunity,
-            id: 'different-opportunity',
-          },
-        },
-      );
-
-      await expect(
-        service.analyzeApplicant(
-          'user-1',
-          'opportunity-1',
-          'application-1',
-        ),
-      ).rejects.toThrow(NotFoundException);
-
-      expect(
-        mockCvsService.getCvTextForStudent,
-      ).not.toHaveBeenCalled();
-
-      expect(
-        mockAIApplicantAnalysisService.analyzeApplicant,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('should throw NotFoundException when submitted assessment attempt is not found', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
-        organizationMembership,
-      );
-
-      mockOpportunitiesRepository.findByIdAndOrganizationId.mockResolvedValue(
-        opportunity,
-      );
-
-      mockAssessmentsRepository.getSubmittedApplicantAnalysisData.mockResolvedValue(
-        {
-          ...analysisData,
-          assessmentAttempt: null,
-        },
-      );
-
-      await expect(
-        service.analyzeApplicant(
-          'user-1',
-          'opportunity-1',
-          'application-1',
-        ),
-      ).rejects.toThrow(NotFoundException);
-
-      expect(
-        mockCvsService.getCvTextForStudent,
-      ).not.toHaveBeenCalled();
-
-      expect(
-        mockAIApplicantAnalysisService.analyzeApplicant,
-      ).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getAssessmentResultById', () => {
-    it('should delegate result retrieval by ID to repository', async () => {
+  describe("getAssessmentResultById", () => {
+    it("should get an assessment result by ID", async () => {
       mockAssessmentsRepository.findAssessmentResultById.mockResolvedValue(
         assessmentResult,
       );
 
-      const result =
-        await service.getAssessmentResultById(
-          'result-1',
-        );
+      const result = await service.getAssessmentResultById("result-1");
 
       expect(
         mockAssessmentsRepository.findAssessmentResultById,
-      ).toHaveBeenCalledWith('result-1');
+      ).toHaveBeenCalledWith("result-1");
 
       expect(result).toEqual(assessmentResult);
     });
   });
 
-  describe('getAssessmentResultByAttemptId', () => {
-    it('should delegate result retrieval by attempt ID to repository', async () => {
+  describe("getAssessmentResultByAttemptId", () => {
+    it("should get an assessment result by attempt ID", async () => {
       mockAssessmentsRepository.findAssessmentResultByAttemptId.mockResolvedValue(
         assessmentResult,
       );
 
-      const result =
-        await service.getAssessmentResultByAttemptId(
-          'attempt-1',
-        );
+      const result = await service.getAssessmentResultByAttemptId("attempt-1");
 
       expect(
         mockAssessmentsRepository.findAssessmentResultByAttemptId,
-      ).toHaveBeenCalledWith(
-        'attempt-1',
-      );
+      ).toHaveBeenCalledWith("attempt-1");
 
       expect(result).toEqual(assessmentResult);
     });
   });
 
-  describe('getAssessmentResultByApplicationId', () => {
-    it('should delegate result retrieval by application ID to repository', async () => {
+  describe("getAssessmentResultByApplicationId", () => {
+    it("should get an assessment result by application ID", async () => {
       mockAssessmentsRepository.findAssessmentResultByApplicationId.mockResolvedValue(
         assessmentResult,
       );
 
       const result =
-        await service.getAssessmentResultByApplicationId(
-          'application-1',
-        );
+        await service.getAssessmentResultByApplicationId("application-1");
 
       expect(
         mockAssessmentsRepository.findAssessmentResultByApplicationId,
-      ).toHaveBeenCalledWith(
-        'application-1',
-      );
+      ).toHaveBeenCalledWith("application-1");
 
       expect(result).toEqual(assessmentResult);
     });
   });
 
-  describe('getAssessmentResultsByOpportunity', () => {
-    it('should throw NotFoundException when organization membership is not found', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
-        null,
-      );
+  describe("getAssessmentResultsByOpportunity", () => {
+    it("should throw NotFoundException when organization membership is not found", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(null);
 
       await expect(
-        service.getAssessmentResultsByOpportunity(
-          'user-1',
-          'opportunity-1',
-        ),
+        service.getAssessmentResultsByOpportunity("user-1", "opportunity-1"),
       ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockOrganizationProfileRepository.findByUserId,
+      ).toHaveBeenCalledWith("user-1");
+
+      expect(
+        mockOpportunitiesRepository.findByIdAndOrganizationId,
+      ).not.toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException when opportunity is not found for organization', async () => {
+    it("should throw NotFoundException when organization is deleted", async () => {
+      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
+        ...organizationMembership,
+        organization: {
+          ...organizationMembership.organization,
+          deletedAt: new Date(),
+        },
+      });
+
+      await expect(
+        service.getAssessmentResultsByOpportunity("user-1", "opportunity-1"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockOpportunitiesRepository.findByIdAndOrganizationId,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should throw NotFoundException when opportunity is not owned by the organization", async () => {
       mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
         organizationMembership,
       );
@@ -1221,14 +1911,29 @@ describe('AssessmentsService', () => {
       );
 
       await expect(
-        service.getAssessmentResultsByOpportunity(
-          'user-1',
-          'opportunity-1',
-        ),
+        service.getAssessmentResultsByOpportunity("user-1", "opportunity-1"),
       ).rejects.toThrow(NotFoundException);
+
+      expect(
+        mockOpportunitiesRepository.findByIdAndOrganizationId,
+      ).toHaveBeenCalledWith("opportunity-1", "org-1");
+
+      expect(
+        mockAssessmentsRepository.findAssessmentResultsByOpportunityId,
+      ).not.toHaveBeenCalled();
     });
 
-    it('should return assessment results for an organization opportunity', async () => {
+    it("should get assessment results for an organization opportunity", async () => {
+      const results = [assessmentResult];
+
+      const options = {
+        minScore: 70,
+        sortBy: "finalScore",
+        sortOrder: "desc",
+        page: 1,
+        limit: 10,
+      };
+
       mockOrganizationProfileRepository.findByUserId.mockResolvedValue(
         organizationMembership,
       );
@@ -1238,227 +1943,120 @@ describe('AssessmentsService', () => {
       );
 
       mockAssessmentsRepository.findAssessmentResultsByOpportunityId.mockResolvedValue(
-        [assessmentResult],
+        results,
       );
 
-      const options = {
-        minScore: 70,
-        sortBy: 'finalScore',
-        sortOrder: 'desc',
-      };
-
-      const result =
-        await service.getAssessmentResultsByOpportunity(
-          'user-1',
-          'opportunity-1',
-          options,
-        );
-
-      expect(
-        mockAssessmentsRepository.findAssessmentResultsByOpportunityId,
-      ).toHaveBeenCalledWith(
-        'opportunity-1',
+      const result = await service.getAssessmentResultsByOpportunity(
+        "user-1",
+        "opportunity-1",
         options,
       );
 
-      expect(result).toEqual([
-        assessmentResult,
-      ]);
+      expect(
+        mockOrganizationProfileRepository.findByUserId,
+      ).toHaveBeenCalledWith("user-1");
+
+      expect(
+        mockOpportunitiesRepository.findByIdAndOrganizationId,
+      ).toHaveBeenCalledWith("opportunity-1", "org-1");
+
+      expect(
+        mockAssessmentsRepository.findAssessmentResultsByOpportunityId,
+      ).toHaveBeenCalledWith("opportunity-1", options);
+
+      expect(result).toEqual(results);
     });
-  });
 
-  describe('startAssessment', () => {
-    it('should throw NotFoundException if organization membership is not found', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue(null);
-
-      await expect(
-        service.startAssessment('user-123', 'opp-123'),
-      ).rejects.toThrow('Organization membership not found.');
-    });
-
-    it('should throw NotFoundException if organization is deleted', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
-        organizationId: 'org-123',
-        organization: {
-          deletedAt: new Date(),
+    it("should reject starting an assessment attempt for another student", async () => {
+      mockApplicationsRepository.findById.mockResolvedValue({
+        studentProfile: {
+          user: {
+            id: "another-user",
+          },
         },
       });
 
       await expect(
-        service.startAssessment('user-123', 'opp-123'),
-      ).rejects.toThrow('Organization membership not found.');
-    });
-
-    it('should throw NotFoundException if opportunity is not found', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
-        organizationId: 'org-123',
-        organization: {
-          deletedAt: null,
-        },
-      });
-      mockOpportunitiesRepository.findById.mockResolvedValue(null);
-
-      await expect(
-        service.startAssessment('user-123', 'opp-123'),
-      ).rejects.toThrow('Opportunity not found.');
-    });
-
-    it('should throw ForbiddenException if opportunity belongs to different organization', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
-        organizationId: 'org-123',
-        organization: {
-          deletedAt: null,
-        },
-      });
-      mockOpportunitiesRepository.findById.mockResolvedValue({
-        id: 'opp-123',
-        organizationId: 'different-org',
-        applicationDeadline: new Date(Date.now() - 60000),
-      });
-
-      await expect(
-        service.startAssessment('user-123', 'opp-123'),
+        service.startAttempt("user-1", {
+          applicationId: "application-1",
+          assessmentId: "assessment-1",
+        }),
       ).rejects.toThrow(
-        'You are not authorized to start an assessment for this opportunity.',
+        "You are not authorized to start an assessment for this application.",
       );
+
+      expect(mockAssessmentsRepository.createAttempt).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException if opportunity has no application deadline', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
-        organizationId: 'org-123',
-        organization: {
-          deletedAt: null,
+    it("should reject access to another student’s assessment attempt", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-user",
+            },
+          },
         },
-      });
-      mockOpportunitiesRepository.findById.mockResolvedValue({
-        id: 'opp-123',
-        organizationId: 'org-123',
-        applicationDeadline: null,
+        answers: [],
       });
 
       await expect(
-        service.startAssessment('user-123', 'opp-123'),
+        service.getAttemptWithAnswers("user-1", "attempt-1"),
       ).rejects.toThrow(
-        'This opportunity does not have an application deadline.',
+        "You are not authorized to access this assessment attempt.",
       );
     });
 
-    it('should prevent starting an assessment before the application deadline', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
-        organizationId: 'org-123',
-        organization: {
-          deletedAt: null,
+    it("should reject saving an answer for another student’s attempt", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-user",
+            },
+          },
         },
-      });
-
-      const futureDeadline = new Date(Date.now() + 60 * 60 * 1000);
-
-      mockOpportunitiesRepository.findById.mockResolvedValue({
-        id: 'opp-123',
-        organizationId: 'org-123',
-        applicationDeadline: futureDeadline,
       });
 
       await expect(
-        service.startAssessment('user-123', 'opp-123'),
-      ).rejects.toThrow('The application deadline has not passed yet.');
-
-      expect(mockAssessmentsRepository.getAssessment).not.toHaveBeenCalled();
-      expect(mockAssessmentsRepository.update).not.toHaveBeenCalled();
-    });
-
-    it('should throw NotFoundException if assessment not found for opportunity', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
-        organizationId: 'org-123',
-        organization: {
-          deletedAt: null,
-        },
-      });
-
-      const pastDeadline = new Date(Date.now() - 60 * 60 * 1000);
-
-      mockOpportunitiesRepository.findById.mockResolvedValue({
-        id: 'opp-123',
-        organizationId: 'org-123',
-        applicationDeadline: pastDeadline,
-      });
-      mockAssessmentsRepository.getAssessment.mockResolvedValue(null);
-
-      await expect(
-        service.startAssessment('user-123', 'opp-123'),
-      ).rejects.toThrow('Assessment not found for this opportunity.');
-    });
-
-    it('should throw BadRequestException if assessment is not in DRAFT status', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
-        organizationId: 'org-123',
-        organization: {
-          deletedAt: null,
-        },
-      });
-
-      const pastDeadline = new Date(Date.now() - 60 * 60 * 1000);
-
-      mockOpportunitiesRepository.findById.mockResolvedValue({
-        id: 'opp-123',
-        organizationId: 'org-123',
-        applicationDeadline: pastDeadline,
-      });
-      mockAssessmentsRepository.getAssessment.mockResolvedValue({
-        id: 'assessment-123',
-        opportunityId: 'opp-123',
-        status: AssessmentStatus.ACTIVE,
-      });
-
-      await expect(
-        service.startAssessment('user-123', 'opp-123'),
-      ).rejects.toThrow('Assessment cannot be started from ACTIVE status.');
-    });
-
-    it('should start a draft assessment after the application deadline', async () => {
-      mockOrganizationProfileRepository.findByUserId.mockResolvedValue({
-        organizationId: 'org-123',
-        organization: {
-          deletedAt: null,
-        },
-      });
-
-      const pastDeadline = new Date(Date.now() - 60 * 60 * 1000);
-
-      mockOpportunitiesRepository.findById.mockResolvedValue({
-        id: 'opp-123',
-        organizationId: 'org-123',
-        applicationDeadline: pastDeadline,
-      });
-
-      mockAssessmentsRepository.getAssessment.mockResolvedValue({
-        id: 'assessment-123',
-        opportunityId: 'opp-123',
-        status: AssessmentStatus.DRAFT,
-      });
-
-      mockAssessmentsRepository.update.mockResolvedValue({
-        id: 'assessment-123',
-        opportunityId: 'opp-123',
-        status: AssessmentStatus.ACTIVE,
-      });
-
-      const result = await service.startAssessment('user-123', 'opp-123');
-
-      expect(mockAssessmentsRepository.getAssessment).toHaveBeenCalledWith(
-        'opp-123',
+        service.saveAnswer("user-1", {
+          assessmentAttemptId: "attempt-1",
+          assessmentQuestionId: "question-1",
+          answerText: "Unauthorized answer",
+        }),
+      ).rejects.toThrow(
+        "You are not authorized to answer this assessment attempt.",
       );
-      expect(mockAssessmentsRepository.update).toHaveBeenCalledWith(
-        'assessment-123',
+
+      expect(mockAssessmentsRepository.saveAnswer).not.toHaveBeenCalled();
+    });
+
+    it("should reject saving answers for another student’s attempt", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-user",
+            },
+          },
+        },
+      });
+
+      const answers = [
         {
-          status: AssessmentStatus.ACTIVE,
+          assessmentQuestionId: "question-1",
+          answerText: "My answer",
         },
-      );
-      expect(result).toEqual({
-        id: 'assessment-123',
-        opportunityId: 'opp-123',
-        status: AssessmentStatus.ACTIVE,
-      });
+      ];
+
+      await expect(
+        service.saveAnswers("user-1", "attempt-1", answers),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockAssessmentsRepository.saveAnswers).not.toHaveBeenCalled();
     });
   });
 });

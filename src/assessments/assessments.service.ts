@@ -2,26 +2,39 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
-} from '@nestjs/common';
+} from "@nestjs/common";
+
 import {
+  ApplicationStatus,
   AssessmentQuestionType,
   AssessmentStatus,
-} from '@prisma/client';
+} from "@prisma/client";
 
-import { AssessmentsRepository } from './assessments.repository';
-import { OrganizationProfileRepository } from '@/organization-profile/organization-profile.repository';
-import { OpportunitiesRepository } from '@/opportunities/opportunities.repository';
-import { AIQuestionService } from './ai-question.service';
-import { AIApplicantAnalysisService } from './ai-applicant-analysis.service';
-import { mapApplicantAnalysisData } from './assessment-analysis.mapper';
-import { AssessmentResultFilterDto } from './dto/assessment-result-filter.dto';
-import { SaveAssessmentResultData } from './assessments.interface';
-import { CvsService } from '@/student-profile/cvs.service';
+import { AssessmentsRepository } from "./assessments.repository";
+import { OrganizationProfileRepository } from "@/organization-profile/organization-profile.repository";
+import { OpportunitiesRepository } from "@/opportunities/opportunities.repository";
+import { AIQuestionService } from "./ai-question.service";
+import { AIApplicantAnalysisService } from "./ai-applicant-analysis.service";
+import { mapApplicantAnalysisData } from "./assessment-analysis.mapper";
+import { AssessmentResultFilterDto } from "./dto/assessment-result-filter.dto";
+import { SaveAssessmentResultData } from "./assessments.interface";
+import { CvsService } from "@/student-profile/cvs.service";
+import { NotificationsService } from "@/notifications/notifications.service";
+import { ApplicationsRepository } from "@/applications/applications.repository";
+import {
+  sanitizeQuestionForStudent,
+  sanitizeAttemptForStudent,
+} from "./assessments-sanitizer";
 
 @Injectable()
 export class AssessmentsService {
+  private readonly logger = new Logger(AssessmentsService.name);
+
   constructor(
+    private readonly applicationsRepository: ApplicationsRepository,
+    private readonly notificationsService: NotificationsService,
     private readonly assessmentsRepository: AssessmentsRepository,
     private readonly organizationProfileRepository: OrganizationProfileRepository,
     private readonly opportunitiesRepository: OpportunitiesRepository,
@@ -35,47 +48,40 @@ export class AssessmentsService {
       await this.organizationProfileRepository.findByUserId(userId);
 
     if (!membership || membership.organization.deletedAt) {
-      throw new NotFoundException('Organization membership not found.');
+      throw new NotFoundException("Organization membership not found.");
     }
 
     const opportunity =
       await this.opportunitiesRepository.findById(opportunityId);
 
     if (!opportunity) {
-      throw new NotFoundException('Opportunity not found.');
+      throw new NotFoundException("Opportunity not found.");
     }
 
-    if (
-      opportunity.organizationId !==
-      membership.organizationId
-    ) {
+    if (opportunity.organizationId !== membership.organizationId) {
       throw new ForbiddenException(
-        'You are not authorized to create an assessment for this opportunity.',
+        "You are not authorized to create an assessment for this opportunity.",
       );
     }
 
-// Get the skills explicitly marked as required for the opportunity.
+    // Get the skills explicitly marked as required for the opportunity.
     const requiredSkills = opportunity.skills
-      .filter((item) => item.requirementLevel === 'REQUIRED')
+      .filter((item) => item.requirementLevel === "REQUIRED")
       .map((item) => item.skill.name);
 
-    const generated =
-      await this.aiQuestionService.generateQuestions({
-        title: opportunity.title,
-        description: opportunity.description ?? '',
-        requiredSkills,
-        location: opportunity.location ?? null,
-        eligibleFields: opportunity.eligibleFields ?? [],
-        minimumAcademicYear:
-          opportunity.minimumAcademicYear ?? null,
-        maximumAcademicYear:
-          opportunity.maximumAcademicYear ?? null,
-        minimumGpa: opportunity.minimumGpa
-          ? Number(opportunity.minimumGpa)
-          : null,
-        opportunityType:
-          opportunity.opportunityType ?? null,
-      });
+    const generated = await this.aiQuestionService.generateQuestions({
+      title: opportunity.title,
+      description: opportunity.description ?? "",
+      requiredSkills,
+      location: opportunity.location ?? null,
+      eligibleFields: opportunity.eligibleFields ?? [],
+      minimumAcademicYear: opportunity.minimumAcademicYear ?? null,
+      maximumAcademicYear: opportunity.maximumAcademicYear ?? null,
+      minimumGpa: opportunity.minimumGpa
+        ? Number(opportunity.minimumGpa)
+        : null,
+      opportunityType: opportunity.opportunityType ?? null,
+    });
 
     const questions = generated.questions.map((item, index) => ({
       questionText: item.question,
@@ -96,46 +102,41 @@ export class AssessmentsService {
       await this.organizationProfileRepository.findByUserId(userId);
 
     if (!membership || membership.organization?.deletedAt) {
-      throw new NotFoundException('Organization membership not found.');
+      throw new NotFoundException("Organization membership not found.");
     }
 
     const opportunity =
       await this.opportunitiesRepository.findById(opportunityId);
 
     if (!opportunity) {
-      throw new NotFoundException('Opportunity not found.');
+      throw new NotFoundException("Opportunity not found.");
     }
 
-    if (
-      opportunity.organizationId !==
-      membership.organizationId
-    ) {
+    if (opportunity.organizationId !== membership.organizationId) {
       throw new ForbiddenException(
-        'You are not authorized to start an assessment for this opportunity.',
+        "You are not authorized to start an assessment for this opportunity.",
       );
     }
 
     if (!opportunity.applicationDeadline) {
       throw new BadRequestException(
-        'This opportunity does not have an application deadline.',
+        "This opportunity does not have an application deadline.",
       );
     }
 
     if (new Date() <= opportunity.applicationDeadline) {
       throw new BadRequestException(
-        'The application deadline has not passed yet.',
+        "The application deadline has not passed yet.",
       );
     }
 
     const assessment =
-      await this.assessmentsRepository.getAssessment(
+      await this.assessmentsRepository.findByOpportunityIdWithQuestions(
         opportunityId,
       );
 
     if (!assessment) {
-      throw new NotFoundException(
-        'Assessment not found for this opportunity.',
-      );
+      throw new NotFoundException("Assessment not found for this opportunity.");
     }
 
     if (assessment.status !== AssessmentStatus.DRAFT) {
@@ -144,43 +145,139 @@ export class AssessmentsService {
       );
     }
 
-    return this.assessmentsRepository.update(
+    const eligibleApplicants =
+      await this.applicationsRepository.findByOpportunityId(opportunityId, {
+        status: ApplicationStatus.SUBMITTED,
+      });
+
+    if (eligibleApplicants.length === 0) {
+      throw new BadRequestException(
+        "No eligible applicants found for this assessment.",
+      );
+    }
+
+    const activatedAssessment = await this.assessmentsRepository.update(
       assessment.id,
       {
         status: AssessmentStatus.ACTIVE,
       },
     );
+
+    for (const application of eligibleApplicants) {
+      const studentUserId = application.studentProfile?.user?.id;
+
+      if (!studentUserId) {
+        continue;
+      }
+
+      try {
+        await this.notificationsService.sendNotification(
+          studentUserId,
+          "Assessment Invitation",
+          `You have been invited to complete the assessment for ${opportunity.title}.`,
+          `assessment_invitation:${application.id}`,
+        );
+      } catch (notificationError: any) {
+        this.logger.warn(
+          `Failed to deliver assessment invitation notification for student ${studentUserId}: ${notificationError.message}`,
+        );
+      }
+    }
+
+    return activatedAssessment;
   }
 
   getAssessment(assessmentId: string) {
     return this.assessmentsRepository.getAssessment(assessmentId);
   }
 
-  getAssessmentQuestions(assessmentId: string) {
-    return this.assessmentsRepository.getAssessmentQuestions(assessmentId);
+  async getAssessmentQuestions(assessmentId: string) {
+    const questions =
+      await this.assessmentsRepository.getAssessmentQuestions(assessmentId);
+    return questions.map((q) => sanitizeQuestionForStudent(q));
   }
 
-  async startAttempt(data: {
-    applicationId: string;
-    assessmentId: string;
-  }) {
-    return this.assessmentsRepository.createAttempt(data);
+  async startAttempt(
+    userId: string,
+    data: {
+      applicationId: string;
+      assessmentId: string;
+    },
+  ) {
+    const application = await this.applicationsRepository.findById(
+      data.applicationId,
+    );
+
+    if (!application) {
+      throw new NotFoundException("Application not found.");
+    }
+
+    if (application.studentProfile.user.id !== userId) {
+      throw new ForbiddenException(
+        "You are not authorized to start an assessment for this application.",
+      );
+    }
+    const attempt = await this.assessmentsRepository.createAttempt(data);
+    return sanitizeAttemptForStudent(attempt);
   }
 
   async getAttempt(attemptId: string) {
     return this.assessmentsRepository.findAttemptById(attemptId);
   }
 
-  async getAttemptWithAnswers(attemptId: string) {
-    return this.assessmentsRepository.findAttemptByIdWithAnswers(attemptId);
+  async getAttemptWithAnswers(userId: string, attemptId: string) {
+    const attempt =
+      await this.assessmentsRepository.findAttemptByIdWithAnswers(attemptId);
+
+    if (!attempt) {
+      throw new NotFoundException("Assessment attempt not found.");
+    }
+
+    if (attempt.application.studentProfile.user.id !== userId) {
+      throw new ForbiddenException(
+        "You are not authorized to access this assessment attempt.",
+      );
+    }
+
+    return sanitizeAttemptForStudent(attempt);
   }
 
   async getAttemptByApplicationId(applicationId: string) {
     return this.assessmentsRepository.findAttemptByApplicationId(applicationId);
   }
 
-  async submitAttempt(attemptId: string) {
-    return this.assessmentsRepository.submitAttempt(attemptId);
+  async submitAttempt(userId: string, attemptId: string) {
+    const attempt =
+      await this.assessmentsRepository.findAttemptByIdWithAnswers(attemptId);
+
+    if (!attempt) {
+      throw new NotFoundException("Assessment attempt not found.");
+    }
+
+    if (attempt.application.studentProfile.user.id !== userId) {
+      throw new ForbiddenException(
+        "You are not authorized to submit this assessment attempt.",
+      );
+    }
+
+    const submittedAttempt =
+      await this.assessmentsRepository.submitAttempt(attemptId);
+
+    try {
+      await this.notificationsService.sendNotification(
+        userId,
+        "Assessment Completed",
+        "Your assessment has been submitted successfully.",
+        `assessment_completed:${attemptId}`,
+      );
+    } catch (notificationError: any) {
+      this.logger.error(
+        `Failed to deliver assessment completion notification for attempt ${attemptId}: ${notificationError.message}`,
+        notificationError.stack,
+      );
+    }
+
+    return sanitizeAttemptForStudent(submittedAttempt);
   }
 
   async getSubmittedAttemptsByOpportunity(opportunityId: string) {
@@ -195,22 +292,72 @@ export class AssessmentsService {
     );
   }
 
-  async saveAnswer(data: {
-    assessmentAttemptId: string;
-    assessmentQuestionId: string;
-    answerText: string;
-  }) {
-    return this.assessmentsRepository.saveAnswer(data);
+  async saveAnswer(
+    userId: string,
+    data: {
+      assessmentAttemptId: string;
+      assessmentQuestionId: string;
+      answerText: string;
+    },
+  ) {
+    const attempt = await this.assessmentsRepository.findAttemptByIdWithAnswers(
+      data.assessmentAttemptId,
+    );
+
+    if (!attempt) {
+      throw new NotFoundException("Assessment attempt not found.");
+    }
+
+    if (attempt.application.studentProfile.user.id !== userId) {
+      throw new ForbiddenException(
+        "You are not authorized to answer this assessment attempt.",
+      );
+    }
+
+    const saved = await this.assessmentsRepository.saveAnswer(data);
+    if (saved && (saved as any).question) {
+      return {
+        ...saved,
+        question: sanitizeQuestionForStudent((saved as any).question),
+      };
+    }
+    return saved;
   }
 
   async saveAnswers(
+    userId: string,
     attemptId: string,
     answers: Array<{
       assessmentQuestionId: string;
       answerText: string;
     }>,
   ) {
-    return this.assessmentsRepository.saveAnswers(attemptId, answers);
+    const attempt =
+      await this.assessmentsRepository.findAttemptByIdWithAnswers(attemptId);
+
+    if (!attempt) {
+      throw new NotFoundException("Assessment attempt not found.");
+    }
+
+    if (attempt.application.studentProfile.user.id !== userId) {
+      throw new ForbiddenException(
+        "You are not authorized to answer this assessment attempt.",
+      );
+    }
+
+    const results = await this.assessmentsRepository.saveAnswers(
+      attemptId,
+      answers,
+    );
+    return results.map((saved: any) => {
+      if (saved && saved.question) {
+        return {
+          ...saved,
+          question: sanitizeQuestionForStudent(saved.question),
+        };
+      }
+      return saved;
+    });
   }
 
   async getAnswersByAttempt(attemptId: string) {
@@ -235,7 +382,7 @@ export class AssessmentsService {
 
     if (!data) {
       throw new NotFoundException(
-        'Submitted applicant analysis data not found.',
+        "Submitted applicant analysis data not found.",
       );
     }
 
@@ -252,17 +399,12 @@ export class AssessmentsService {
     );
   }
 
-  async prepareApplicantAnalysis(
-    userId: string,
-    opportunityId: string,
-  ) {
+  async prepareApplicantAnalysis(userId: string, opportunityId: string) {
     const membership =
       await this.organizationProfileRepository.findByUserId(userId);
 
     if (!membership || membership.organization.deletedAt) {
-      throw new NotFoundException(
-        'Organization membership not found.',
-      );
+      throw new NotFoundException("Organization membership not found.");
     }
 
     const opportunity =
@@ -272,7 +414,7 @@ export class AssessmentsService {
       );
 
     if (!opportunity) {
-      throw new NotFoundException('Opportunity not found.');
+      throw new NotFoundException("Opportunity not found.");
     }
 
     const applicants =
@@ -302,9 +444,7 @@ export class AssessmentsService {
       await this.organizationProfileRepository.findByUserId(userId);
 
     if (!membership || membership.organization.deletedAt) {
-      throw new NotFoundException(
-        'Organization membership not found.',
-      );
+      throw new NotFoundException("Organization membership not found.");
     }
 
     const opportunity =
@@ -314,7 +454,7 @@ export class AssessmentsService {
       );
 
     if (!opportunity) {
-      throw new NotFoundException('Opportunity not found.');
+      throw new NotFoundException("Opportunity not found.");
     }
 
     const data =
@@ -324,20 +464,18 @@ export class AssessmentsService {
 
     if (!data) {
       throw new NotFoundException(
-        'Submitted applicant analysis data not found.',
+        "Submitted applicant analysis data not found.",
       );
     }
 
     if (data.opportunity.id !== opportunityId) {
       throw new NotFoundException(
-        'Application does not belong to this opportunity.',
+        "Application does not belong to this opportunity.",
       );
     }
 
     if (!data.assessmentAttempt) {
-      throw new NotFoundException(
-        'Submitted assessment attempt not found.',
-      );
+      throw new NotFoundException("Submitted assessment attempt not found.");
     }
 
     const cvText = await this.cvsService.getCvTextForStudent(
@@ -347,18 +485,14 @@ export class AssessmentsService {
     const analysisInput = mapApplicantAnalysisData(data, cvText);
 
     const analysis =
-      await this.aiApplicantAnalysisService.analyzeApplicant(
-        analysisInput,
-      );
+      await this.aiApplicantAnalysisService.analyzeApplicant(analysisInput);
 
     const resultData: SaveAssessmentResultData = {
       assessmentAttemptId: data.assessmentAttempt.id,
       aiScore: analysis.overallScore,
       aiRequirementMatch: analysis.requirementMatch,
       aiSkillAnalysis:
-        analysis.skillAnalysis === null
-          ? undefined
-          : analysis.skillAnalysis,
+        analysis.skillAnalysis === null ? undefined : analysis.skillAnalysis,
       aiStrengths: analysis.strengths,
       aiGaps: analysis.gaps,
       aiSummary: analysis.summary,
@@ -366,9 +500,7 @@ export class AssessmentsService {
     };
 
     const savedResult =
-      await this.assessmentsRepository.saveAssessmentResult(
-        resultData,
-      );
+      await this.assessmentsRepository.saveAssessmentResult(resultData);
 
     return {
       applicationId,
@@ -378,9 +510,7 @@ export class AssessmentsService {
     };
   }
 
-  async saveAssessmentResult(
-    data: SaveAssessmentResultData,
-  ) {
+  async saveAssessmentResult(data: SaveAssessmentResultData) {
     return this.assessmentsRepository.saveAssessmentResult(data);
   }
 
@@ -394,9 +524,7 @@ export class AssessmentsService {
     );
   }
 
-  async getAssessmentResultByApplicationId(
-    applicationId: string,
-  ) {
+  async getAssessmentResultByApplicationId(applicationId: string) {
     return this.assessmentsRepository.findAssessmentResultByApplicationId(
       applicationId,
     );
@@ -411,9 +539,7 @@ export class AssessmentsService {
       await this.organizationProfileRepository.findByUserId(userId);
 
     if (!membership || membership.organization.deletedAt) {
-      throw new NotFoundException(
-        'Organization membership not found.',
-      );
+      throw new NotFoundException("Organization membership not found.");
     }
 
     const opportunity =
@@ -423,7 +549,7 @@ export class AssessmentsService {
       );
 
     if (!opportunity) {
-      throw new NotFoundException('Opportunity not found.');
+      throw new NotFoundException("Opportunity not found.");
     }
 
     return this.assessmentsRepository.findAssessmentResultsByOpportunityId(
