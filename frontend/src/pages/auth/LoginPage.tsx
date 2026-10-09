@@ -21,12 +21,6 @@ const copy = {
   },
 }
 
-const DEMO_ACCOUNTS = [
-  { role: 'student' as const, label: '🎓 Student Demo (Yetem)', email: 'yetemgetabekele@gmail.com' },
-  { role: 'organization' as const, label: '🏢 Org Recruiter (Safaricom)', email: 'unity@corporate.com' },
-  { role: 'student' as const, label: '🛡️ Admin Account', email: 'yetemgetabekele1@gmail.com' },
-]
-
 export default function LoginPage() {
   const [role, setRole] = useState<'student' | 'organization'>('student')
   const [email, setEmail] = useState('')
@@ -107,29 +101,6 @@ export default function LoginPage() {
           <p className="mt-1.5 text-sm text-gray-500">Please log in to continue to your {role} portal.</p>
         </header>
 
-        {/* Demo Fast Fill Section */}
-        <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Quick Demo Accounts</p>
-          <div className="flex flex-wrap gap-1.5">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => {
-                  setRole(acc.role)
-                  setEmail(acc.email)
-                }}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition border ${
-                  email === acc.email
-                    ? 'bg-navy text-white border-navy shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-amber-400 hover:bg-amber-50'
-                }`}
-              >
-                {acc.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <TextField
