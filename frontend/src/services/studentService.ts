@@ -14,6 +14,15 @@ export interface StudentProfile {
 
 export type StudentProfilePayload = Partial<Omit<StudentProfile, 'userId'>>
 
+export interface CvItem {
+  id: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  isDefault: boolean
+  uploadedAt: string
+}
+
 export const studentService = {
   getProfile(): Promise<StudentProfile> {
     return apiRequest<StudentProfile>('/students/profile')
@@ -32,4 +41,34 @@ export const studentService = {
       body: JSON.stringify(payload),
     })
   },
+
+  getCvs(): Promise<CvItem[]> {
+    return apiRequest<CvItem[]>('/students/profile/cvs')
+  },
+
+  uploadCv(file: File, isDefault = false): Promise<CvItem> {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiRequest<CvItem>(`/students/profile/cv?isDefault=${isDefault}`, {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  setDefaultCv(cvId: string): Promise<CvItem> {
+    return apiRequest<CvItem>(`/students/profile/cvs/${encodeURIComponent(cvId)}/default`, {
+      method: 'PATCH',
+    })
+  },
+
+  deleteCv(cvId: string): Promise<void> {
+    return apiRequest<void>(`/students/profile/cvs/${encodeURIComponent(cvId)}`, {
+      method: 'DELETE',
+    })
+  },
+
+  getDownloadUrl(cvId: string): Promise<{ downloadUrl: string; expiresIn: number }> {
+    return apiRequest<{ downloadUrl: string; expiresIn: number }>(`/students/profile/cvs/${encodeURIComponent(cvId)}/download`)
+  },
 }
+
