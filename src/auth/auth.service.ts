@@ -295,7 +295,7 @@ export class AuthService {
       response = await fetch(
         `${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`,
         {
-          method: 'PATCH',
+          method: 'PUT',
           headers: {
             apikey: supabaseAnonKey,
             Authorization: authorization,
@@ -332,6 +332,12 @@ export class AuthService {
       } catch {
         providerMessage = undefined;
       }
+
+      this.logger.warn(
+        `Supabase password update rejected with status ${response.status}: ${
+          providerMessage ?? 'No provider message returned.'
+        }`,
+      );
 
       if (response.status === 401) {
         throw new UnauthorizedException(

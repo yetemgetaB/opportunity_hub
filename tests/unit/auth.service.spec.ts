@@ -164,7 +164,7 @@ describe('AuthService Hardening & Rollback', () => {
         expect(fetchSpy).toHaveBeenCalledWith(
           'https://test.supabase.co/auth/v1/user',
           {
-            method: 'PATCH',
+            method: 'PUT',
             headers: {
               apikey: 'test-anon-key',
               Authorization: 'Bearer user-access-token',
