@@ -924,28 +924,75 @@ let mockApplicationsRepo: any;
   expect(result).toEqual(mockSubmittedAttempt);
 });
     it('should delegate startAttempt to repository', async () => {
-  mockApplicationsRepo.findById.mockResolvedValue({
-    studentProfile: {
-      user: {
-        id: 'user-123',
-      },
-    },
-  });
+      mockApplicationsRepo.findById.mockResolvedValue({
+        studentProfile: {
+          user: {
+            id: 'user-123',
+          },
+        },
+      });
 
-  mockPrisma.application.findUnique.mockResolvedValue(mockApplication);
-  mockPrisma.assessment.findUnique.mockResolvedValue(mockAssessment);
-  mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(null);
-  mockPrisma.assessmentAttempt.create.mockResolvedValue(mockAttempt);
+      mockPrisma.application.findUnique.mockResolvedValue(mockApplication);
+      mockPrisma.assessment.findUnique.mockResolvedValue(mockAssessment);
+      mockPrisma.assessmentAttempt.findUnique.mockResolvedValue(null);
+      mockPrisma.assessmentAttempt.create.mockResolvedValue(mockAttempt);
 
-  const result = await service.startAttempt(
-    'user-123',
-    {
-      applicationId: 'application-123',
-      assessmentId: 'assessment-123',
-    },
-  );
+      const result = await service.startAttempt('user-123', {
+        applicationId: 'application-123',
+        assessmentId: 'assessment-123',
+      });
 
-  expect(result).toEqual(mockAttempt);
-});
+      expect(result).toEqual(mockAttempt);
+    });
+
+    it('should delegate saveAnswer to repository and sanitize grading fields', async () => {
+      mockPrisma.assessmentAttempt.findUnique.mockResolvedValue({
+        ...mockAttempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: 'student-user-id',
+            },
+          },
+        },
+      });
+      mockPrisma.assessmentQuestion.findUnique.mockResolvedValue(mockQuestion);
+      mockPrisma.assessmentAnswer.upsert.mockResolvedValue(mockAnswer);
+
+      const result = await service.saveAnswer('student-user-id', {
+        assessmentAttemptId: attemptId,
+        assessmentQuestionId: questionId,
+        answerText: 'Answer text',
+      });
+
+      expect(result.id).toBe(mockAnswer.id);
+      expect((result as any).question.referenceAnswer).toBeUndefined();
+      expect((result as any).question.evaluationGuidance).toBeUndefined();
+    });
+
+    it('should delegate getEligibleApplicantsForAnalysis to repository', async () => {
+      mockPrisma.application.findMany.mockResolvedValue([mockSubmittedAttempt]);
+
+      const result =
+        await service.getEligibleApplicantsForAnalysis(opportunityId);
+
+      expect(result).toEqual([mockSubmittedAttempt]);
+    });
+
+    it('should delegate saveAssessmentResult to repository', async () => {
+      mockPrisma.assessmentAttempt.findUnique.mockResolvedValue({
+        ...mockSubmittedAttempt,
+        application: mockApplication,
+      });
+
+      mockPrisma.assessmentResult.upsert.mockResolvedValue(mockAssessmentResult);
+
+      const result = await service.saveAssessmentResult({
+        assessmentAttemptId: attemptId,
+        aiScore: 88,
+      });
+
+      expect(result).toEqual(mockAssessmentResult);
+    });
   });
 });

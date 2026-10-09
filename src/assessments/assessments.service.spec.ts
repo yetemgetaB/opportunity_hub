@@ -354,6 +354,30 @@ describe("AssessmentsService", () => {
 
       expect(result).toEqual(questions);
     });
+
+    it("should strip referenceAnswer and evaluationGuidance from returned questions", async () => {
+      const questionsWithSecrets = [
+        {
+          id: "question-1",
+          questionText: "Explain TypeScript interfaces.",
+          questionType: AssessmentQuestionType.TEXT,
+          questionOrder: 1,
+          referenceAnswer: "Secret reference answer",
+          evaluationGuidance: "Secret evaluation rubric",
+        },
+      ];
+
+      mockAssessmentsRepository.getAssessmentQuestions.mockResolvedValue(
+        questionsWithSecrets,
+      );
+
+      const result = await service.getAssessmentQuestions("assessment-1");
+
+      expect(result).toHaveLength(1);
+      expect((result[0] as any).referenceAnswer).toBeUndefined();
+      expect((result[0] as any).evaluationGuidance).toBeUndefined();
+      expect(result[0].questionText).toBe("Explain TypeScript interfaces.");
+    });
   });
 
   describe("startAssessment", () => {
@@ -689,6 +713,38 @@ describe("AssessmentsService", () => {
   });
 
   describe("startAttempt", () => {
+    it("should throw NotFoundException if application is not found", async () => {
+      mockApplicationsRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.startAttempt("user-1", {
+          applicationId: "non-existent-app",
+          assessmentId: "assessment-1",
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockAssessmentsRepository.createAttempt).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenException if application belongs to another student", async () => {
+      mockApplicationsRepository.findById.mockResolvedValue({
+        studentProfile: {
+          user: {
+            id: "another-student",
+          },
+        },
+      });
+
+      await expect(
+        service.startAttempt("user-1", {
+          applicationId: "application-1",
+          assessmentId: "assessment-1",
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockAssessmentsRepository.createAttempt).not.toHaveBeenCalled();
+    });
+
     it("should start an assessment attempt", async () => {
       mockApplicationsRepository.findById.mockResolvedValue({
         studentProfile: {
@@ -733,7 +789,32 @@ describe("AssessmentsService", () => {
   });
 
   describe("getAttemptWithAnswers", () => {
-    it("should get an assessment attempt with answers", async () => {
+    it("should throw NotFoundException if attempt is not found", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(null);
+
+      await expect(
+        service.getAttemptWithAnswers("user-1", "non-existent-attempt"),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("should throw ForbiddenException if attempt belongs to another student", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-student",
+            },
+          },
+        },
+      });
+
+      await expect(
+        service.getAttemptWithAnswers("user-1", "attempt-1"),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("should get an assessment attempt with answers and sanitize question secrets", async () => {
       const attemptWithAnswers = {
         ...attempt,
         application: {
@@ -743,20 +824,35 @@ describe("AssessmentsService", () => {
             },
           },
         },
-        answers: [answer],
+        answers: [
+          {
+            ...answer,
+            question: {
+              id: "question-1",
+              questionText: "Explain TypeScript interfaces.",
+              referenceAnswer: "Secret reference answer",
+              evaluationGuidance: "Secret rubric",
+            },
+          },
+        ],
       };
 
       mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(
         attemptWithAnswers,
       );
 
-      const result = await service.getAttemptWithAnswers("user-1", "attempt-1");
+      const result: any = await service.getAttemptWithAnswers("user-1", "attempt-1");
 
       expect(
         mockAssessmentsRepository.findAttemptByIdWithAnswers,
       ).toHaveBeenCalledWith("attempt-1");
 
-      expect(result).toEqual(attemptWithAnswers);
+      expect(result.answers[0].question).toEqual({
+        id: "question-1",
+        questionText: "Explain TypeScript interfaces.",
+      });
+      expect(result.answers[0].question).not.toHaveProperty("referenceAnswer");
+      expect(result.answers[0].question).not.toHaveProperty("evaluationGuidance");
     });
   });
 
@@ -777,7 +873,36 @@ describe("AssessmentsService", () => {
   });
 
   describe("submitAttempt", () => {
-    it("should submit an assessment attempt", async () => {
+    it("should throw NotFoundException if attempt is not found", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(null);
+
+      await expect(
+        service.submitAttempt("user-1", "non-existent-attempt"),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockAssessmentsRepository.submitAttempt).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenException if attempt belongs to another student", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-student",
+            },
+          },
+        },
+      });
+
+      await expect(
+        service.submitAttempt("user-1", "attempt-1"),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockAssessmentsRepository.submitAttempt).not.toHaveBeenCalled();
+    });
+
+    it("should submit an assessment attempt and dispatch notification", async () => {
       const submittedAttempt = {
         ...attempt,
         status: "SUBMITTED",
@@ -809,6 +934,46 @@ describe("AssessmentsService", () => {
         "attempt-1",
       );
 
+      expect(mockNotificationsService.sendNotification).toHaveBeenCalledWith(
+        "user-1",
+        "Assessment Completed",
+        "Your assessment has been submitted successfully.",
+        "assessment_completed:attempt-1",
+      );
+
+      expect(result).toEqual(submittedAttempt);
+    });
+
+    it("should succeed and not throw if notification delivery fails", async () => {
+      const submittedAttempt = {
+        ...attempt,
+        status: "SUBMITTED",
+        submittedAt: new Date(),
+      };
+
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "user-1",
+            },
+          },
+        },
+      });
+
+      mockAssessmentsRepository.submitAttempt.mockResolvedValue(
+        submittedAttempt,
+      );
+      mockNotificationsService.sendNotification.mockRejectedValue(
+        new Error("Notification gateway unavailable"),
+      );
+
+      const result = await service.submitAttempt("user-1", "attempt-1");
+
+      expect(mockAssessmentsRepository.submitAttempt).toHaveBeenCalledWith(
+        "attempt-1",
+      );
       expect(result).toEqual(submittedAttempt);
     });
   });
@@ -852,7 +1017,44 @@ describe("AssessmentsService", () => {
   });
 
   describe("saveAnswer", () => {
-    it("should save an assessment answer", async () => {
+    it("should throw NotFoundException if attempt is not found", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(null);
+
+      await expect(
+        service.saveAnswer("user-1", {
+          assessmentAttemptId: "non-existent-attempt",
+          assessmentQuestionId: "question-1",
+          answerText: "Answer text",
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockAssessmentsRepository.saveAnswer).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenException if attempt belongs to another student", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-student",
+            },
+          },
+        },
+      });
+
+      await expect(
+        service.saveAnswer("user-1", {
+          assessmentAttemptId: "attempt-1",
+          assessmentQuestionId: "question-1",
+          answerText: "Answer text",
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockAssessmentsRepository.saveAnswer).not.toHaveBeenCalled();
+    });
+
+    it("should save an assessment answer and sanitize question if present", async () => {
       mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
         ...attempt,
         application: {
@@ -864,7 +1066,15 @@ describe("AssessmentsService", () => {
         },
       });
 
-      mockAssessmentsRepository.saveAnswer.mockResolvedValue(answer);
+      mockAssessmentsRepository.saveAnswer.mockResolvedValue({
+        ...answer,
+        question: {
+          id: "question-1",
+          questionText: "Explain TypeScript interfaces.",
+          referenceAnswer: "Secret answer",
+          evaluationGuidance: "Secret rubric",
+        },
+      });
 
       const answerData = {
         assessmentAttemptId: "attempt-1",
@@ -872,7 +1082,7 @@ describe("AssessmentsService", () => {
         answerText: "I have experience with TypeScript.",
       };
 
-      const result = await service.saveAnswer("user-1", answerData);
+      const result: any = await service.saveAnswer("user-1", answerData);
 
       expect(
         mockAssessmentsRepository.findAttemptByIdWithAnswers,
@@ -882,24 +1092,75 @@ describe("AssessmentsService", () => {
         answerData,
       );
 
-      expect(result).toEqual(answer);
+      expect(result.question).toEqual({
+        id: "question-1",
+        questionText: "Explain TypeScript interfaces.",
+      });
+      expect(result.question.referenceAnswer).toBeUndefined();
+      expect(result.question.evaluationGuidance).toBeUndefined();
     });
   });
 
   describe("saveAnswers", () => {
-    it("should save multiple assessment answers", async () => {
+    it("should throw NotFoundException if attempt is not found", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue(null);
+
+      await expect(
+        service.saveAnswers("user-1", "non-existent-attempt", []),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockAssessmentsRepository.saveAnswers).not.toHaveBeenCalled();
+    });
+
+    it("should throw ForbiddenException if attempt belongs to another student", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "another-student",
+            },
+          },
+        },
+      });
+
+      await expect(
+        service.saveAnswers("user-1", "attempt-1", []),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockAssessmentsRepository.saveAnswers).not.toHaveBeenCalled();
+    });
+
+    it("should save multiple assessment answers and sanitize questions", async () => {
+      mockAssessmentsRepository.findAttemptByIdWithAnswers.mockResolvedValue({
+        ...attempt,
+        application: {
+          studentProfile: {
+            user: {
+              id: "user-1",
+            },
+          },
+        },
+      });
+
       const answers = [
         {
           assessmentQuestionId: "question-1",
           answerText: "I have experience with TypeScript.",
         },
-        {
-          assessmentQuestionId: "question-2",
-          answerText: "I have experience with React.",
-        },
       ];
 
-      const savedAnswers = [answer];
+      const savedAnswers = [
+        {
+          ...answer,
+          question: {
+            id: "question-1",
+            questionText: "Explain TypeScript interfaces.",
+            referenceAnswer: "Secret answer",
+            evaluationGuidance: "Secret rubric",
+          },
+        },
+      ];
 
       mockAssessmentsRepository.saveAnswers.mockResolvedValue(savedAnswers);
 
@@ -913,7 +1174,12 @@ describe("AssessmentsService", () => {
         answers,
       );
 
-      expect(result).toEqual(savedAnswers);
+      expect(result[0].question).toEqual({
+        id: "question-1",
+        questionText: "Explain TypeScript interfaces.",
+      });
+      expect(result[0].question.referenceAnswer).toBeUndefined();
+      expect(result[0].question.evaluationGuidance).toBeUndefined();
     });
   });
 
