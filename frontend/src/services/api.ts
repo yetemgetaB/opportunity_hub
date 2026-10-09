@@ -40,7 +40,10 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   try {
     const headers = new Headers(init.headers)
     headers.set('Accept', 'application/json')
-    if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+    const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData
+    if (init.body && !headers.has('Content-Type') && !isFormData) {
+      headers.set('Content-Type', 'application/json')
+    }
     if (accessToken) headers.set('Authorization', ['Bearer', accessToken].join(' '))
 
     response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })

@@ -40,18 +40,72 @@ export default function ApplicationDetailsModal({ item, onClose }: Props) {
           </button>
         </div>
 
-        <dl className="grid grid-cols-2 gap-4 px-6 py-5">
+        <div className="px-6 py-5 space-y-5">
+          {/* Status Pipeline Visualizer */}
           <div>
-            <dt className="text-xs text-slate-400">Applied</dt>
-            <dd className="mt-1 text-sm font-semibold text-navy">{applicationDateLabel(item.appliedAt)}</dd>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">Application Progress</p>
+            <div className="space-y-3">
+              {[
+                { stage: 'SUBMITTED', title: 'Application Submitted', desc: `Submitted on ${applicationDateLabel(item.appliedAt)}` },
+                { stage: 'UNDER_REVIEW', title: 'Under Recruiter Review', desc: 'The hiring team is reviewing your profile and skills' },
+                { stage: 'SHORTLISTED', title: 'Shortlisted for Next Steps', desc: 'Candidate shortlisted for interview or assessment' },
+                { stage: 'ACCEPTED', title: 'Offer Extended / Accepted', desc: 'Congratulations! Selected for this opportunity' },
+              ].map((step, idx) => {
+                const isRejected = item.status === 'REJECTED'
+                const statusOrder = ['SUBMITTED', 'UNDER_REVIEW', 'SHORTLISTED', 'ACCEPTED']
+                const currentIdx = statusOrder.indexOf(item.status)
+                const isComplete = !isRejected && currentIdx >= idx
+                const isCurrent = !isRejected && item.status === step.stage
+
+                return (
+                  <div key={step.stage} className="flex items-start gap-3 relative">
+                    {idx < 3 && (
+                      <div
+                        className={`absolute left-3.5 top-7 bottom-0 w-0.5 -mb-3 ${
+                          isComplete && currentIdx > idx ? 'bg-amber-400' : 'bg-slate-200'
+                        }`}
+                      />
+                    )}
+                    <div
+                      className={`grid size-7 shrink-0 place-items-center rounded-full text-xs font-bold transition z-10 ${
+                        isComplete
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-400'
+                      }`}
+                    >
+                      {isComplete ? '✓' : idx + 1}
+                    </div>
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <p className={`text-xs font-bold ${isCurrent ? 'text-navy' : isComplete ? 'text-slate-800' : 'text-slate-400'}`}>
+                        {step.title}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">{step.desc}</p>
+                    </div>
+                  </div>
+                )
+              })}
+              {item.status === 'REJECTED' && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 mt-2">
+                  <p className="font-bold">Application Status: Not Selected</p>
+                  <p className="mt-0.5 text-red-600">The organization has chosen not to move forward at this time.</p>
+                </div>
+              )}
+            </div>
           </div>
-          <div>
-            <dt className="text-xs text-slate-400">Status</dt>
-            <dd className="mt-1">
-              <ApplicationStatusBadge status={item.status} />
-            </dd>
-          </div>
-        </dl>
+
+          <dl className="grid grid-cols-2 gap-4 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5">
+            <div>
+              <dt className="text-[11px] font-medium text-slate-400">Date Applied</dt>
+              <dd className="mt-0.5 text-xs font-bold text-navy">{applicationDateLabel(item.appliedAt)}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] font-medium text-slate-400">Current Status</dt>
+              <dd className="mt-0.5">
+                <ApplicationStatusBadge status={item.status} />
+              </dd>
+            </div>
+          </dl>
+        </div>
 
         <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
           <button
