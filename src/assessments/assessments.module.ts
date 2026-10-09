@@ -14,14 +14,19 @@ import { OpportunitiesModule } from '@/opportunities/opportunities.module';
 import { StudentProfileModule } from '@/student-profile/student-profile.module';
 import { RolesGuard } from '@/common/guards/roles.guard';
 
+import { ApplicationsModule } from '@/applications/applications.module';
+import { NotificationsModule } from '@/notifications/notifications.module';
+
 @Module({
   imports: [
-    PrismaModule,
-    UsersModule,
-    OrganizationProfileModule,
-    OpportunitiesModule,
-    StudentProfileModule,
-  ],
+  PrismaModule,
+  UsersModule,
+  OrganizationProfileModule,
+  OpportunitiesModule,
+  StudentProfileModule,
+  ApplicationsModule,
+  NotificationsModule,
+],
   controllers: [AssessmentsController],
   providers: [
     AssessmentsRepository,
