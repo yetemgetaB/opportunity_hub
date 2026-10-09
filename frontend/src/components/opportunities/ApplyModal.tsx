@@ -154,14 +154,14 @@ export default function ApplyModal({ isOpen, opportunity, onClose, onSuccess }: 
               <div className="flex flex-col sm:flex-row gap-3 pt-3">
                 <Link
                   to="/student/applications"
-                  className="flex-1 rounded-xl bg-navy py-3 text-center text-sm font-bold text-white shadow-xs hover:bg-navy-light transition"
+                  className="flex-1 rounded-xl bg-navy py-3 text-center text-sm font-bold !text-white shadow-xs hover:bg-navy-light transition active:scale-[0.98] dark-button-dark"
                 >
                   Track in My Applications →
                 </Link>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition active:scale-[0.98]"
                 >
                   Keep Browsing
                 </button>
