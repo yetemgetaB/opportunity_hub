@@ -54,11 +54,17 @@ export interface OrganizationOpportunity extends PublicOpportunity {
 export interface OpportunitySearchResult {
   id: string
   title: string
+  description?: string
+  organization?: {
+    id: string
+    name: string
+  }
   skills: string[]
   eligibleFields: string[]
   location: string | null
   opportunityType: OpportunityType
   isRemote: boolean
+  applicationDeadline?: string | null
 }
 
 export interface OpportunityUpdatePayload {

@@ -4,6 +4,13 @@ export function mapOpportunityForSearch(opportunity: OpportunityWithRelations) {
   return {
     id: opportunity.id,
     title: opportunity.title,
+    description: opportunity.description,
+    organization: opportunity.organization
+      ? {
+          id: opportunity.organization.id,
+          name: opportunity.organization.name,
+        }
+      : undefined,
     skills: (opportunity.skills ?? []).map(
       (item) => item.skill?.name ?? item.skillId,
     ),
@@ -11,6 +18,7 @@ export function mapOpportunityForSearch(opportunity: OpportunityWithRelations) {
     location: opportunity.location,
     opportunityType: opportunity.opportunityType,
     isRemote: opportunity.isRemote,
+    applicationDeadline: opportunity.applicationDeadline,
   };
 }
 
