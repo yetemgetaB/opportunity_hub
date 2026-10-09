@@ -130,10 +130,16 @@ function OpportunitySkeleton() {
   )
 }
 
+const QUICK_SKILLS = ['Python', 'React', 'TypeScript', 'Node.js', 'Docker', 'PostgreSQL', 'UI/UX Design', 'Machine Learning', 'Flutter']
+
 export default function OpportunitiesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialSearch = searchParams.get('search') ?? ''
-  const [filters, setFilters] = useState<OpportunityFilters>(emptyFilters)
+  const initialSkills = searchParams.get('skills') ?? ''
+  const [filters, setFilters] = useState<OpportunityFilters>(() => ({
+    ...emptyFilters,
+    skills: initialSkills || undefined,
+  }))
   const [searchInput, setSearchInput] = useState(initialSearch)
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch.trim())
   const [opportunities, setOpportunities] = useState<OpportunitySearchResult[]>([])
@@ -143,18 +149,29 @@ export default function OpportunitiesPage() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
+  // Sync incoming URL search and skills changes
+  useEffect(() => {
+    const urlSkills = searchParams.get('skills') ?? ''
+    if (urlSkills !== (filters.skills ?? '')) {
+      setFilters((prev) => ({ ...prev, skills: urlSkills || undefined }))
+    }
+  }, [searchParams])
+
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 300)
     return () => window.clearTimeout(timeout)
   }, [searchInput])
 
   useEffect(() => {
-    if ((searchParams.get('search') ?? '') === debouncedSearch) return
     const next = new URLSearchParams(searchParams)
     if (debouncedSearch) next.set('search', debouncedSearch)
     else next.delete('search')
-    setSearchParams(next, { replace: true })
-  }, [debouncedSearch, searchParams, setSearchParams])
+    if (filters.skills) next.set('skills', filters.skills)
+    else next.delete('skills')
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true })
+    }
+  }, [debouncedSearch, filters.skills, searchParams, setSearchParams])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -221,6 +238,38 @@ export default function OpportunitiesPage() {
               />
             </label>
           </form>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500 mr-1">Popular skills:</span>
+            <button
+              type="button"
+              onClick={() => setFilters((prev) => ({ ...prev, skills: undefined }))}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                !filters.skills
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:border-amber-400 hover:bg-amber-50'
+              }`}
+            >
+              All
+            </button>
+            {QUICK_SKILLS.map((skill) => {
+              const active = filters.skills?.toLowerCase() === skill.toLowerCase()
+              return (
+                <button
+                  key={skill}
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, skills: active ? undefined : skill }))}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    active
+                      ? 'bg-amber-500 text-white shadow-sm font-semibold'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-900'
+                  }`}
+                >
+                  {skill}
+                </button>
+              )
+            })}
+          </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">

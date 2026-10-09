@@ -15,14 +15,22 @@ const copy = {
   },
   organization: {
     email: 'Company Email',
-    emailPlaceholder: 'hiring@acme.com',
+    emailPlaceholder: 'hiring@safaricom.et',
     registerTo: '/register/organization',
     registerText: 'Create a free organization account',
   },
 }
 
+const DEMO_ACCOUNTS = [
+  { role: 'student' as const, label: '🎓 Student Demo (Yetem)', email: 'yetemgetabekele@gmail.com' },
+  { role: 'organization' as const, label: '🏢 Org Recruiter (Safaricom)', email: 'unity@corporate.com' },
+  { role: 'student' as const, label: '🛡️ Admin Account', email: 'yetemgetabekele1@gmail.com' },
+]
+
 export default function LoginPage() {
   const [role, setRole] = useState<'student' | 'organization'>('student')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
@@ -43,9 +51,6 @@ export default function LoginPage() {
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const data = new FormData(e.currentTarget)
-    const email = String(data.get('email') ?? '')
-    const password = String(data.get('password') ?? '')
     setError('')
     setSubmitting(true)
     try {
@@ -88,20 +93,59 @@ export default function LoginPage() {
             </div>
           </div>
         ) : registrationState?.registrationComplete ? (
-          <p role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-800">
-            Your {registrationState.accountRole ?? 'user'} account was created. Sign in to continue to profile setup.
-          </p>
+          <div role="status" className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900">i</span>
+            <div>
+              <p className="font-semibold">Check your inbox to verify your email</p>
+              <p className="mt-0.5 text-xs text-amber-800">Click the confirmation link sent to your email, then return here to log in.</p>
+            </div>
+          </div>
         ) : null}
-        <header className="mb-6">
+
+        <header className="mb-5">
           <h2 className="font-display text-3xl font-bold text-slate-900">Welcome Back</h2>
-          <p className="mt-2 text-sm text-gray-500">Please log in to continue to your {role} portal.</p>
+          <p className="mt-1.5 text-sm text-gray-500">Please log in to continue to your {role} portal.</p>
         </header>
 
+        {/* Demo Fast Fill Section */}
+        <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Quick Demo Accounts</p>
+          <div className="flex flex-wrap gap-1.5">
+            {DEMO_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.email}
+                type="button"
+                onClick={() => {
+                  setRole(acc.role)
+                  setEmail(acc.email)
+                }}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition border ${
+                  email === acc.email
+                    ? 'bg-navy text-white border-navy shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-amber-400 hover:bg-amber-50'
+                }`}
+              >
+                {acc.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <TextField label={t.email} type="email" name="email" placeholder={t.emailPlaceholder} required />
+          <TextField
+            label={t.email}
+            type="email"
+            name="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t.emailPlaceholder}
+            required
+          />
           <PasswordField
             label="Password"
             name="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your password"
             required
           />
