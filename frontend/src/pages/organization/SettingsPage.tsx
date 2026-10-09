@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import Icon from '../../components/ui/Icon'
+import ChangePasswordForm from '../../components/settings/ChangePasswordForm'
 import { useAuthContext } from '../../context/AuthContext'
 
 export default function SettingsPage() {
@@ -22,12 +23,7 @@ export default function SettingsPage() {
         <p className="mt-2 text-sm text-slate-600">{user?.email}</p>
         <Link to="/organization/profile" className="mt-4 inline-flex text-sm font-semibold text-brand hover:underline">Edit organization profile</Link>
       </section>
-      <section className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
-        <h2 className="text-sm font-bold text-navy">Unavailable account controls</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          Password changes, notification preferences, team invitations, and account deletion are not exposed by the current backend.
-        </p>
-      </section>
+      <ChangePasswordForm />
       <button type="button" onClick={handleLogout} className="inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-sm font-semibold text-white hover:bg-navy-light">
         <Icon name="logout" className="size-4" /> Sign out
       </button>

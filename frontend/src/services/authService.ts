@@ -104,6 +104,13 @@ export async function loginAccount(email: string, password: string): Promise<Aut
   return normalizeUser(response.user, email)
 }
 
+export async function updatePassword(newPassword: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>('/auth/password', {
+    method: 'PATCH',
+    body: JSON.stringify({ newPassword }),
+  })
+}
+
 export function logoutAccount() {
   clearSession()
 }

@@ -160,15 +160,25 @@ getOpportunityApplicants(
     return this.opportunitiesService.applyToOpportunity(userId, id);
   }
 
+  // STUDENT: View saved opportunities
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Get('saved')
+  async getSavedOpportunities(
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.opportunitiesService.getSavedOpportunities(userId);
+  }
+
   // STUDENT: View my applications
-@UseGuards(SupabaseAuthGuard, RolesGuard)
-@Roles(UserRole.STUDENT)
-@Get('applications')
-getMyApplications(
-  @CurrentUser('id') userId: string,
-) {
-  return this.opportunitiesService.getMyApplications(userId);
-}
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Get('applications')
+  getMyApplications(
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.opportunitiesService.getMyApplications(userId);
+  }
 
   // PUBLIC: Search published opportunities
   @Get()

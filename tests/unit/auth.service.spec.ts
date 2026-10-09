@@ -87,6 +87,9 @@ describe('AuthService Hardening & Rollback', () => {
       expect(mockSignUp).toHaveBeenCalledWith({
         email: registerDto.email,
         password: registerDto.password,
+        options: {
+          emailRedirectTo: expect.stringContaining('/login'),
+        },
       });
       expect(usersService.createApplicationUser).toHaveBeenCalledWith({
         id: 'auth-user-123',
@@ -136,6 +139,70 @@ describe('AuthService Hardening & Rollback', () => {
       await expect(authService.register(registerDto)).rejects.toThrow(dbError);
 
       expect(mockDeleteUser).toHaveBeenCalledWith('auth-user-123');
+    });
+  });
+
+  describe('updatePassword', () => {
+    it('updates the authenticated Supabase user password', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+        } as Response);
+
+      try {
+        await expect(
+          authService.updatePassword(
+            'NewPassword123!',
+            'Bearer user-access-token',
+          ),
+        ).resolves.toEqual({
+          message: 'Password updated successfully.',
+        });
+
+        expect(fetchSpy).toHaveBeenCalledWith(
+          'https://test.supabase.co/auth/v1/user',
+          {
+            method: 'PUT',
+            headers: {
+              apikey: 'test-anon-key',
+              Authorization: 'Bearer user-access-token',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              password: 'NewPassword123!',
+            }),
+          },
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it('returns Supabase password validation errors as bad requests', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          json: async () => ({
+            message: 'Password does not meet requirements.',
+          }),
+        } as Response);
+
+      try {
+        await expect(
+          authService.updatePassword(
+            'NewPassword123!',
+            'Bearer user-access-token',
+          ),
+        ).rejects.toThrow(
+          'Password does not meet requirements.',
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
     });
   });
 });

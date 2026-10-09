@@ -3,14 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
     <script>
-      if (localStorage.getItem('opportunity-hub-theme') === 'dark') {
+      const isDark = localStorage.getItem('opportunity-hub-theme') === 'dark'
+      if (isDark) {
         document.documentElement.classList.add('dark')
       }
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', isDark ? '#0a1128' : '#ffffff')
     </script>
     <meta name="description" content="Opportunity Hub connects ambitious students and recent graduates with meaningful opportunities from organizations that believe in their potential." />
-    <meta name="theme-color" content="#ffffff" />
     <title>Opportunity Hub — Find work that moves you forward</title>
+    <script defer src="https://ethiodeploy.com/beacon.js" data-project="opportunity-hub"></script>
   </head>
   <body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body>
 </html>

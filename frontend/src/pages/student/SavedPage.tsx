@@ -41,7 +41,7 @@ export default function SavedPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl font-bold text-black">Saved Opportunities</h2>
-          <p className="mt-1 text-sm text-slate-500">Opportunities you have bookmarked during this session.</p>
+          <p className="mt-1 text-sm text-slate-500">Opportunities you have bookmarked and saved after login.</p>
         </div>
         <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">{items.length} saved</span>
       </div>
@@ -56,7 +56,7 @@ export default function SavedPage() {
           </span>
           <p className="mt-4 text-sm font-semibold text-navy">No saved opportunities to show</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Saved items can be viewed during this session. The backend does not currently provide an endpoint to retrieve saved opportunities after a reload.
+            Your saved items are restored from the backend after login and refresh.
           </p>
           <Link to="/student/opportunities" className="mt-4 inline-block text-xs font-semibold text-brand hover:underline">
             Browse opportunities

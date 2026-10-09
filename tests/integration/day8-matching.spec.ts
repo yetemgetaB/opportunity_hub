@@ -3,12 +3,11 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import request = require('supertest');
+import request from 'supertest';
 import {
   OpportunityStatus,
   OpportunityType,
   SkillRequirementLevel,
-  UserRole,
 } from '@prisma/client';
 
 import { AppModule } from '@/app.module';

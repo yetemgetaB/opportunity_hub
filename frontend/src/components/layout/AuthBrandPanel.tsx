@@ -8,7 +8,7 @@ const features: [string, string, string][] = [
 
 export default function AuthBrandPanel() {
   return (
-    <section className="hidden min-h-screen flex-col justify-between bg-navy p-10 text-white md:flex lg:p-12 xl:p-16">
+    <section className="dark-navy-hero hidden min-h-screen flex-col justify-between bg-navy p-10 text-white md:flex lg:p-12 xl:p-16">
       <Link to="/" className="font-display text-3xl font-bold tracking-tight">
         <span className="text-white">Opportunity </span>
         <span className="text-brand">Hub</span>

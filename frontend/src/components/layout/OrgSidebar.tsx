@@ -2,10 +2,13 @@ import { Link, NavLink } from 'react-router-dom'
 import Icon from '../ui/Icon'
 import { ORG_NAV } from '../../utils/organizationData'
 import ThemeToggle from '../ui/ThemeToggle'
+import { useNotifications } from '../../context/NotificationsContext'
 
 type Props = { open: boolean; onClose: () => void }
 
 export default function OrgSidebar({ open, onClose }: Props) {
+  const { unreadCount, unreadCountError } = useNotifications()
+
   return (
     <>
       {open && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={onClose} aria-hidden="true" />}
@@ -40,6 +43,20 @@ export default function OrgSidebar({ open, onClose }: Props) {
                 <>
                   <Icon name={item.icon} className={`h-4 w-4 ${isActive ? 'text-brand' : 'text-white/40'}`} />
                   <span className="flex-1">{item.label}</span>
+                  {item.to === '/organization/notifications' && unreadCountError && (
+                    <span
+                      className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                      title={unreadCountError}
+                      aria-label="Unread notification count unavailable"
+                    >
+                      !
+                    </span>
+                  )}
+                  {item.to === '/organization/notifications' && !unreadCountError && unreadCount > 0 && (
+                    <span className="rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white" aria-label={`${unreadCount} unread notifications`}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </>
               )}
             </NavLink>

@@ -66,7 +66,7 @@ export default function Hero() {
   }
 
   return (
-    <section className="relative isolate overflow-hidden bg-navy text-white">
+    <section className="dark-navy-hero relative isolate overflow-hidden bg-navy text-white">
       <div className="pointer-events-none absolute -right-20 -top-32 size-80 rounded-full bg-brand opacity-10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -left-20 size-72 rounded-full bg-white opacity-[0.04] blur-3xl" />
       <div className="pointer-events-none absolute left-8 top-36 hidden h-0.5 w-36 bg-brand opacity-20 lg:block" />

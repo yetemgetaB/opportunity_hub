@@ -8,8 +8,7 @@ export default function Toggle({ checked, onChange, label }: Props) {
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      style={{ backgroundColor: checked ? '#f5a623' : '#e2e8f0' }}
-      className="relative inline-block h-5 w-9 shrink-0 rounded-full transition-colors"
+      className={`relative inline-block h-5 w-9 shrink-0 rounded-full transition-colors ${checked ? 'toggle-track-on dark-toggle-on' : 'toggle-track-off dark-toggle-off'}`}
     >
       <span
         style={{
@@ -19,11 +18,10 @@ export default function Toggle({ checked, onChange, label }: Props) {
           height: '16px',
           width: '16px',
           borderRadius: '9999px',
-          backgroundColor: '#ffffff',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
           transform: checked ? 'translateX(16px)' : 'translateX(0px)',
           transition: 'transform 150ms ease',
         }}
+        className="toggle-knob dark-toggle-knob bg-white"
       />
     </button>
   )

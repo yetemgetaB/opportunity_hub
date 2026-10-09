@@ -5,9 +5,10 @@ import type { NotificationItem } from '../../types/organization'
 type Props = {
   n: NotificationItem
   onRead: (id: string) => void
+  isUpdating?: boolean
 }
 
-export default function NotificationRow({ n, onRead }: Props) {
+export default function NotificationRow({ n, onRead, isUpdating = false }: Props) {
   const navigate = useNavigate()
 
   function handleClick() {
@@ -20,6 +21,7 @@ export default function NotificationRow({ n, onRead }: Props) {
       <button
         type="button"
         onClick={handleClick}
+        disabled={isUpdating}
         className="flex w-full gap-3 px-5 py-4 text-left transition hover:bg-slate-50"
       >
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${n.iconStyle}`}>

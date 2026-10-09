@@ -112,9 +112,9 @@ export default function OpportunityDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6">
-      <section className="relative flex h-44 items-end overflow-hidden rounded-2xl bg-navy/80 p-6 sm:h-48 sm:p-8">
+      <section className="opportunity-detail-hero relative flex h-44 items-end overflow-hidden rounded-2xl bg-navy/80 p-6 sm:h-48 sm:p-8">
         <div
-          className="pointer-events-none absolute inset-0 opacity-20"
+          className="opportunity-detail-hero-glow pointer-events-none absolute inset-0 opacity-20"
           style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0, transparent 45%)' }}
           aria-hidden="true"
         />
