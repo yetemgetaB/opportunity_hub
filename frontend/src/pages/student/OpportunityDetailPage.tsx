@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import BookmarkIcon from '../../components/ui/BookmarkIcon'
+import ApplyModal from '../../components/opportunities/ApplyModal'
 import { useSaved } from '../../context/SavedContext'
 import type { Opportunity } from '../../types/student'
 import { opportunityService } from '../../services/opportunityService'
@@ -22,6 +23,7 @@ export default function OpportunityDetailPage() {
   const [loading, setLoading] = useState(true)
   const [alreadyApplied, setAlreadyApplied] = useState(false)
   const [applicationCheckError, setApplicationCheckError] = useState('')
+  const [showApplyModal, setShowApplyModal] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -92,7 +94,7 @@ export default function OpportunityDetailPage() {
     }
   }
 
-  async function apply() {
+  function handleApplyClick() {
     if (!user) {
       navigate('/login', { state: { from: { pathname: `/student/opportunities/${opportunity.id}` }, intent: 'apply' } })
       return
@@ -101,13 +103,12 @@ export default function OpportunityDetailPage() {
       setApplyMessage('Sign in with a student account to apply.')
       return
     }
-    try {
-      await applicationService.apply(opportunity.id)
-      setAlreadyApplied(true)
-      setApplyMessage('Application submitted. You can track it in Applications.')
-    } catch (cause) {
-      setApplyMessage(cause instanceof Error ? cause.message : 'Unable to apply right now.')
-    }
+    setShowApplyModal(true)
+  }
+
+  function handleApplicationSuccess() {
+    setAlreadyApplied(true)
+    setApplyMessage('Application submitted successfully! Track its status under My Applications.')
   }
 
   return (
@@ -169,7 +170,12 @@ export default function OpportunityDetailPage() {
 
         <aside className="space-y-5">
           <section className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
-            <Button type="button" onClick={apply} disabled={expired || alreadyApplied || Boolean(applicationCheckError)} className="w-full rounded-lg py-3.5 disabled:cursor-not-allowed disabled:opacity-60">
+            <Button
+              type="button"
+              onClick={handleApplyClick}
+              disabled={expired || alreadyApplied || Boolean(applicationCheckError)}
+              className="w-full rounded-lg py-3.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
               {expired ? 'Application closed' : alreadyApplied ? 'Already Applied' : 'Apply Now'}
             </Button>
             {expired && <p className="mt-2 text-center text-xs text-red-600">The application deadline has passed.</p>}
@@ -204,6 +210,14 @@ export default function OpportunityDetailPage() {
           )}
         </aside>
       </div>
+
+      {/* Interactive Application Modal */}
+      <ApplyModal
+        isOpen={showApplyModal}
+        opportunity={opportunity}
+        onClose={() => setShowApplyModal(false)}
+        onSuccess={handleApplicationSuccess}
+      />
     </div>
   )
 }

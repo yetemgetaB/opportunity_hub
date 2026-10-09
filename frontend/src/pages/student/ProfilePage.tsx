@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import { ApiError } from '../../services/api'
-import { studentService, type StudentProfilePayload } from '../../services/studentService'
+import { studentService, type StudentProfilePayload, type CvItem } from '../../services/studentService'
 import { skillService, type SkillItem, type StudentSkillItem } from '../../services/skillService'
 
 const emptyProfile: StudentProfilePayload = {
@@ -48,6 +48,11 @@ export default function ProfilePage() {
   const [selectedProficiency, setSelectedProficiency] = useState(3)
   const [skillsSaving, setSkillsSaving] = useState(false)
 
+  // CV / Resume state
+  const [cvs, setCvs] = useState<CvItem[]>([])
+  const [cvUploading, setCvUploading] = useState(false)
+  const [cvActionId, setCvActionId] = useState<string | null>(null)
+
   useEffect(() => {
     let active = true
 
@@ -55,7 +60,8 @@ export default function ProfilePage() {
       studentService.getProfile(),
       skillService.listAll(),
       skillService.getMySkills(),
-    ]).then(([profileRes, allSkillsRes, mySkillsRes]) => {
+      studentService.getCvs(),
+    ]).then(([profileRes, allSkillsRes, mySkillsRes, cvsRes]) => {
       if (!active) return
 
       if (profileRes.status === 'fulfilled') {
@@ -81,11 +87,71 @@ export default function ProfilePage() {
         setMySkills(mySkillsRes.value)
       }
 
+      if (cvsRes.status === 'fulfilled') {
+        setCvs(cvsRes.value)
+      }
+
       setLoading(false)
     })
 
     return () => { active = false }
   }, [])
+
+  async function handleCvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setCvUploading(true)
+    try {
+      const newCv = await studentService.uploadCv(file, cvs.length === 0)
+      setCvs((prev) => [newCv, ...prev])
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to upload CV.')
+    } finally {
+      setCvUploading(false)
+    }
+  }
+
+  async function handleSetDefaultCv(cvId: string) {
+    setCvActionId(cvId)
+    try {
+      await studentService.setDefaultCv(cvId)
+      setCvs((prev) =>
+        prev.map((c) => ({
+          ...c,
+          isDefault: c.id === cvId,
+        }))
+      )
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to set default CV.')
+    } finally {
+      setCvActionId(null)
+    }
+  }
+
+  async function handleDeleteCv(cvId: string) {
+    if (!confirm('Are you sure you want to remove this resume?')) return
+    setCvActionId(cvId)
+    try {
+      await studentService.deleteCv(cvId)
+      setCvs((prev) => prev.filter((c) => c.id !== cvId))
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to delete CV.')
+    } finally {
+      setCvActionId(null)
+    }
+  }
+
+  async function handleDownloadCv(cvId: string) {
+    try {
+      const res = await studentService.getDownloadUrl(cvId)
+      if (res.downloadUrl) {
+        window.open(res.downloadUrl, '_blank')
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to get download link.')
+    }
+  }
 
   function update<K extends keyof StudentProfilePayload>(key: K, value: StudentProfilePayload[K]) {
     setProfile((current) => ({ ...current, [key]: value }))
@@ -314,6 +380,92 @@ export default function ProfilePage() {
                 </button>
               </div>
             </div>
+          </section>
+
+          {/* 3. Resume & CV Management Hub */}
+          <section className="space-y-6 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-7">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <h2 className="font-display text-lg font-bold text-navy">Resumes & Documents</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Upload your CV to automatically include it with your opportunity applications.
+                </p>
+              </div>
+              <label className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg bg-navy px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 transition">
+                <Icon name="file" className="size-4" />
+                {cvUploading ? 'Uploading…' : 'Upload Resume'}
+                <input
+                  type="file"
+                  accept=".pdf,.docx,.doc"
+                  onChange={handleCvUpload}
+                  disabled={cvUploading}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {cvs.length === 0 ? (
+              <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                <Icon name="file" className="mx-auto size-10 text-slate-300 mb-2" />
+                <p className="text-sm font-semibold text-navy">No resumes uploaded yet</p>
+                <p className="text-xs text-slate-500 mt-0.5">Upload a PDF or Word document to attach to your applications.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+                {cvs.map((cv) => (
+                  <div key={cv.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 bg-white hover:bg-slate-50/60 transition">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60">
+                        <Icon name="file" className="size-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-sm font-semibold text-navy">{cv.fileName}</p>
+                          {cv.isDefault && (
+                            <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                              Primary CV
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {(cv.fileSize / 1024).toFixed(1)} KB · Added {new Date(cv.uploadedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 sm:self-center self-end">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadCv(cv.id)}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-100 transition"
+                      >
+                        Download
+                      </button>
+                      {!cv.isDefault && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefaultCv(cv.id)}
+                          disabled={cvActionId === cv.id}
+                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-navy hover:border-amber-400 hover:bg-amber-50 transition disabled:opacity-50"
+                        >
+                          {cvActionId === cv.id ? 'Updating…' : 'Set as Primary'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCv(cv.id)}
+                        disabled={cvActionId === cv.id}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition disabled:opacity-50"
+                        title="Delete CV"
+                        aria-label="Delete CV"
+                      >
+                        <Icon name="x" className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </>
       )}
