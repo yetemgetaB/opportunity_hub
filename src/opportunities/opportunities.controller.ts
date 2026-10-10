@@ -127,6 +127,24 @@ getOpportunityApplicants(
     );
   }
 
+  // ORGANIZATION: Download applicant CV
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Get(':opportunityId/applications/:applicationId/cvs/:cvId/download')
+  getApplicantCvDownloadUrl(
+    @CurrentUser('id') userId: string,
+    @Param('opportunityId', ParseUUIDPipe) opportunityId: string,
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+    @Param('cvId', ParseUUIDPipe) cvId: string,
+  ) {
+    return this.opportunitiesService.getApplicantCvDownloadUrl(
+      userId,
+      opportunityId,
+      applicationId,
+      cvId,
+    );
+  }
+
   // STUDENT: Save opportunity
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
