@@ -116,6 +116,154 @@ export class OpportunitiesService {
     );
   }
 
+  async getOrganizationSummary(userId: string) {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: { userId },
+      include: { organization: true },
+    });
+
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const orgId = membership.organizationId;
+
+    // Run parallel high-speed aggregation queries
+    const [opportunities, applications] = await Promise.all([
+      this.prisma.opportunity.findMany({
+        where: { organizationId: orgId, deletedAt: null },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          applicationDeadline: true,
+          _count: {
+            select: { applications: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.application.findMany({
+        where: {
+          opportunity: {
+            organizationId: orgId,
+            deletedAt: null,
+          },
+        },
+        select: {
+          id: true,
+          status: true,
+          appliedAt: true,
+          opportunityId: true,
+          opportunity: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          studentProfile: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { appliedAt: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    const published = opportunities.filter((o) => o.status === OpportunityStatus.PUBLISHED);
+    const totalApplicants = opportunities.reduce((acc, curr) => acc + curr._count.applications, 0);
+
+    return {
+      stats: {
+        publishedCount: published.length,
+        draftCount: opportunities.filter((o) => o.status === OpportunityStatus.DRAFT).length,
+        totalOpportunities: opportunities.length,
+        totalApplicants,
+      },
+      openings: published.slice(0, 4).map((o) => {
+        const deadline = o.applicationDeadline;
+        const deadlineTime = deadline ? new Date(deadline).getTime() : Number.NaN;
+        return {
+          id: o.id,
+          title: o.title,
+          applicants: o._count.applications,
+          deadline: deadline
+            ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(deadline))
+            : 'Not specified',
+          urgent: Number.isFinite(deadlineTime) && deadlineTime >= Date.now() && deadlineTime < Date.now() + 7 * 86400000,
+        };
+      }),
+      recentApplicants: applications.map((a) => {
+        const first = a.studentProfile.user.firstName || '';
+        const last = a.studentProfile.user.lastName || '';
+        const name = `${first} ${last}`.trim() || 'Applicant';
+        const initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase() || 'AP';
+        return {
+          id: a.id,
+          name,
+          initials,
+          position: a.opportunity.title,
+          status: a.status,
+          dateApplied: a.appliedAt,
+        };
+      }),
+    };
+  }
+
+  async getOrganizationApplicants(userId: string) {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: { userId },
+      include: { organization: true },
+    });
+
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const applicants = await this.opportunitiesRepository.findApplicationsByOrganizationId(
+      membership.organizationId,
+    );
+
+    return applicants.map((app: any) => ({
+      ...mapApplicantForResponse(app),
+      opportunity: app.opportunity,
+    }));
+  }
+
+  async getOrganizationApplicant(userId: string, applicationId: string) {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: { userId },
+      include: { organization: true },
+    });
+
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const applicant = await this.opportunitiesRepository.findApplicationByIdAndOrganizationId(
+      applicationId,
+      membership.organizationId,
+    );
+
+    if (!applicant) {
+      throw new NotFoundException('Applicant not found.');
+    }
+
+    return {
+      ...mapApplicantForResponse(applicant as any),
+      opportunity: applicant.opportunity,
+    };
+  }
+
   async getMyOpportunity(
     userId: string,
     opportunityId: string,
