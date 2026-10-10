@@ -15,6 +15,7 @@ import {
   type OpportunityCreatePayload,
 } from '../../services/opportunityService'
 import { skillService, type SkillItem } from '../../services/skillService'
+import { FIELDS_OF_STUDY } from '../../utils/studentData'
 import type {
   OpportunityType,
   OpportunityUpdatePayload,
@@ -147,7 +148,7 @@ function requestErrorMessage(error: unknown, action: 'load' | 'save' | 'publish'
   return 'Unable to delete this opportunity. Please try again.'
 }
 
-function makePayload(form: OpportunityForm): OpportunityUpdatePayload {
+function makePayload(form: OpportunityForm, eligibleFields: string[]): OpportunityUpdatePayload {
   return {
     title: form.title.trim(),
     description: form.description.trim(),
@@ -157,7 +158,7 @@ function makePayload(form: OpportunityForm): OpportunityUpdatePayload {
     applicationDeadline: form.applicationDeadline
       ? `${form.applicationDeadline}T23:59:59.999Z`
       : null,
-    eligibleFields: form.eligibleFields.split(',').map((field) => field.trim()).filter(Boolean),
+    eligibleFields,
     minimumAcademicYear: form.minimumAcademicYear ? Number(form.minimumAcademicYear) : null,
     maximumAcademicYear: form.maximumAcademicYear ? Number(form.maximumAcademicYear) : null,
     minimumGpa: form.minimumGpa ? Number(form.minimumGpa) : null,
@@ -189,6 +190,9 @@ export default function EditOpportunityPage() {
   const [pickerSkillId, setPickerSkillId] = useState('')
   const [pickerLevel, setPickerLevel] = useState<'REQUIRED' | 'PREFERRED'>('REQUIRED')
 
+  const [selectedFields, setSelectedFields] = useState<string[]>([])
+  const [customFieldInput, setCustomFieldInput] = useState('')
+
   useEffect(() => {
     skillService.listAll().then(setAllSkills).catch(() => {})
   }, [])
@@ -210,6 +214,7 @@ export default function EditOpportunityPage() {
       .then((result) => {
         setOpportunity(result)
         setForm(formFromOpportunity(result))
+        setSelectedFields(result.eligibleFields ? [...result.eligibleFields] : [])
         if (result.skills && Array.isArray(result.skills)) {
           setSelectedSkills(
             result.skills.map((s) => ({
@@ -240,6 +245,21 @@ export default function EditOpportunityPage() {
     setSelectedSkills((prev) => prev.filter((s) => s.skillId !== skillId))
   }
 
+  function toggleField(field: string) {
+    setSelectedFields((prev) =>
+      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field],
+    )
+  }
+
+  function addCustomField() {
+    const trimmed = customFieldInput.trim()
+    if (!trimmed) return
+    if (!selectedFields.includes(trimmed)) {
+      setSelectedFields((prev) => [...prev, trimmed])
+    }
+    setCustomFieldInput('')
+  }
+
   function update<K extends keyof OpportunityForm>(key: K, value: OpportunityForm[K]) {
     setForm((current) => ({ ...current, [key]: value }))
     setFieldErrors((current) => ({ ...current, [key]: undefined }))
@@ -257,7 +277,7 @@ export default function EditOpportunityPage() {
     setSaving(true)
     try {
       const payload: OpportunityCreatePayload = {
-        ...makePayload(form),
+        ...makePayload(form, selectedFields),
         skills: selectedSkills,
       }
       await updateOrganizationOpportunity(id, payload)
@@ -409,13 +429,90 @@ export default function EditOpportunityPage() {
             </OpportunityFormSection>
 
             <OpportunityFormSection icon="check" title="Eligibility & Matching">
-              <TextField
-                label="Eligible Fields of Study"
-                value={form.eligibleFields}
-                onChange={(event) => update('eligibleFields', event.target.value)}
-                placeholder="Computer Science, Data Science, Engineering"
-                action={<span className="text-[11px] text-slate-400">Separate fields with commas</span>}
-              />
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-semibold text-navy">Eligible Fields of Study</label>
+                  <span className="text-xs text-slate-500">
+                    {selectedFields.length === 0 ? 'Open to all fields' : `${selectedFields.length} selected`}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mb-3">
+                  Select predefined fields or add custom fields to target students from specific departments.
+                </p>
+
+                {/* Selected Field Pills */}
+                {selectedFields.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-3.5">
+                    {selectedFields.map((field) => (
+                      <span
+                        key={field}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-navy text-white px-3 py-1 text-xs font-medium shadow-xs"
+                      >
+                        <span>{field}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleField(field)}
+                          className="ml-0.5 text-slate-300 hover:text-red-400 focus:outline-none cursor-pointer"
+                        >
+                          <Icon name="close" className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Quick Pick Predefined Pills */}
+                <div className="mb-3">
+                  <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                    Popular Academic Disciplines
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1">
+                    {FIELDS_OF_STUDY.map((field) => {
+                      const isSelected = selectedFields.includes(field)
+                      return (
+                        <button
+                          key={field}
+                          type="button"
+                          onClick={() => toggleField(field)}
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer border ${
+                            isSelected
+                              ? 'border-navy bg-navy/10 text-navy font-semibold'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          {isSelected ? '✓ ' : '+ '}
+                          {field}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Add Custom Field */}
+                <div className="flex gap-2 pt-1 border-t border-slate-200/80">
+                  <input
+                    type="text"
+                    value={customFieldInput}
+                    onChange={(e) => setCustomFieldInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addCustomField()
+                      }
+                    }}
+                    placeholder="Or add another field (e.g. Architecture, Pharmacy)..."
+                    className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={addCustomField}
+                    disabled={!customFieldInput.trim()}
+                    className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50 cursor-pointer"
+                  >
+                    Add Field
+                  </button>
+                </div>
+              </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <TextField

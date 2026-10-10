@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import { opportunityService, type OpportunityCreatePayload } from '../../services/opportunityService'
 import { skillService, type SkillItem } from '../../services/skillService'
+import { FIELDS_OF_STUDY } from '../../utils/studentData'
 import type { OpportunityType } from '../../types/opportunity'
 
 const types: { value: OpportunityType; label: string }[] = [
@@ -29,6 +30,9 @@ export default function CreateOpportunityPage() {
   const [pickerSkillId, setPickerSkillId] = useState('')
   const [pickerLevel, setPickerLevel] = useState<'REQUIRED' | 'PREFERRED'>('REQUIRED')
 
+  const [selectedFields, setSelectedFields] = useState<string[]>([])
+  const [customFieldInput, setCustomFieldInput] = useState('')
+
   useEffect(() => {
     skillService.listAll().then(setAllSkills).catch(() => {})
   }, [])
@@ -42,6 +46,21 @@ export default function CreateOpportunityPage() {
 
   function removeSkill(id: string) {
     setSelectedSkills((prev) => prev.filter((s) => s.skillId !== id))
+  }
+
+  function toggleField(field: string) {
+    setSelectedFields((prev) =>
+      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field],
+    )
+  }
+
+  function addCustomField() {
+    const trimmed = customFieldInput.trim()
+    if (!trimmed) return
+    if (!selectedFields.includes(trimmed)) {
+      setSelectedFields((prev) => [...prev, trimmed])
+    }
+    setCustomFieldInput('')
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -64,7 +83,7 @@ export default function CreateOpportunityPage() {
       location: String(form.get('location') ?? '').trim() || null,
       isRemote: form.get('isRemote') === 'on',
       applicationDeadline: deadline ? `${deadline}T23:59:59.999Z` : null,
-      eligibleFields: String(form.get('eligibleFields') ?? '').split(',').map((field) => field.trim()).filter(Boolean),
+      eligibleFields: selectedFields,
       minimumAcademicYear: minYear ? Number(minYear) : null,
       maximumAcademicYear: maxYear ? Number(maxYear) : null,
       minimumGpa: minGpa ? Number(minGpa) : null,
@@ -191,10 +210,90 @@ export default function CreateOpportunityPage() {
             Application deadline
             <input name="applicationDeadline" type="date" className={fieldClass} />
           </label>
-          <label className="text-sm font-semibold text-slate-800 sm:col-span-2">
-            Eligible fields <span className="font-normal text-slate-500">(comma separated)</span>
-            <input name="eligibleFields" className={fieldClass} placeholder="e.g. Computer Science, Software Engineering, IT" />
-          </label>
+          <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-semibold text-navy">Eligible Fields of Study</label>
+              <span className="text-xs text-slate-500">
+                {selectedFields.length === 0 ? 'Open to all fields' : `${selectedFields.length} selected`}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              Select predefined fields or add custom fields to target students from specific departments.
+            </p>
+
+            {/* Selected Field Pills */}
+            {selectedFields.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3.5">
+                {selectedFields.map((field) => (
+                  <span
+                    key={field}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-navy text-white px-3 py-1 text-xs font-medium shadow-xs"
+                  >
+                    <span>{field}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleField(field)}
+                      className="ml-0.5 text-slate-300 hover:text-red-400 focus:outline-none"
+                    >
+                      <Icon name="close" className="size-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Quick Pick Predefined Pills */}
+            <div className="mb-3">
+              <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                Popular Academic Disciplines
+              </span>
+              <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1">
+                {FIELDS_OF_STUDY.map((field) => {
+                  const isSelected = selectedFields.includes(field)
+                  return (
+                    <button
+                      key={field}
+                      type="button"
+                      onClick={() => toggleField(field)}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer border ${
+                        isSelected
+                          ? 'border-navy bg-navy/10 text-navy font-semibold'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {isSelected ? '✓ ' : '+ '}
+                      {field}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Add Custom Field */}
+            <div className="flex gap-2 pt-1 border-t border-slate-200/80">
+              <input
+                type="text"
+                value={customFieldInput}
+                onChange={(e) => setCustomFieldInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addCustomField()
+                  }
+                }}
+                placeholder="Or add another field (e.g. Architecture, Pharmacy)..."
+                className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={addCustomField}
+                disabled={!customFieldInput.trim()}
+                className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50 cursor-pointer"
+              >
+                Add Field
+              </button>
+            </div>
+          </div>
           <label className="text-sm font-semibold text-slate-800">
             Minimum academic year
             <input name="minimumAcademicYear" type="number" min="1" max="6" className={fieldClass} placeholder="e.g. 3" />
