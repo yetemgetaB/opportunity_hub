@@ -64,12 +64,26 @@ export default function ApplicationsPage() {
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
   }
 
+  async function handleWithdraw(applicationId: string) {
+    try {
+      await applicationService.withdrawApplication(applicationId)
+      setItems((prev) =>
+        prev.map((app) => (app.id === applicationId ? { ...app, status: 'WITHDRAWN' as const } : app))
+      )
+      if (selected && selected.id === applicationId) {
+        setSelected({ ...selected, status: 'WITHDRAWN' as const })
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Unable to withdraw application.')
+    }
+  }
+
   return (
     <div className="space-y-6">
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <ApplicationPipeline items={items} />
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xs">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <ApplicationTabs active={filter} onChange={setFilter} counts={counts} onExport={exportApplications} />
         </div>
@@ -85,7 +99,13 @@ export default function ApplicationsPage() {
         )}
       </section>
 
-      {selected && <ApplicationDetailsModal item={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ApplicationDetailsModal
+          item={selected}
+          onClose={() => setSelected(null)}
+          onWithdraw={handleWithdraw}
+        />
+      )}
     </div>
   )
 }

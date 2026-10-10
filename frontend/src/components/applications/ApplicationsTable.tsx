@@ -39,29 +39,29 @@ export default function ApplicationsTable({ items, filter, onView }: Props) {
         {sections.map((section, index) => (
           <tbody key={index}>
             {section.rows.map((application) => (
-              <tr key={application.id} className="border-b border-slate-200 last:border-b-0">
-                <td className="px-4 py-4">
+              <tr key={application.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70 transition">
+                <td className="px-4 py-3.5">
                   <div className="flex items-center gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-slate-800 text-sm font-bold text-white">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-navy font-display text-xs font-bold text-white shadow-xs">
                       {applicationOrganizationName(application)[0]}
                     </span>
-                    <span className="font-semibold text-slate-900">{applicationOrganizationName(application)}</span>
+                    <span className="font-semibold text-navy">{applicationOrganizationName(application)}</span>
                   </div>
                 </td>
-                <td className="max-w-56 px-4 py-4 font-medium text-slate-900">
+                <td className="max-w-56 px-4 py-3.5 font-medium text-slate-900">
                   <span className="block truncate">{application.opportunity?.title ?? 'Opportunity'}</span>
                 </td>
-                <td className="whitespace-nowrap px-4 py-4 text-slate-500">{applicationDateLabel(application.appliedAt)}</td>
-                <td className="px-4 py-4">
+                <td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-500">{applicationDateLabel(application.appliedAt)}</td>
+                <td className="px-4 py-3.5">
                   <ApplicationStatusBadge status={application.status} />
                 </td>
-                <td className="px-4 py-4 text-right">
+                <td className="px-4 py-3.5 text-right">
                   <button
                     type="button"
                     onClick={() => onView(application)}
-                    className="whitespace-nowrap rounded-sm bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700"
+                    className="whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-300 transition active:scale-[0.98]"
                   >
-                    View Detail
+                    View Details
                   </button>
                 </td>
               </tr>
