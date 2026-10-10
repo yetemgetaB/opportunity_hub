@@ -658,6 +658,58 @@ return applicants.map(mapApplicantForResponse);
     );
   }
 
+  async withdrawApplication(
+    userId: string,
+    applicationId: string,
+  ) {
+    const studentProfile =
+      await this.prisma.studentProfile.findUnique({
+        where: {
+          userId,
+        },
+      });
+
+    if (!studentProfile) {
+      throw new NotFoundException(
+        'Student profile not found.',
+      );
+    }
+
+    const application = await this.prisma.application.findUnique({
+      where: { id: applicationId },
+    });
+
+    if (!application || application.studentProfileId !== studentProfile.userId) {
+      throw new NotFoundException(
+        'Application not found.',
+      );
+    }
+
+    if (application.status === ApplicationStatus.WITHDRAWN) {
+      return application;
+    }
+
+    if (application.status === ApplicationStatus.ACCEPTED || application.status === ApplicationStatus.REJECTED) {
+      throw new ConflictException(
+        'Cannot withdraw an application that has already been finalized.',
+      );
+    }
+
+    return this.prisma.application.update({
+      where: { id: applicationId },
+      data: {
+        status: ApplicationStatus.WITHDRAWN,
+      },
+      include: {
+        opportunity: {
+          include: {
+            organization: true,
+          },
+        },
+      },
+    });
+  }
+
   async updateApplicationStatus(
     userId: string,
     opportunityId: string,
