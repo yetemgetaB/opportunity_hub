@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOpportunityDto } from './dto/create-opportunity.dto';
 import { UpdateOpportunityDto } from './dto/update-opportunity.dto';
 import { NotificationsService } from '@/notifications/notifications.service';
+import { CvStorageService } from '@/student-profile/cv-storage.service';
 
 describe('OpportunitiesService', () => {
   let service: OpportunitiesService;
@@ -72,6 +73,12 @@ describe('OpportunitiesService', () => {
           useValue: {
             create: jest.fn(),
             sendNotification: jest.fn(),
+          },
+        },
+        {
+          provide: CvStorageService,
+          useValue: {
+            createSignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.url/cv.pdf'),
           },
         },
       ],
