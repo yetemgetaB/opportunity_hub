@@ -10,13 +10,13 @@ Campus Opportunity Hub is developed by the APEX team across frontend and backend
 
 ### Backend
 
-- **Backend 1:** Authentication, users, roles, student profiles, organization profiles
-- **Backend 2:** Database architecture, opportunities, applications
-- **Backend 3:** AI matching, AI-assisted assessment, voice search, admin
+- **Backend 1:-** Authentication, users, roles, student profiles, organization profiles
+- **Backend 2:-** Database architecture, opportunities, applications
+- **Backend 3:-** AI matching, AI-assisted assessment, voice search, admin
 
 ### Frontend
 
-- **Frontend 1 and 2:** Student and organization-facing application interfaces
+- **Frontend 1 and 2:-** Student and organization-facing application interfaces
 
 Backend responsibilities are divided by domain, while the repository, shared database, and overall system architecture are collective team artifacts.
 
