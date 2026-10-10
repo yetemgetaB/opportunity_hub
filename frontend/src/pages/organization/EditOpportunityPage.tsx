@@ -12,7 +12,9 @@ import {
   getOrganizationOpportunity,
   publishOrganizationOpportunity,
   updateOrganizationOpportunity,
+  type OpportunityCreatePayload,
 } from '../../services/opportunityService'
+import { skillService, type SkillItem } from '../../services/skillService'
 import type {
   OpportunityType,
   OpportunityUpdatePayload,
@@ -182,6 +184,14 @@ export default function EditOpportunityPage() {
   const [actionError, setActionError] = useState('')
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [allSkills, setAllSkills] = useState<SkillItem[]>([])
+  const [selectedSkills, setSelectedSkills] = useState<{ skillId: string; requirementLevel: 'REQUIRED' | 'PREFERRED' }[]>([])
+  const [pickerSkillId, setPickerSkillId] = useState('')
+  const [pickerLevel, setPickerLevel] = useState<'REQUIRED' | 'PREFERRED'>('REQUIRED')
+
+  useEffect(() => {
+    skillService.listAll().then(setAllSkills).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!id) {
@@ -200,6 +210,14 @@ export default function EditOpportunityPage() {
       .then((result) => {
         setOpportunity(result)
         setForm(formFromOpportunity(result))
+        if (result.skills && Array.isArray(result.skills)) {
+          setSelectedSkills(
+            result.skills.map((s) => ({
+              skillId: (s as any).skillId ?? (s as any).skill?.id ?? s.name ?? '',
+              requirementLevel: ((s.requirementLevel ?? 'REQUIRED').toUpperCase() === 'PREFERRED' ? 'PREFERRED' : 'REQUIRED') as 'REQUIRED' | 'PREFERRED',
+            })).filter((s) => Boolean(s.skillId))
+          )
+        }
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) setError(requestErrorMessage(cause, 'load'))
@@ -210,6 +228,17 @@ export default function EditOpportunityPage() {
 
     return () => controller.abort()
   }, [id, reloadKey])
+
+  function addSkill() {
+    if (!pickerSkillId) return
+    if (selectedSkills.some((s) => s.skillId === pickerSkillId)) return
+    setSelectedSkills((prev) => [...prev, { skillId: pickerSkillId, requirementLevel: pickerLevel }])
+    setPickerSkillId('')
+  }
+
+  function removeSkill(skillId: string) {
+    setSelectedSkills((prev) => prev.filter((s) => s.skillId !== skillId))
+  }
 
   function update<K extends keyof OpportunityForm>(key: K, value: OpportunityForm[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -227,7 +256,11 @@ export default function EditOpportunityPage() {
 
     setSaving(true)
     try {
-      await updateOrganizationOpportunity(id, makePayload(form))
+      const payload: OpportunityCreatePayload = {
+        ...makePayload(form),
+        skills: selectedSkills,
+      }
+      await updateOrganizationOpportunity(id, payload)
       navigate('/organization/opportunities', {
         replace: true,
         state: { notice: 'Opportunity updated successfully.' },
@@ -418,6 +451,71 @@ export default function EditOpportunityPage() {
                   />
                   <InlineError>{fieldErrors.minimumGpa}</InlineError>
                 </div>
+              </div>
+            </OpportunityFormSection>
+
+            <OpportunityFormSection icon="check" title="Target Skills & Requirements">
+              <p className="text-xs text-slate-500 mb-3">Tag the required and preferred skills students should possess for optimal match rates.</p>
+
+              {/* Current Selected Skill Pills */}
+              {selectedSkills.length > 0 ? (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {selectedSkills.map((sel) => {
+                    const skillObj = allSkills.find((s) => s.id === sel.skillId)
+                    return (
+                      <span
+                        key={sel.skillId}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border shadow-xs ${
+                          sel.requirementLevel === 'REQUIRED'
+                            ? 'bg-amber-100/90 text-amber-900 border-amber-300'
+                            : 'bg-slate-100 text-slate-800 border-slate-300'
+                        }`}
+                      >
+                        <span className="font-semibold">{skillObj?.name ?? sel.skillId}</span>
+                        <span className="text-[10px] uppercase font-bold opacity-75">({sel.requirementLevel.toLowerCase()})</span>
+                        <button
+                          type="button"
+                          onClick={() => removeSkill(sel.skillId)}
+                          className="ml-1 text-slate-400 hover:text-red-600 focus:outline-none"
+                        >
+                          <Icon name="close" className="size-3" />
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic mb-3">No specific skills tagged yet.</p>
+              )}
+
+              {/* Add Skill Control */}
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={pickerSkillId}
+                  onChange={(e) => setPickerSkillId(e.target.value)}
+                  className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-amber-500"
+                >
+                  <option value="">Select a skill to add…</option>
+                  {allSkills.filter((s) => !selectedSkills.some((sel) => sel.skillId === s.id)).map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
+                  ))}
+                </select>
+                <select
+                  value={pickerLevel}
+                  onChange={(e) => setPickerLevel(e.target.value as 'REQUIRED' | 'PREFERRED')}
+                  className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-amber-500"
+                >
+                  <option value="REQUIRED">Required</option>
+                  <option value="PREFERRED">Preferred</option>
+                </select>
+                <button
+                  type="button"
+                  disabled={!pickerSkillId}
+                  onClick={addSkill}
+                  className="rounded-lg bg-navy px-3.5 py-2 text-xs font-semibold !text-white transition hover:bg-slate-800 disabled:opacity-50 dark-button-dark"
+                >
+                  Add Tag
+                </button>
               </div>
             </OpportunityFormSection>
 
