@@ -29,16 +29,16 @@ export function toStudentOpportunitySearch(item: OpportunitySearchResult): Oppor
   const tags = [...item.skills, ...item.eligibleFields]
   return {
     id: item.id,
-    company: 'Organization',
+    company: item.organization?.name ?? 'Verified Partner',
     location: item.location ?? (item.isRemote ? 'Remote' : 'Location not specified'),
     tagline: item.isRemote ? 'Remote opportunity' : item.location ?? 'Opportunity',
     title: item.title,
-    description: '',
+    description: item.description ?? '',
     tags,
     type: item.opportunityType,
     fieldsOfStudy: item.eligibleFields,
-    deadline: '',
-    overview: '',
+    deadline: item.applicationDeadline ?? '',
+    overview: item.description ?? '',
     requirements: item.skills,
   }
 }

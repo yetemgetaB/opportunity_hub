@@ -7,9 +7,7 @@ import QuickActions from '../../components/opportunities/QuickActions'
 import ActiveOpenings from '../../components/opportunities/ActiveOpenings'
 import type { ActiveOpening, RecentApplicant } from '../../types/organization'
 import { applicationService } from '../../services/applicationService'
-import { opportunityService } from '../../services/opportunityService'
 import { useAuthContext } from '../../context/AuthContext'
-import { toApplicantListItem } from '../../utils/applicantData'
 
 function DashboardStatCard({ label, value, note, icon }: { label: string; value: number; note: string; icon: IconName }) {
   return (
@@ -41,43 +39,21 @@ export default function DashboardPage() {
     }
     let active = true
     setLoading(true)
-    opportunityService.getMyOpportunities().then(async (items) => {
-      const grouped = await Promise.all(items.map(async (item) => ({
-        opportunity: item,
-        records: await applicationService.getApplicants(item.id),
-      })))
-      if (!active) return
-      const mappedApplicants = grouped.flatMap(({ opportunity, records }) =>
-        records.map((record) => toApplicantListItem(record, opportunity.id, opportunity.title)))
-      const published = grouped.filter(({ opportunity }) => opportunity.status === 'PUBLISHED')
-      setOpenings(published.slice(0, 4).map(({ opportunity, records }) => {
-        const deadline = opportunity.applicationDeadline
-        const deadlineTime = deadline ? new Date(deadline).getTime() : Number.NaN
-        return {
-          id: opportunity.id,
-          title: opportunity.title,
-          applicants: records.length,
-          deadline: deadline
-            ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(deadline))
-            : 'Not specified',
-          urgent: Number.isFinite(deadlineTime) && deadlineTime >= Date.now() && deadlineTime < Date.now() + 7 * 86400000,
-        }
-      }))
-      setApplicants(mappedApplicants.slice(0, 5).map((item) => ({
-        id: item.id,
-        name: item.name,
-        initials: item.initials,
-        position: item.position,
-        status: item.status,
-      })))
-      setStats({
-        published: published.length,
-        applicants: mappedApplicants.length,
+    applicationService.getOrganizationSummary()
+      .then((data) => {
+        if (!active) return
+        setOpenings(data.openings)
+        setApplicants(data.recentApplicants)
+        setStats({
+          published: data.stats.publishedCount,
+          applicants: data.stats.totalApplicants,
+        })
+        setError('')
       })
-      setError('')
-    }).catch((cause: unknown) => {
-      if (active) setError(cause instanceof Error ? cause.message : 'Unable to load your organization dashboard.')
-    }).finally(() => { if (active) setLoading(false) })
+      .catch((cause: unknown) => {
+        if (active) setError(cause instanceof Error ? cause.message : 'Unable to load your organization dashboard.')
+      })
+      .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [user?.id, user?.role])
 

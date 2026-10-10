@@ -30,6 +30,7 @@ import { OpportunitiesModule } from './opportunities/opportunities.module';
 import { OrganizationProfileModule } from './organization-profile/organization-profile.module';
 import { ApplicationsModule } from './applications/applications.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SkillsModule } from './skills/skills.module';
 
 const frontendDist = existsSync(join(process.cwd(), 'frontend', 'dist'))
   ? join(process.cwd(), 'frontend', 'dist')
@@ -73,6 +74,7 @@ const frontendDist = existsSync(join(process.cwd(), 'frontend', 'dist'))
     OrganizationProfileModule,
     ApplicationsModule,
     NotificationsModule,
+    SkillsModule,
   ],
 })
 export class AppModule {}

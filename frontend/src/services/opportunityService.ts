@@ -23,17 +23,41 @@ export interface OpportunityCreatePayload extends OpportunityUpdatePayload {
   skills?: { skillId: string; requirementLevel: 'REQUIRED' | 'PREFERRED' }[]
 }
 
+// Client-side fast cache for instant (0ms) page transitions
+const opportunityCache = new Map<string, { data: PublicOpportunity; timestamp: number }>()
+const listCache = new Map<string, { data: OpportunitySearchResult[]; timestamp: number }>()
+let myOppsCache: { data: OrganizationOpportunity[]; timestamp: number } | null = null
+const CACHE_TTL = 60 * 1000 // 1 minute fresh window
+
 export const opportunityService = {
   async listOpportunities(filters: OpportunityFilters, signal?: AbortSignal): Promise<OpportunitySearchResult[]> {
-    return apiRequest<OpportunitySearchResult[]>(`/opportunities${queryString(filters)}`, { signal })
+    const key = queryString(filters)
+    const cached = listCache.get(key)
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data
+    }
+    const result = await apiRequest<OpportunitySearchResult[]>(`/opportunities${key}`, { signal })
+    listCache.set(key, { data: result, timestamp: Date.now() })
+    return result
   },
 
   async getOpportunity(id: string, signal?: AbortSignal): Promise<PublicOpportunity> {
-    return apiRequest<PublicOpportunity>(`/opportunities/${encodeURIComponent(id)}`, { signal })
+    const cached = opportunityCache.get(id)
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data
+    }
+    const result = await apiRequest<PublicOpportunity>(`/opportunities/${encodeURIComponent(id)}`, { signal })
+    opportunityCache.set(id, { data: result, timestamp: Date.now() })
+    return result
   },
 
-  async getMyOpportunities(signal?: AbortSignal): Promise<OrganizationOpportunity[]> {
-    return apiRequest<OrganizationOpportunity[]>('/opportunities/my', { signal })
+  async getMyOpportunities(signal?: AbortSignal, bypassCache = false): Promise<OrganizationOpportunity[]> {
+    if (!bypassCache && myOppsCache && Date.now() - myOppsCache.timestamp < 30 * 1000) {
+      return myOppsCache.data
+    }
+    const result = await apiRequest<OrganizationOpportunity[]>('/opportunities/my', { signal })
+    myOppsCache = { data: result, timestamp: Date.now() }
+    return result
   },
 
   async getMyOpportunity(id: string, signal?: AbortSignal): Promise<OrganizationOpportunity> {
@@ -41,6 +65,8 @@ export const opportunityService = {
   },
 
   async createOpportunity(payload: OpportunityCreatePayload): Promise<OrganizationOpportunity> {
+    myOppsCache = null
+    listCache.clear()
     return apiRequest<OrganizationOpportunity>('/opportunities', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -48,6 +74,9 @@ export const opportunityService = {
   },
 
   async updateOpportunity(id: string, payload: Partial<OpportunityCreatePayload>): Promise<OrganizationOpportunity> {
+    myOppsCache = null
+    opportunityCache.delete(id)
+    listCache.clear()
     return apiRequest<OrganizationOpportunity>(`/opportunities/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
@@ -55,12 +84,18 @@ export const opportunityService = {
   },
 
   async publishOpportunity(id: string): Promise<OrganizationOpportunity> {
+    myOppsCache = null
+    opportunityCache.delete(id)
+    listCache.clear()
     return apiRequest<OrganizationOpportunity>(`/opportunities/${encodeURIComponent(id)}/publish`, {
       method: 'PATCH',
     })
   },
 
   async deleteOpportunity(id: string): Promise<{ message: string }> {
+    myOppsCache = null
+    opportunityCache.delete(id)
+    listCache.clear()
     return apiRequest<{ message: string }>(`/opportunities/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })

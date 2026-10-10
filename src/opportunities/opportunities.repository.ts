@@ -113,46 +113,55 @@ export class OpportunitiesRepository {
   }
 
   async saveOpportunity(
-  studentProfileId: string,
-  opportunityId: string,
-) {
-  return this.prisma.savedOpportunity.create({
-    data: {
-      studentProfileId,
-      opportunityId,
-    },
-  });
-}
-
-async removeSavedOpportunity(
     studentProfileId: string,
     opportunityId: string,
   ) {
-    return this.prisma.savedOpportunity.delete({
+    return this.prisma.savedOpportunity.upsert({
       where: {
         studentProfileId_opportunityId: {
           studentProfileId,
           opportunityId,
         },
       },
+      update: {},
+      create: {
+        studentProfileId,
+        opportunityId,
+      },
+    });
+  }
+
+  async removeSavedOpportunity(
+    studentProfileId: string,
+    opportunityId: string,
+  ) {
+    return this.prisma.savedOpportunity.deleteMany({
+      where: {
+        studentProfileId,
+        opportunityId,
+      },
     });
   }
 
   async findApplicationsByStudentProfileId(
-  studentProfileId: string,
-) {
-  return this.prisma.application.findMany({
-    where: {
-      studentProfileId,
-    },
-    include: {
-      opportunity: true,
-    },
-    orderBy: {
-      appliedAt: 'desc',
-    },
-  });
-}
+    studentProfileId: string,
+  ) {
+    return this.prisma.application.findMany({
+      where: {
+        studentProfileId,
+      },
+      include: {
+        opportunity: {
+          include: {
+            organization: true,
+          },
+        },
+      },
+      orderBy: {
+        appliedAt: 'desc',
+      },
+    });
+  }
 
 async findApplicationsByOpportunityId(opportunityId: string) {
   return this.prisma.application.findMany({
@@ -235,6 +244,201 @@ async findApplicationsByOpportunityId(opportunityId: string) {
     },
     orderBy: {
       appliedAt: 'desc',
+    },
+  });
+}
+
+async findApplicationsByOrganizationId(organizationId: string) {
+  return this.prisma.application.findMany({
+    where: {
+      opportunity: {
+        organizationId,
+        deletedAt: null,
+      },
+    },
+    select: {
+      id: true,
+      status: true,
+      appliedAt: true,
+      updatedAt: true,
+      opportunityId: true,
+      opportunity: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+        },
+      },
+      studentProfile: {
+        select: {
+          academicYear: true,
+          university: true,
+          fieldOfStudy: true,
+          location: true,
+          careerGoals: true,
+          careerGoalTags: true,
+          interests: true,
+
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              middleName: true,
+              lastName: true,
+              avatarUrl: true,
+            },
+          },
+
+          skills: {
+            select: {
+              proficiency: true,
+              yearsOfExperience: true,
+
+              skill: {
+                select: {
+                  id: true,
+                  name: true,
+                  category: true,
+                  description: true,
+                },
+              },
+            },
+          },
+
+          experiences: {
+            select: {
+              id: true,
+              title: true,
+              organizationName: true,
+              experienceType: true,
+              startDate: true,
+              endDate: true,
+              location: true,
+              description: true,
+            },
+            orderBy: {
+              startDate: 'desc',
+            },
+          },
+
+          cvs: {
+            select: {
+              id: true,
+              fileName: true,
+              fileType: true,
+              fileSize: true,
+              isDefault: true,
+              uploadedAt: true,
+            },
+            orderBy: {
+              uploadedAt: 'desc',
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      appliedAt: 'desc',
+    },
+  });
+}
+
+async findApplicationByIdAndOrganizationId(applicationId: string, organizationId: string) {
+  return this.prisma.application.findFirst({
+    where: {
+      id: applicationId,
+      opportunity: {
+        organizationId,
+        deletedAt: null,
+      },
+    },
+    select: {
+      id: true,
+      status: true,
+      appliedAt: true,
+      updatedAt: true,
+      opportunityId: true,
+      opportunity: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          opportunityType: true,
+          location: true,
+          isRemote: true,
+          applicationDeadline: true,
+          eligibleFields: true,
+          compensation: true,
+          applicationUrl: true,
+        },
+      },
+      studentProfile: {
+        select: {
+          academicYear: true,
+          university: true,
+          fieldOfStudy: true,
+          location: true,
+          careerGoals: true,
+          careerGoalTags: true,
+          interests: true,
+
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              middleName: true,
+              lastName: true,
+              avatarUrl: true,
+            },
+          },
+
+          skills: {
+            select: {
+              proficiency: true,
+              yearsOfExperience: true,
+
+              skill: {
+                select: {
+                  id: true,
+                  name: true,
+                  category: true,
+                  description: true,
+                },
+              },
+            },
+          },
+
+          experiences: {
+            select: {
+              id: true,
+              title: true,
+              organizationName: true,
+              experienceType: true,
+              startDate: true,
+              endDate: true,
+              location: true,
+              description: true,
+            },
+            orderBy: {
+              startDate: 'desc',
+            },
+          },
+
+          cvs: {
+            select: {
+              id: true,
+              fileName: true,
+              fileType: true,
+              fileSize: true,
+              isDefault: true,
+              uploadedAt: true,
+            },
+            orderBy: {
+              uploadedAt: 'desc',
+            },
+          },
+        },
+      },
     },
   });
 }

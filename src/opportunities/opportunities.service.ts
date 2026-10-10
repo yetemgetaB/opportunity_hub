@@ -29,6 +29,7 @@ import {
 } from './opportunity-response.mapper';
 import { mapApplicantForResponse } from './applicant-response.mapper';
 import { NotificationsService } from '@/notifications/notifications.service';
+import { CvStorageService } from '@/student-profile/cv-storage.service';
 
 @Injectable()
 export class OpportunitiesService {
@@ -36,6 +37,7 @@ export class OpportunitiesService {
     private readonly opportunitiesRepository: OpportunitiesRepository,
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly cvStorageService: CvStorageService,
   ) {}
 
   async createOpportunity(
@@ -112,6 +114,154 @@ export class OpportunitiesService {
     return this.opportunitiesRepository.findByOrganizationId(
       membership.organizationId,
     );
+  }
+
+  async getOrganizationSummary(userId: string) {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: { userId },
+      include: { organization: true },
+    });
+
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const orgId = membership.organizationId;
+
+    // Run parallel high-speed aggregation queries
+    const [opportunities, applications] = await Promise.all([
+      this.prisma.opportunity.findMany({
+        where: { organizationId: orgId, deletedAt: null },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          applicationDeadline: true,
+          _count: {
+            select: { applications: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.application.findMany({
+        where: {
+          opportunity: {
+            organizationId: orgId,
+            deletedAt: null,
+          },
+        },
+        select: {
+          id: true,
+          status: true,
+          appliedAt: true,
+          opportunityId: true,
+          opportunity: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          studentProfile: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { appliedAt: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    const published = opportunities.filter((o) => o.status === OpportunityStatus.PUBLISHED);
+    const totalApplicants = opportunities.reduce((acc, curr) => acc + curr._count.applications, 0);
+
+    return {
+      stats: {
+        publishedCount: published.length,
+        draftCount: opportunities.filter((o) => o.status === OpportunityStatus.DRAFT).length,
+        totalOpportunities: opportunities.length,
+        totalApplicants,
+      },
+      openings: published.slice(0, 4).map((o) => {
+        const deadline = o.applicationDeadline;
+        const deadlineTime = deadline ? new Date(deadline).getTime() : Number.NaN;
+        return {
+          id: o.id,
+          title: o.title,
+          applicants: o._count.applications,
+          deadline: deadline
+            ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(deadline))
+            : 'Not specified',
+          urgent: Number.isFinite(deadlineTime) && deadlineTime >= Date.now() && deadlineTime < Date.now() + 7 * 86400000,
+        };
+      }),
+      recentApplicants: applications.map((a) => {
+        const first = a.studentProfile.user.firstName || '';
+        const last = a.studentProfile.user.lastName || '';
+        const name = `${first} ${last}`.trim() || 'Applicant';
+        const initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase() || 'AP';
+        return {
+          id: a.id,
+          name,
+          initials,
+          position: a.opportunity.title,
+          status: a.status,
+          dateApplied: a.appliedAt,
+        };
+      }),
+    };
+  }
+
+  async getOrganizationApplicants(userId: string) {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: { userId },
+      include: { organization: true },
+    });
+
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const applicants = await this.opportunitiesRepository.findApplicationsByOrganizationId(
+      membership.organizationId,
+    );
+
+    return applicants.map((app: any) => ({
+      ...mapApplicantForResponse(app),
+      opportunity: app.opportunity,
+    }));
+  }
+
+  async getOrganizationApplicant(userId: string, applicationId: string) {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: { userId },
+      include: { organization: true },
+    });
+
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const applicant = await this.opportunitiesRepository.findApplicationByIdAndOrganizationId(
+      applicationId,
+      membership.organizationId,
+    );
+
+    if (!applicant) {
+      throw new NotFoundException('Applicant not found.');
+    }
+
+    return {
+      ...mapApplicantForResponse(applicant as any),
+      opportunity: applicant.opportunity,
+    };
   }
 
   async getMyOpportunity(
@@ -658,6 +808,58 @@ return applicants.map(mapApplicantForResponse);
     );
   }
 
+  async withdrawApplication(
+    userId: string,
+    applicationId: string,
+  ) {
+    const studentProfile =
+      await this.prisma.studentProfile.findUnique({
+        where: {
+          userId,
+        },
+      });
+
+    if (!studentProfile) {
+      throw new NotFoundException(
+        'Student profile not found.',
+      );
+    }
+
+    const application = await this.prisma.application.findUnique({
+      where: { id: applicationId },
+    });
+
+    if (!application || application.studentProfileId !== studentProfile.userId) {
+      throw new NotFoundException(
+        'Application not found.',
+      );
+    }
+
+    if (application.status === ApplicationStatus.WITHDRAWN) {
+      return application;
+    }
+
+    if (application.status === ApplicationStatus.ACCEPTED || application.status === ApplicationStatus.REJECTED) {
+      throw new ConflictException(
+        'Cannot withdraw an application that has already been finalized.',
+      );
+    }
+
+    return this.prisma.application.update({
+      where: { id: applicationId },
+      data: {
+        status: ApplicationStatus.WITHDRAWN,
+      },
+      include: {
+        opportunity: {
+          include: {
+            organization: true,
+          },
+        },
+      },
+    });
+  }
+
   async updateApplicationStatus(
     userId: string,
     opportunityId: string,
@@ -746,5 +948,62 @@ return applicants.map(mapApplicantForResponse);
         id: applicationId,
       },
     });
+  }
+
+  async getApplicantCvDownloadUrl(
+    userId: string,
+    opportunityId: string,
+    applicationId: string,
+    cvId: string,
+  ): Promise<{ downloadUrl: string; fileName: string }> {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: { userId },
+      include: { organization: true },
+    });
+
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const opportunity = await this.opportunitiesRepository.findByIdAndOrganizationId(
+      opportunityId,
+      membership.organizationId,
+    );
+
+    if (!opportunity) {
+      throw new NotFoundException('Opportunity not found.');
+    }
+
+    const application = await this.prisma.application.findFirst({
+      where: {
+        id: applicationId,
+        opportunityId,
+      },
+    });
+
+    if (!application) {
+      throw new NotFoundException('Application not found.');
+    }
+
+    const cv = await this.prisma.cV.findFirst({
+      where: {
+        id: cvId,
+        studentProfileId: application.studentProfileId,
+      },
+    });
+
+    if (!cv) {
+      throw new NotFoundException('Candidate CV not found.');
+    }
+
+    const downloadUrl = await this.cvStorageService.createSignedDownloadUrl(
+      cv.filePath,
+      3600, // 1 hour signed access
+    );
+
+    return {
+      downloadUrl,
+      fileName: cv.fileName,
+    };
   }
 }

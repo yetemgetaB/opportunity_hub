@@ -40,6 +40,37 @@ export class OpportunitiesController {
     return this.opportunitiesService.createOpportunity(userId, data);
   }
 
+  // ORGANIZATION: View organization dashboard summary (metrics, active openings, recent applicants)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Get('organization/summary')
+  async getOrganizationSummary(
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.opportunitiesService.getOrganizationSummary(userId);
+  }
+
+  // ORGANIZATION: View all applicants across all organization opportunities
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Get('organization/applicants')
+  async getOrganizationApplicants(
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.opportunitiesService.getOrganizationApplicants(userId);
+  }
+
+  // ORGANIZATION: View specific applicant details scoped to organization
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Get('organization/applicants/:applicantId')
+  async getOrganizationApplicant(
+    @CurrentUser('id') userId: string,
+    @Param('applicantId', ParseUUIDPipe) applicantId: string,
+  ) {
+    return this.opportunitiesService.getOrganizationApplicant(userId, applicantId);
+  }
+
   // ORGANIZATION: View all opportunities belonging to authenticated organization
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZATION)
@@ -127,6 +158,24 @@ getOpportunityApplicants(
     );
   }
 
+  // ORGANIZATION: Download applicant CV
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Get(':opportunityId/applications/:applicationId/cvs/:cvId/download')
+  getApplicantCvDownloadUrl(
+    @CurrentUser('id') userId: string,
+    @Param('opportunityId', ParseUUIDPipe) opportunityId: string,
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+    @Param('cvId', ParseUUIDPipe) cvId: string,
+  ) {
+    return this.opportunitiesService.getApplicantCvDownloadUrl(
+      userId,
+      opportunityId,
+      applicationId,
+      cvId,
+    );
+  }
+
   // STUDENT: Save opportunity
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
@@ -178,6 +227,17 @@ getOpportunityApplicants(
     @CurrentUser('id') userId: string,
   ) {
     return this.opportunitiesService.getMyApplications(userId);
+  }
+
+  // STUDENT: Withdraw an application
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Patch('applications/:applicationId/withdraw')
+  withdrawApplication(
+    @CurrentUser('id') userId: string,
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+  ) {
+    return this.opportunitiesService.withdrawApplication(userId, applicationId);
   }
 
   // PUBLIC: Search published opportunities
