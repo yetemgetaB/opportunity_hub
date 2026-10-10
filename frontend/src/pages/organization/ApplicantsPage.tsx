@@ -32,16 +32,21 @@ export default function ApplicantsPage() {
     if (user?.role !== 'ORGANIZATION') return
     setLoading(true)
     try {
-      const allOpportunities = await opportunityService.getMyOpportunities()
-      const selectedOpportunities = opportunityId === 'all'
-        ? allOpportunities
-        : allOpportunities.filter((item) => item.id === opportunityId)
-      const applicantGroups = await Promise.all(selectedOpportunities.map(async (opportunity) => {
-        const records = await applicationService.getApplicants(opportunity.id)
-        return records.map((record) => toApplicantListItem(record, opportunity.id, opportunity.title))
-      }))
+      const [allOpportunities, allApplicants] = await Promise.all([
+        opportunityService.getMyOpportunities(),
+        applicationService.getOrganizationApplicants(),
+      ])
+
+      const mappedApplicants = allApplicants.map((record) =>
+        toApplicantListItem(record, record.opportunity?.id || '', record.opportunity?.title || 'Opportunity'),
+      )
+
       setOpportunities(allOpportunities)
-      setApplicants(applicantGroups.flat())
+      setApplicants(
+        opportunityId === 'all'
+          ? mappedApplicants
+          : mappedApplicants.filter((item) => item.opportunityId === opportunityId),
+      )
       setSelectedIds([])
       setError('')
     } catch (cause: unknown) {

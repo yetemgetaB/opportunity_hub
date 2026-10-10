@@ -5,7 +5,6 @@ import Icon from '../../components/ui/Icon'
 import type { OpportunityApplicant } from '../../services/applicationService'
 import type { OrganizationOpportunity } from '../../types/opportunity'
 import { applicationService } from '../../services/applicationService'
-import { opportunityService } from '../../services/opportunityService'
 import { applicationStatusLabel } from '../../utils/applicantData'
 
 export default function ApplicantDetailsPage() {
@@ -25,20 +24,12 @@ export default function ApplicantDetailsPage() {
     }
     let active = true
     setLoading(true)
-    Promise.all([opportunityService.getMyOpportunities()])
-      .then(async ([opportunities]) => {
-        const groups = await Promise.all(opportunities.map(async (item) => ({
-          opportunity: item,
-          applicants: await applicationService.getApplicants(item.id),
-        })))
-        const match = groups.flatMap((group) => group.applicants.map((record) => ({ ...group, record })))
-          .find((entry) => entry.record.application.id === id)
-        if (active) {
-          setApplicant(match?.record)
-          setOpportunity(match?.opportunity)
-          if (!match) setError('This applicant could not be found for your opportunities.')
-          else setError('')
-        }
+    applicationService.getOrganizationApplicant(id)
+      .then((record) => {
+        if (!active) return
+        setApplicant(record)
+        setOpportunity(record.opportunity as unknown as OrganizationOpportunity)
+        setError('')
       })
       .catch((cause: unknown) => {
         if (active) setError(cause instanceof Error ? cause.message : 'Unable to load this applicant.')

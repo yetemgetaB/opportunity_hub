@@ -40,6 +40,37 @@ export class OpportunitiesController {
     return this.opportunitiesService.createOpportunity(userId, data);
   }
 
+  // ORGANIZATION: View organization dashboard summary (metrics, active openings, recent applicants)
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Get('organization/summary')
+  async getOrganizationSummary(
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.opportunitiesService.getOrganizationSummary(userId);
+  }
+
+  // ORGANIZATION: View all applicants across all organization opportunities
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Get('organization/applicants')
+  async getOrganizationApplicants(
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.opportunitiesService.getOrganizationApplicants(userId);
+  }
+
+  // ORGANIZATION: View specific applicant details scoped to organization
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZATION)
+  @Get('organization/applicants/:applicantId')
+  async getOrganizationApplicant(
+    @CurrentUser('id') userId: string,
+    @Param('applicantId', ParseUUIDPipe) applicantId: string,
+  ) {
+    return this.opportunitiesService.getOrganizationApplicant(userId, applicantId);
+  }
+
   // ORGANIZATION: View all opportunities belonging to authenticated organization
   @UseGuards(SupabaseAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZATION)
