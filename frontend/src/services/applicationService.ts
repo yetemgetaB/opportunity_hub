@@ -104,4 +104,14 @@ export const applicationService = {
       { method: 'PATCH', body: JSON.stringify({ status }) },
     )
   },
+
+  getApplicantCvDownloadUrl(
+    opportunityId: string,
+    applicationId: string,
+    cvId: string,
+  ): Promise<{ downloadUrl: string; fileName: string }> {
+    return apiRequest<{ downloadUrl: string; fileName: string }>(
+      `/opportunities/${encodeURIComponent(opportunityId)}/applications/${encodeURIComponent(applicationId)}/cvs/${encodeURIComponent(cvId)}/download`,
+    )
+  },
 }

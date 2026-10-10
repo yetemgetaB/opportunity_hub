@@ -66,6 +66,20 @@ export default function ApplicantDetailsPage() {
     }
   }
 
+  async function handleDownloadCv(cvId: string) {
+    if (!applicant || !opportunity) return
+    try {
+      const { downloadUrl } = await applicationService.getApplicantCvDownloadUrl(
+        opportunity.id,
+        applicant.application.id,
+        cvId,
+      )
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Unable to retrieve CV download link.')
+    }
+  }
+
   if (loading) return <div className="h-80 animate-pulse rounded-xl border border-neutral-200 bg-white" aria-label="Loading applicant" />
 
   if (!applicant || !opportunity) {
@@ -88,9 +102,9 @@ export default function ApplicantDetailsPage() {
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {message && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
 
-      <header className="flex flex-col gap-5 rounded-xl border border-neutral-200 bg-white p-6 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-5 rounded-xl border border-neutral-200 bg-white p-6 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-full bg-navy text-lg font-bold text-white">
+          <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-navy font-display text-lg font-bold text-white shadow-xs">
             {[applicant.student.firstName, applicant.student.lastName].map((part) => part[0] ?? '').join('').toUpperCase()}
           </span>
           <div>
@@ -106,21 +120,24 @@ export default function ApplicantDetailsPage() {
             value={applicant.application.status}
             disabled={saving}
             onChange={(event) => void updateStatus(event.target.value as OpportunityApplicant['application']['status'])}
-            className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-navy"
+            className="rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-xs font-semibold text-navy outline-none focus:border-amber-500 shadow-xs"
           >
             {(['SUBMITTED', 'UNDER_REVIEW', 'SHORTLISTED', 'INTERVIEW', 'ACCEPTED', 'REJECTED', 'WITHDRAWN'] as const).map((status) => (
               <option key={status} value={status}>{applicationStatusLabel(status)}</option>
             ))}
           </select>
-          <Link to={`/organization/assessment?opportunityId=${encodeURIComponent(opportunity.id)}`} className="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-navy hover:brightness-105">
-            View AI Results
+          <Link
+            to={`/organization/assessment?opportunityId=${encodeURIComponent(opportunity.id)}`}
+            className="inline-flex items-center rounded-xl bg-brand px-4 py-2 text-xs font-bold text-navy shadow-xs hover:brightness-105 transition"
+          >
+            View Screening
           </Link>
         </div>
       </header>
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
-          <section className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
+          <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-xs sm:p-6">
             <h2 className="font-display text-lg font-bold text-navy">Candidate Profile</h2>
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
               <div><dt className="text-xs text-slate-500">University</dt><dd className="mt-1 text-sm font-medium text-slate-800">{profile.university}</dd></div>
@@ -131,15 +148,27 @@ export default function ApplicantDetailsPage() {
             {profile.careerGoals && <p className="mt-5 whitespace-pre-line text-sm leading-6 text-slate-600">{profile.careerGoals}</p>}
             {profile.careerGoalTags.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{profile.careerGoalTags.map((tag) => <span key={tag} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{tag}</span>)}</div>}
           </section>
-          <section className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
+          <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-xs sm:p-6">
             <h2 className="font-display text-lg font-bold text-navy">Skills</h2>
             {applicant.student.skills.length ? (
-              <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-                {applicant.student.skills.map((skill) => <li key={skill.skillId} className="rounded-lg border border-slate-100 p-3 text-sm"><span className="font-semibold text-slate-800">{skill.name}</span>{skill.proficiency && <span className="ml-2 text-xs text-slate-500">{skill.proficiency}</span>}</li>)}
+              <ul className="mt-4 flex flex-wrap gap-2.5">
+                {applicant.student.skills.map((skill) => (
+                  <li
+                    key={skill.skillId}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs shadow-xs"
+                  >
+                    <span className="font-semibold text-navy">{skill.name}</span>
+                    {skill.proficiency && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                        Level {skill.proficiency}
+                      </span>
+                    )}
+                  </li>
+                ))}
               </ul>
             ) : <p className="mt-3 text-sm text-slate-500">No skills have been added to this profile.</p>}
           </section>
-          <section className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
+          <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-xs sm:p-6">
             <h2 className="font-display text-lg font-bold text-navy">Experience</h2>
             {applicant.student.experiences.length ? (
               <ul className="mt-4 space-y-4">
@@ -148,14 +177,27 @@ export default function ApplicantDetailsPage() {
             ) : <p className="mt-3 text-sm text-slate-500">No experience has been added to this profile.</p>}
           </section>
         </div>
-        <aside className="rounded-xl border border-neutral-200 bg-white p-5 sm:p-6">
+        <aside className="rounded-xl border border-neutral-200 bg-white p-5 shadow-xs sm:p-6">
           <h2 className="font-display text-lg font-bold text-navy">CV / Resume</h2>
           {applicant.student.cvs.length ? (
             <ul className="mt-4 space-y-3">
-              {applicant.student.cvs.map((cv) => <li key={cv.id} className="flex items-center gap-3 rounded-lg bg-slate-50 p-3"><Icon name="file" className="size-5 text-brand" /><span className="min-w-0 truncate text-sm text-slate-700">{cv.fileName}</span></li>)}
+              {applicant.student.cvs.map((cv) => (
+                <li key={cv.id} className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 shadow-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon name="file" className="size-5 shrink-0 text-amber-500" />
+                    <span className="min-w-0 truncate text-xs font-semibold text-slate-800">{cv.fileName}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadCv(cv.id)}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-navy py-1.5 text-xs font-bold !text-white shadow-xs hover:bg-navy-light transition active:scale-[0.98] dark-button-dark"
+                  >
+                    View / Download CV ↓
+                  </button>
+                </li>
+              ))}
             </ul>
           ) : <p className="mt-3 text-sm text-slate-500">No CV is available for this applicant.</p>}
-          <p className="mt-4 text-xs leading-5 text-slate-400">CV metadata is available, but the current applicant API does not provide file download URLs.</p>
         </aside>
       </div>
     </div>
