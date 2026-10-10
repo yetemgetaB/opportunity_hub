@@ -180,6 +180,17 @@ getOpportunityApplicants(
     return this.opportunitiesService.getMyApplications(userId);
   }
 
+  // STUDENT: Withdraw an application
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Patch('applications/:applicationId/withdraw')
+  withdrawApplication(
+    @CurrentUser('id') userId: string,
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+  ) {
+    return this.opportunitiesService.withdrawApplication(userId, applicationId);
+  }
+
   // PUBLIC: Search published opportunities
   @Get()
   async searchOpportunities(@Query() query: SearchOpportunityDto) {

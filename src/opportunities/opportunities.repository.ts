@@ -144,20 +144,24 @@ export class OpportunitiesRepository {
   }
 
   async findApplicationsByStudentProfileId(
-  studentProfileId: string,
-) {
-  return this.prisma.application.findMany({
-    where: {
-      studentProfileId,
-    },
-    include: {
-      opportunity: true,
-    },
-    orderBy: {
-      appliedAt: 'desc',
-    },
-  });
-}
+    studentProfileId: string,
+  ) {
+    return this.prisma.application.findMany({
+      where: {
+        studentProfileId,
+      },
+      include: {
+        opportunity: {
+          include: {
+            organization: true,
+          },
+        },
+      },
+      orderBy: {
+        appliedAt: 'desc',
+      },
+    });
+  }
 
 async findApplicationsByOpportunityId(opportunityId: string) {
   return this.prisma.application.findMany({
