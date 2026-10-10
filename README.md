@@ -22,7 +22,7 @@ Backend responsibilities are divided by domain, while the repository, shared dat
 
 ---
 
-## Shared Database & Architecture Assets
+## Shared Database and Architecture Assets
 
 The project database is implemented using Supabase PostgreSQL (PostgreSQL 15+) with a hardened v2.1 physical schema featuring 19 relational tables, 12 domain ENUMs, and comprehensive Row-Level Security (RLS). Primary database architecture and schema maintenance is led by Backend 2.
 
