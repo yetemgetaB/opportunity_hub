@@ -72,6 +72,12 @@ export const applicationService = {
     return apiRequest<ApplicationItem[]>('/opportunities/applications')
   },
 
+  withdrawApplication(applicationId: string): Promise<ApplicationItem> {
+    return apiRequest<ApplicationItem>(`/opportunities/applications/${encodeURIComponent(applicationId)}/withdraw`, {
+      method: 'PATCH',
+    })
+  },
+
   getSavedOpportunities(): Promise<string[]> {
     return apiRequest<SavedOpportunityRecord[]>('/opportunities/saved').then((items) =>
       items
