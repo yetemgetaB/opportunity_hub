@@ -1,13 +1,21 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../ui/Icon'
 import ApplicationStatusBadge from './ApplicationStatusBadge'
 import type { ApplicationItem } from '../../types/application'
 import { applicationDateLabel, applicationOrganizationName } from '../../utils/applicationData'
 
-type Props = { item: ApplicationItem; onClose: () => void }
+type Props = {
+  item: ApplicationItem
+  onClose: () => void
+  onWithdraw?: (applicationId: string) => Promise<void>
+}
 
-export default function ApplicationDetailsModal({ item, onClose }: Props) {
+export default function ApplicationDetailsModal({ item, onClose, onWithdraw }: Props) {
+  const [withdrawing, setWithdrawing] = useState(false)
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false)
+  const canWithdraw = !['ACCEPTED', 'REJECTED', 'WITHDRAWN'].includes(item.status)
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -15,6 +23,20 @@ export default function ApplicationDetailsModal({ item, onClose }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  async function handleWithdraw() {
+    if (!onWithdraw) return
+    setWithdrawing(true)
+    try {
+      await onWithdraw(item.id)
+      setConfirmWithdraw(false)
+      onClose()
+    } catch {
+      // Handled by parent or toast
+    } finally {
+      setWithdrawing(false)
+    }
+  }
 
   return (
     <div
@@ -107,18 +129,54 @@ export default function ApplicationDetailsModal({ item, onClose }: Props) {
           </dl>
         </div>
 
-        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+        {confirmWithdraw && (
+          <div className="border-t border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950 space-y-2">
+            <p className="font-bold">Withdraw this application?</p>
+            <p className="text-amber-800">
+              The organization will be notified that you have withdrawn from consideration. This action cannot be undone.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleWithdraw}
+                disabled={withdrawing}
+                className="rounded-lg bg-red-600 px-3 py-1.5 font-bold text-white shadow-xs hover:bg-red-700 disabled:opacity-50"
+              >
+                {withdrawing ? 'Withdrawing…' : 'Yes, Withdraw'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmWithdraw(false)}
+                disabled={withdrawing}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Keep Application
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2.5 border-t border-slate-100 px-6 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-md border border-slate-200 py-2.5 text-xs font-semibold text-navy hover:bg-slate-50"
+            className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition active:scale-[0.98]"
           >
             Close
           </button>
+          {canWithdraw && !confirmWithdraw && onWithdraw && (
+            <button
+              type="button"
+              onClick={() => setConfirmWithdraw(true)}
+              className="rounded-xl border border-red-200/90 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50/60 transition active:scale-[0.98]"
+            >
+              Withdraw
+            </button>
+          )}
           {item.opportunityId && (
             <Link
               to={`/student/opportunities/${item.opportunityId}`}
-              className="flex-1 rounded-md bg-brand py-2.5 text-center text-xs font-semibold text-navy hover:brightness-110"
+              className="flex-1 rounded-xl bg-navy py-2.5 text-center text-xs font-bold !text-white shadow-xs hover:bg-navy-light transition active:scale-[0.98] dark-button-dark"
             >
               View Opportunity
             </Link>
