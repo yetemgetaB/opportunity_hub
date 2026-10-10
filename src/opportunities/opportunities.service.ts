@@ -29,6 +29,7 @@ import {
 } from './opportunity-response.mapper';
 import { mapApplicantForResponse } from './applicant-response.mapper';
 import { NotificationsService } from '@/notifications/notifications.service';
+import { CvStorageService } from '@/student-profile/cv-storage.service';
 
 @Injectable()
 export class OpportunitiesService {
@@ -36,6 +37,7 @@ export class OpportunitiesService {
     private readonly opportunitiesRepository: OpportunitiesRepository,
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly cvStorageService: CvStorageService,
   ) {}
 
   async createOpportunity(
@@ -798,5 +800,62 @@ return applicants.map(mapApplicantForResponse);
         id: applicationId,
       },
     });
+  }
+
+  async getApplicantCvDownloadUrl(
+    userId: string,
+    opportunityId: string,
+    applicationId: string,
+    cvId: string,
+  ): Promise<{ downloadUrl: string; fileName: string }> {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: { userId },
+      include: { organization: true },
+    });
+
+    if (!membership || membership.organization.deletedAt) {
+      throw new NotFoundException('Organization membership not found.');
+    }
+
+    const opportunity = await this.opportunitiesRepository.findByIdAndOrganizationId(
+      opportunityId,
+      membership.organizationId,
+    );
+
+    if (!opportunity) {
+      throw new NotFoundException('Opportunity not found.');
+    }
+
+    const application = await this.prisma.application.findFirst({
+      where: {
+        id: applicationId,
+        opportunityId,
+      },
+    });
+
+    if (!application) {
+      throw new NotFoundException('Application not found.');
+    }
+
+    const cv = await this.prisma.cV.findFirst({
+      where: {
+        id: cvId,
+        studentProfileId: application.studentProfileId,
+      },
+    });
+
+    if (!cv) {
+      throw new NotFoundException('Candidate CV not found.');
+    }
+
+    const downloadUrl = await this.cvStorageService.createSignedDownloadUrl(
+      cv.filePath,
+      3600, // 1 hour signed access
+    );
+
+    return {
+      downloadUrl,
+      fileName: cv.fileName,
+    };
   }
 }
